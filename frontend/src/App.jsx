@@ -750,7 +750,7 @@ function AppShell({ activeSection, onNavigate, children }) {
     };
 
     return (
-        <div className="bg-surface text-on-surface">
+        <div className="text-on-surface">
             <TopNav onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)} />
             {isMobileMenuOpen && (
                 <MobileDropdownMenu
@@ -767,18 +767,18 @@ function AppShell({ activeSection, onNavigate, children }) {
 
 function TopNav({ onToggleMenu }) {
     return (
-        <nav className="fixed top-0 z-40 flex h-16 w-full items-center justify-between bg-white/80 px-6 font-manrope antialiased shadow-sm backdrop-blur-xl md:ml-64 md:w-[calc(100%-16rem)] md:px-8">
+        <nav className="fixed top-0 z-40 flex h-16 w-full items-center justify-between px-6 font-manrope antialiased glass-navbar md:ml-64 md:w-[calc(100%-16rem)] md:px-8">
             <div className="flex items-center gap-3 md:gap-8">
                 <button
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 md:hidden"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-on-surface-variant transition-colors hover:bg-surface-container-low md:hidden"
                     onClick={onToggleMenu}
                     type="button"
                 >
                     <span className="material-symbols-outlined">menu</span>
                 </button>
                 <div className="hidden items-center gap-6 md:flex">
-                    <div className="flex items-center gap-3 rounded-lg bg-surface-container-low px-4 py-2">
-                        <span className="material-symbols-outlined text-xl text-outline">hub</span>
+                    <div className="flex items-center gap-3 rounded-xl bg-surface-container-low px-4 py-2">
+                        <span className="material-symbols-outlined text-xl text-primary">hub</span>
                         <div>
                             <p className="text-sm font-bold text-on-surface">KIMA Arsip Monitoring</p>
                             <p className="text-[10px] uppercase tracking-wider text-on-surface-variant">
@@ -791,12 +791,13 @@ function TopNav({ onToggleMenu }) {
 
             <div className="flex items-center gap-6">
                 <button
-                    className="rounded-lg p-2 text-slate-500 transition-all hover:bg-slate-50"
+                    className="relative rounded-xl p-2 text-on-surface-variant transition-all hover:bg-surface-container-low"
                     type="button"
                 >
                     <span className="material-symbols-outlined">notifications</span>
+                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary-container"></span>
                 </button>
-                <div className="hidden items-center gap-3 border-l border-slate-100 pl-4 md:flex">
+                <div className="hidden items-center gap-3 pl-4 md:flex">
                     <div className="text-right">
                         <p className="text-sm font-semibold text-on-surface">Administrator</p>
                         <p className="text-[10px] uppercase tracking-wider text-on-surface-variant">
@@ -805,7 +806,7 @@ function TopNav({ onToggleMenu }) {
                     </div>
                     <img
                         alt="Administrator Profile"
-                        className="h-10 w-10 rounded-full border-2 border-surface-container-high object-cover"
+                        className="h-10 w-10 rounded-full object-cover shadow-soft"
                         src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAFhnZ3sLh08K-pb9OHZ3RVbGsMO5bKg2zux3NkoQNNOv96Mff-nuHjRBNqlG8PKMPx0E-6VsMGTfB_Jn7lpTk0cWXlblrf-mzL1KZ3O724-QrQBwXPmLINGHLBuxACZGsByzSGBD6Yt9GVvuswzU7_IhGniplwUFCUhvp7w5cU0m_k8DzEjXtMaYsXa-5x15vort0mEzRr9ygaZgu9n6dL3xd-XNV_AxamcvQyVEuceozL2mSLxCaP6gqaGvVKvIN6DZvZzpMQh8"
                     />
                 </div>
@@ -817,13 +818,13 @@ function TopNav({ onToggleMenu }) {
 function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
     return (
         <div className="fixed inset-x-0 top-16 z-40 px-4 md:hidden">
-            <div className="rounded-2xl border border-slate-100 bg-white/95 p-2 shadow-xl backdrop-blur">
+            <div className="rounded-2xl glass-panel p-2">
                 <div className="mb-1 flex items-center justify-between px-2 py-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                         Menu Navigasi
                     </p>
                     <button
-                        className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100"
+                        className="rounded-md p-1 text-on-surface-variant transition-colors hover:bg-slate-100"
                         onClick={onClose}
                         type="button"
                     >
@@ -835,17 +836,17 @@ function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
                     {sidebarItems.map((item) => {
                         const isActive = activeSection === item.key;
                         return (
-                            <div key={item.key} className={item.separated ? "mt-2 border-t border-slate-100 pt-2" : ""}>
+                            <div key={item.key} className={item.separated ? "mt-2 pt-2" : ""}>
                                 <button
-                                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${isActive
-                                        ? "bg-blue-50/70 font-bold text-blue-900"
-                                        : "text-slate-600 transition-colors hover:bg-slate-100"
+                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all ${isActive
+                                        ? "bg-primary-container/60 font-bold text-on-surface"
+                                        : "text-on-surface-variant hover:bg-surface-container-low"
                                         }`}
                                     onClick={() => onNavigate(item.key)}
                                     type="button"
                                 >
                                     <span
-                                        className="material-symbols-outlined"
+                                        className={`material-symbols-outlined ${isActive ? 'text-primary' : ''}`}
                                         style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
                                     >
                                         {item.icon}
@@ -863,7 +864,7 @@ function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
 
 function Sidebar({ activeSection, onNavigate }) {
     return (
-        <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col bg-slate-50/80 px-4 py-8 font-manrope text-sm font-medium backdrop-blur-xl md:flex">
+        <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col glass-sidebar px-4 py-8 font-manrope text-sm font-medium md:flex">
             <div className="mb-10 px-2">
                 <div className="flex items-center gap-3">
                     <img
@@ -873,38 +874,30 @@ function Sidebar({ activeSection, onNavigate }) {
                         src="/favicon.svg"
                     />
                     <div>
-                        <p className="text-lg font-extrabold tracking-tight text-blue-900">KIMA</p>
+                        <p className="text-lg font-extrabold tracking-tight text-primary">KIMA</p>
                         <p className="text-xs font-medium text-on-surface-variant">Dokumen Arsip</p>
                     </div>
                 </div>
             </div>
 
-            <nav className="flex-grow space-y-2">
+            <nav className="flex-grow space-y-1">
                 {sidebarItems.map((item) => {
                     const isActive = activeSection === item.key;
                     return (
-                        <div key={item.key}>
-                            <button
-                                className={`flex w-full items-center gap-3 px-4 py-3 text-left font-manrope text-sm tracking-tight ${isActive
-                                    ? "rounded-l-lg border-r-4 border-blue-900 bg-blue-50/50 font-bold text-blue-900"
-                                    : "rounded-lg text-slate-500 transition-all hover:bg-blue-50/30 hover:text-blue-800"
-                                    }`}
-                                onClick={() => onNavigate(item.key)}
-                                type="button"
+                        <button
+                            key={item.key}
+                            onClick={() => onNavigate(item.key)}
+                            type="button"
+                            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all ${isActive ? "bg-primary-container/50 text-on-surface font-bold shadow-soft" : "text-on-surface-variant hover:bg-white/60 hover:text-on-surface"}`}
+                        >
+                            <span
+                                className={`material-symbols-outlined ${isActive ? 'text-primary' : ''}`}
+                                style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
                             >
-                                <span
-                                    className="material-symbols-outlined"
-                                    style={
-                                        isActive
-                                            ? { fontVariationSettings: "'FILL' 1" }
-                                            : undefined
-                                    }
-                                >
-                                    {item.icon}
-                                </span>
-                                <span>{item.label}</span>
-                            </button>
-                        </div>
+                                {item.icon}
+                            </span>
+                            <span>{item.label}</span>
+                        </button>
                     );
                 })}
             </nav>
@@ -1211,7 +1204,7 @@ function DashboardPage({
                                                         ></div>
                                                     </div>
 
-                                                    <p className="text-[11px] font-bold text-slate-600">
+                                                    <p className="text-[11px] font-bold text-on-surface-variant">
                                                         {monitoringMonths[item.month - 1]}
                                                     </p>
                                                 </div>
@@ -1245,7 +1238,7 @@ function DashboardPage({
                             </div>
 
                             <div className={`rounded-xl border px-4 py-3 ${rentalDelta < 0 ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"}`}>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                                <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                     Perubahan Sewa
                                 </p>
                                 <p className={`mt-1 text-2xl font-black ${rentalDelta < 0 ? "text-red-700" : "text-emerald-700"}`}>
@@ -1254,7 +1247,7 @@ function DashboardPage({
                             </div>
 
                             <div className="rounded-xl border border-slate-100 bg-white px-4 py-3">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                     Penurunan Terbesar
                                 </p>
                                 <p className="mt-1 text-sm font-bold text-blue-900">
@@ -1746,7 +1739,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
             <form className="mx-auto w-full max-w-6xl space-y-8" onSubmit={handleSubmit}>
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
                     <div>
-                        <h2 className="text-3xl font-extrabold leading-tight text-blue-950 font-headline">
+                        <h2 className="text-3xl font-extrabold leading-tight text-on-surface font-headline">
                             {isEditMode ? "Edit Data Pelanggan" : "Entri Pelanggan Baru"}
                         </h2>
                         <p className="mt-2 max-w-lg text-on-surface-variant">
@@ -1793,7 +1786,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                         <section className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
                             <div className="mb-6 flex items-center gap-3">
                                 <span className="material-symbols-outlined text-primary">badge</span>
-                                <h3 className="text-lg font-bold text-blue-950">Identitas Pelanggan</h3>
+                                <h3 className="text-lg font-bold text-on-surface">Identitas Pelanggan</h3>
                             </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1814,7 +1807,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                             <option key={isp} value={isp} />
                                         ))}
                                     </datalist>
-                                    <p className="mt-1 text-[11px] text-slate-500">
+                                    <p className="mt-1 text-[11px] text-on-surface-variant">
                                         Bisa pilih dari daftar ISP existing atau ketik nama ISP baru.
                                     </p>
                                 </div>
@@ -1852,7 +1845,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                             <section className="rounded-lg border-l-4 border-blue-900 bg-surface-container-lowest p-8 shadow-sm">
                                 <div className="mb-6 flex items-center gap-3">
                                     <span className="material-symbols-outlined text-primary">calendar_today</span>
-                                    <h3 className="text-lg font-bold text-blue-950">Periode Kontrak</h3>
+                                    <h3 className="text-lg font-bold text-on-surface">Periode Kontrak</h3>
                                 </div>
 
                                 <div className="mb-6">
@@ -1912,7 +1905,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                             <section className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
                                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                     <div>
-                                        <h3 className="text-lg font-bold text-blue-950">Rencana Invoice Awal</h3>
+                                        <h3 className="text-lg font-bold text-on-surface">Rencana Invoice Awal</h3>
                                         <p className="text-xs text-on-surface-variant">
                                             Jumlah baris otomatis mengikuti periode berjalan dan periode tagihan.
                                         </p>
@@ -1931,21 +1924,21 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                     <table className="w-full min-w-[1100px] border-collapse">
                                         <thead>
                                             <tr className="border-b border-slate-100 bg-slate-50/80">
-                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">No</th>
-                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Periode Tagihan</th>
-                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Nomor Invoice</th>
-                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Jumlah Tiap Tagihan</th>
-                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Up Invoice</th>
-                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Up Bukti Bayar</th>
-                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Tanggal Dibayar</th>
-                                                <th className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-wider text-slate-500">Aksi</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">No</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Periode Tagihan</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Nomor Invoice</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Jumlah Tiap Tagihan</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Up Invoice</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Up Bukti Bayar</th>
+                                                <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Tanggal Dibayar</th>
+                                                <th className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Aksi</th>
                                             </tr>
                                         </thead>
 
                                         <tbody className="divide-y divide-slate-100">
                                             {invoiceRows.length === 0 && (
                                                 <tr>
-                                                    <td className="px-3 py-4 text-center text-xs text-slate-500" colSpan="8">
+                                                    <td className="px-3 py-4 text-center text-xs text-on-surface-variant" colSpan="8">
                                                         Isi periode berjalan dan pilih periode tagihan untuk membentuk baris invoice otomatis.
                                                     </td>
                                                 </tr>
@@ -1953,7 +1946,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
 
                                             {invoiceRows.map((row, index) => (
                                                 <tr key={row.key} className="align-top hover:bg-slate-50/80">
-                                                    <td className="px-3 py-2 text-xs font-semibold text-slate-600">
+                                                    <td className="px-3 py-2 text-xs font-semibold text-on-surface-variant">
                                                         {String(index + 1).padStart(2, "0")}
                                                     </td>
 
@@ -2035,7 +2028,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                                             type="file"
                                                         />
                                                         {row.invoiceFileName && (
-                                                            <p className="mt-1 truncate text-[10px] text-slate-500">{row.invoiceFileName}</p>
+                                                            <p className="mt-1 truncate text-[10px] text-on-surface-variant">{row.invoiceFileName}</p>
                                                         )}
                                                     </td>
 
@@ -2051,7 +2044,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                                             type="file"
                                                         />
                                                         {row.paymentProofFileName && (
-                                                            <p className="mt-1 truncate text-[10px] text-slate-500">{row.paymentProofFileName}</p>
+                                                            <p className="mt-1 truncate text-[10px] text-on-surface-variant">{row.paymentProofFileName}</p>
                                                         )}
                                                     </td>
 
@@ -2095,7 +2088,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                             <section className="rounded-lg bg-surface-container-low p-6">
                                 <div className="mb-6 flex items-center gap-3">
                                     <span className="material-symbols-outlined text-primary">settings_ethernet</span>
-                                    <h3 className="text-sm font-bold uppercase tracking-wide text-blue-950">Detail Teknis (Eksklusif)</h3>
+                                    <h3 className="text-sm font-bold uppercase tracking-wide text-on-surface">Detail Teknis (Eksklusif)</h3>
                                 </div>
 
                                 <div className="space-y-4">
@@ -2111,7 +2104,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                                 type="radio"
                                             />
                                             <div className="flex-1">
-                                                <p className="text-sm font-bold text-blue-950">Dedicated Core</p>
+                                                <p className="text-sm font-bold text-on-surface">Dedicated Core</p>
                                                 <p className="mb-3 text-xs text-on-surface-variant">Core eksklusif tanpa pembagian bandwidth.</p>
                                                 <div className="relative">
                                                     <input
@@ -2141,7 +2134,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                                 type="radio"
                                             />
                                             <div className="flex-1">
-                                                <p className="text-sm font-bold text-blue-950">Shared Core</p>
+                                                <p className="text-sm font-bold text-on-surface">Shared Core</p>
                                                 <p className="mb-3 text-xs text-on-surface-variant">Core berbagi dengan rasio tertentu.</p>
                                                 <div className="flex items-center gap-2">
                                                     <input
@@ -2153,7 +2146,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                                         type="number"
                                                         value={form.contractSharingRatioLeft}
                                                     />
-                                                    <span className="text-sm font-bold text-slate-500">:</span>
+                                                    <span className="text-sm font-bold text-on-surface-variant">:</span>
                                                     <input
                                                         className="w-full rounded-lg border-none bg-surface p-2.5 text-xs focus:ring-2 focus:ring-primary/20"
                                                         min="1"
@@ -2174,7 +2167,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                         <section className="rounded-lg bg-surface-container-low p-6">
                             <div className="mb-6 flex items-center gap-3">
                                 <span className="material-symbols-outlined text-primary">payments</span>
-                                <h3 className="text-sm font-bold uppercase tracking-wide text-blue-950">Billing & Aktivasi</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-wide text-on-surface">Billing & Aktivasi</h3>
                             </div>
 
                             <div className="space-y-6">
@@ -2224,7 +2217,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                         <p className="mb-2 text-[10px] font-bold uppercase text-on-surface-variant">Kustom Fleksibel</p>
                                         <div className="flex gap-2">
                                             <input
-                                                className="w-20 rounded-lg border-none bg-surface p-2 text-xs disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                                                className="w-20 rounded-lg border-none bg-surface p-2 text-xs disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-on-surface-variant"
                                                 disabled={form.billingPeriodMode !== "custom"}
                                                 min="1"
                                                 onChange={(event) => setForm((previous) => ({ ...previous, billingCustomEvery: event.target.value }))}
@@ -2234,7 +2227,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                                 value={form.billingCustomEvery}
                                             />
                                             <select
-                                                className="flex-1 rounded-lg border-none bg-surface p-2 text-xs disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                                                className="flex-1 rounded-lg border-none bg-surface p-2 text-xs disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-on-surface-variant"
                                                 disabled={form.billingPeriodMode !== "custom"}
                                                 onChange={(event) => setForm((previous) => ({ ...previous, billingCustomUnit: event.target.value }))}
                                                 value={form.billingCustomUnit}
@@ -2245,7 +2238,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                             </select>
                                         </div>
                                         {form.billingPeriodMode !== "custom" && (
-                                            <p className="mt-2 text-[10px] text-slate-500">
+                                            <p className="mt-2 text-[10px] text-on-surface-variant">
                                                 Pilih mode Custom Fleksibel untuk mengisi periode custom.
                                             </p>
                                         )}
@@ -2257,9 +2250,9 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                         Biaya Aktivasi
                                     </label>
                                     <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
                                         <input
-                                            className="w-full rounded-lg border-none bg-surface-container-lowest py-3 pl-10 pr-4 text-sm font-bold text-blue-900 focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                            className="w-full rounded-lg border-none bg-surface-container-lowest py-3 pl-10 pr-4 text-sm font-bold text-blue-900 focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-on-surface-variant"
                                             disabled={isActivationFeeLocked}
                                             min="0"
                                             onChange={(event) => setForm((previous) => ({ ...previous, activationFeeAmount: event.target.value }))}
@@ -2269,7 +2262,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                             value={form.activationFeeAmount}
                                         />
                                     </div>
-                                    <p className="mt-2 text-[10px] italic text-slate-500">* Biaya instalasi awal core dan perangkat.</p>
+                                    <p className="mt-2 text-[10px] italic text-on-surface-variant">* Biaya instalasi awal core dan perangkat.</p>
                                 </div>
 
                                 {isEditMode && (
@@ -2278,7 +2271,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                             Tanggal Bayar Aktivasi
                                         </label>
                                         <input
-                                            className="w-full rounded-lg border-none bg-surface-container-lowest p-3 text-sm focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                            className="w-full rounded-lg border-none bg-surface-container-lowest p-3 text-sm focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-on-surface-variant"
                                             disabled={isActivationFeeLocked}
                                             onChange={(event) => setForm((previous) => ({ ...previous, activationFeePaidAt: event.target.value }))}
                                             type="date"
@@ -2289,7 +2282,7 @@ function CustomerAdminFormPage({ mode, customer, ispOptions = [], onCancel, onNa
                                                 Biaya aktivasi sudah terbayar dan dikunci karena hanya sekali di awal sewa.
                                             </p>
                                         ) : (
-                                            <p className="mt-2 text-[11px] text-slate-500">
+                                            <p className="mt-2 text-[11px] text-on-surface-variant">
                                                 Kosongkan jika biaya aktivasi belum dibayar.
                                             </p>
                                         )}
@@ -2592,7 +2585,7 @@ function CustomerDirectoryPage({
                     </div>
 
                     <button
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-on-surface-variant shadow-sm transition-colors hover:bg-slate-50"
                         onClick={handleResetSearch}
                         type="button"
                     >
@@ -2640,7 +2633,7 @@ function CustomerDirectoryPage({
                             </p>
                             {isAnyFilterActive && (
                                 <button
-                                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50"
                                     onClick={handleResetSearch}
                                     type="button"
                                 >
@@ -2683,7 +2676,7 @@ function CustomerDirectoryPage({
                                             </span>
                                         )}
                                         <span
-                                            className={`material-symbols-outlined text-slate-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                            className={`material-symbols-outlined text-on-surface-variant transition-transform ${isExpanded ? "rotate-180" : ""}`}
                                         >
                                             expand_more
                                         </span>
@@ -3097,7 +3090,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                 Nama ISP
                             </label>
                             <select
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-600 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-on-surface-variant transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                 onChange={(event) =>
                                     setFilters((previous) => ({
                                         ...previous,
@@ -3120,7 +3113,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                 Status Invoice
                             </label>
                             <select
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-600 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-on-surface-variant transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                 onChange={(event) =>
                                     setFilters((previous) => ({
                                         ...previous,
@@ -3142,7 +3135,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                 Tahun
                             </label>
                             <select
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-600 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-on-surface-variant transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                 onChange={(event) =>
                                     setFilters((previous) => ({
                                         ...previous,
@@ -3176,7 +3169,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                             Terapkan Filter Backend
                         </button>
                         <button
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-500 transition-colors hover:bg-slate-50"
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-on-surface-variant transition-colors hover:bg-slate-50"
                             onClick={() => {
                                 const reset = {
                                     search: "",
@@ -3299,27 +3292,27 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Keterangan:</span>
                     <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded bg-emerald-500"></div>
-                        <span className="text-xs font-bold text-slate-600">Lunas</span>
+                        <span className="text-xs font-bold text-on-surface-variant">Lunas</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded bg-red-500"></div>
-                        <span className="text-xs font-bold text-slate-600">Belum Bayar</span>
+                        <span className="text-xs font-bold text-on-surface-variant">Belum Bayar</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded bg-orange-400"></div>
-                        <span className="text-xs font-bold text-slate-600">Terlambat</span>
+                        <span className="text-xs font-bold text-on-surface-variant">Terlambat</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded bg-amber-200"></div>
-                        <span className="text-xs font-bold text-slate-600">Belum Ditagih</span>
+                        <span className="text-xs font-bold text-on-surface-variant">Belum Ditagih</span>
                     </div>
-                    <span className="text-xs font-medium text-slate-500">
+                    <span className="text-xs font-medium text-on-surface-variant">
                         Klik sel bulanan untuk lihat detail invoice pelanggan.
                     </span>
-                    <span className="text-xs font-medium text-slate-500">
+                    <span className="text-xs font-medium text-on-surface-variant">
                         Biaya aktivasi: "Selesai" jika sudah dibayar, nominal jika masih outstanding.
                     </span>
-                    <span className="text-xs font-medium text-slate-500">
+                    <span className="text-xs font-medium text-on-surface-variant">
                         Monitoring hanya menampilkan notifikasi. Edit dilakukan di Detail Pelanggan.
                     </span>
                 </section>
@@ -3360,7 +3353,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                         Monitoring Billing {appliedFilters.year}
                                     </th>
                                 </tr>
-                                <tr className="border-b border-slate-100 bg-slate-100/30 text-[10px] font-black uppercase text-slate-500">
+                                <tr className="border-b border-slate-100 bg-slate-100/30 text-[10px] font-black uppercase text-on-surface-variant">
                                     <th className="border-r border-slate-200/60 bg-white" colSpan="9"></th>
                                     {monitoringMonths.map((month, index) => (
                                         <th
@@ -3376,7 +3369,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                             <tbody className="divide-y divide-slate-50">
                                 {isLoading && (
                                     <tr>
-                                        <td className="px-6 py-6 text-center text-sm text-slate-500" colSpan="21">
+                                        <td className="px-6 py-6 text-center text-sm text-on-surface-variant" colSpan="21">
                                             Memuat data monitoring dari backend...
                                         </td>
                                     </tr>
@@ -3384,7 +3377,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
 
                                 {!isLoading && filteredRows.length === 0 && (
                                     <tr>
-                                        <td className="px-6 py-6 text-center text-sm text-slate-500" colSpan="21">
+                                        <td className="px-6 py-6 text-center text-sm text-on-surface-variant" colSpan="21">
                                             Tidak ada data monitoring yang sesuai dengan filter.
                                         </td>
                                     </tr>
@@ -3409,15 +3402,15 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                                 Buka Detail Pelanggan
                                             </button>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-600">{row.customerCode}</td>
-                                        <td className="px-4 py-4 text-slate-600">{formatContractPeriod(row.contractStart, row.contractEnd)}</td>
-                                        <td className="px-4 py-4 text-slate-600">{formatCoreAllocation(row.coreType, row.coreTotal, row.sharingRatio)}</td>
+                                        <td className="px-4 py-4 text-on-surface-variant">{row.customerCode}</td>
+                                        <td className="px-4 py-4 text-on-surface-variant">{formatContractPeriod(row.contractStart, row.contractEnd)}</td>
+                                        <td className="px-4 py-4 text-on-surface-variant">{formatCoreAllocation(row.coreType, row.coreTotal, row.sharingRatio)}</td>
                                         <td className="px-4 py-4">
                                             {(() => {
                                                 const remainingDays = getRemainingRentalDays(row.contractEnd);
 
                                                 if (remainingDays === null) {
-                                                    return <span className="text-slate-500">-</span>;
+                                                    return <span className="text-on-surface-variant">-</span>;
                                                 }
 
                                                 if (remainingDays < 0) {
@@ -3432,7 +3425,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                             })()}
                                         </td>
                                         <td className="px-4 py-4">
-                                            <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${row.customerStatus === "aktif" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+                                            <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${row.customerStatus === "aktif" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-on-surface-variant"}`}>
                                                 {toTitleCase(row.customerStatus)}
                                             </span>
                                         </td>
@@ -3442,7 +3435,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                                     <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
                                                         Selesai
                                                     </span>
-                                                    <p className="mt-1 text-[11px] text-slate-500">{formatDate(row.activationFeePaidAt)}</p>
+                                                    <p className="mt-1 text-[11px] text-on-surface-variant">{formatDate(row.activationFeePaidAt)}</p>
                                                 </div>
                                             ) : (
                                                 <span className="text-xs font-bold text-amber-700">
@@ -3497,10 +3490,10 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/50 px-8 py-5">
-                        <p className="text-xs font-semibold text-slate-500">
+                        <p className="text-xs font-semibold text-on-surface-variant">
                             Menampilkan <span className="text-blue-900">{filteredRows.length}</span> baris data
                         </p>
-                        <p className="text-xs font-semibold text-slate-500">
+                        <p className="text-xs font-semibold text-on-surface-variant">
                             Total sel status: <span className="text-blue-900">{totalCells}</span>
                         </p>
                     </div>
@@ -3508,28 +3501,28 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
 
                 <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
                     <div className="rounded-xl border border-slate-100 border-l-4 border-l-emerald-500 bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                             Lunas
                         </h4>
                         <p className="text-2xl font-black text-blue-900">{visibleSummary.lunas}</p>
                     </div>
 
                     <div className="rounded-xl border border-slate-100 border-l-4 border-l-red-500 bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                             Belum Bayar
                         </h4>
                         <p className="text-2xl font-black text-blue-900">{visibleSummary.belum_bayar}</p>
                     </div>
 
                     <div className="rounded-xl border border-slate-100 border-l-4 border-l-orange-500 bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                             Terlambat
                         </h4>
                         <p className="text-2xl font-black text-blue-900">{visibleSummary.terlambat}</p>
                     </div>
 
                     <div className="rounded-xl border border-slate-100 border-l-4 border-l-primary bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                             Monitoring Alerts
                         </h4>
                         <p className="text-2xl font-black text-blue-900">{alerts.length}</p>
@@ -3613,7 +3606,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                 </div>
 
                                 <button
-                                    className="rounded-lg bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200"
+                                    className="rounded-lg bg-slate-100 p-2 text-on-surface-variant transition-colors hover:bg-slate-200"
                                     onClick={() => setSelectedInvoiceCell(null)}
                                     type="button"
                                 >
@@ -3623,33 +3616,33 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
 
                             <dl className="grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-4 text-sm md:grid-cols-2">
                                 <div>
-                                    <dt className="text-xs uppercase tracking-wide text-slate-500">Periode</dt>
+                                    <dt className="text-xs uppercase tracking-wide text-on-surface-variant">Periode</dt>
                                     <dd className="font-semibold text-slate-700">
                                         {selectedInvoiceCell.month} {selectedInvoiceCell.year}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs uppercase tracking-wide text-slate-500">Status Invoice</dt>
+                                    <dt className="text-xs uppercase tracking-wide text-on-surface-variant">Status Invoice</dt>
                                     <dd className="font-semibold text-slate-700">
                                         {invoiceStatusLabelMap[selectedInvoiceCell.status] ?? toTitleCase(selectedInvoiceCell.status)}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs uppercase tracking-wide text-slate-500">Kontrak Mulai</dt>
+                                    <dt className="text-xs uppercase tracking-wide text-on-surface-variant">Kontrak Mulai</dt>
                                     <dd className="font-semibold text-slate-700">{formatDate(selectedInvoiceCell.contractStart)}</dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs uppercase tracking-wide text-slate-500">Kontrak Berakhir</dt>
+                                    <dt className="text-xs uppercase tracking-wide text-on-surface-variant">Kontrak Berakhir</dt>
                                     <dd className="font-semibold text-slate-700">{formatDate(selectedInvoiceCell.contractEnd)}</dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs uppercase tracking-wide text-slate-500">Core / Sharing Core</dt>
+                                    <dt className="text-xs uppercase tracking-wide text-on-surface-variant">Core / Sharing Core</dt>
                                     <dd className="font-semibold text-slate-700">
                                         {formatCoreAllocation(selectedInvoiceCell.coreType, selectedInvoiceCell.coreTotal, selectedInvoiceCell.sharingRatio)}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs uppercase tracking-wide text-slate-500">Sisa Masa Sewa</dt>
+                                    <dt className="text-xs uppercase tracking-wide text-on-surface-variant">Sisa Masa Sewa</dt>
                                     <dd className="font-semibold text-slate-700">
                                         {(() => {
                                             const remainingDays = getRemainingRentalDays(selectedInvoiceCell.contractEnd);
@@ -3679,7 +3672,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
 
                             <div className="mt-5 flex flex-wrap justify-end gap-2">
                                 <button
-                                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50"
                                     onClick={() => setSelectedInvoiceCell(null)}
                                     type="button"
                                 >
@@ -4434,7 +4427,7 @@ function CustomerDetailPage({
                                                     Buka File
                                                 </a>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500">
+                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-on-surface-variant">
                                                     <span className="material-symbols-outlined text-base">folder</span>
                                                     Arsip Internal
                                                 </span>
@@ -4482,13 +4475,13 @@ function CustomerDetailPage({
                         </div>
 
                         <div className="rounded-xl bg-slate-100 p-6 shadow-sm">
-                            <p className="mb-2 text-xs font-medium uppercase tracking-widest text-slate-600">
+                            <p className="mb-2 text-xs font-medium uppercase tracking-widest text-on-surface-variant">
                                 Biaya Aktivasi
                             </p>
                             {isActivationFeePaid ? (
                                 <>
                                     <h4 className="text-xl font-extrabold text-emerald-700">Selesai</h4>
-                                    <p className="mt-1 text-xs font-semibold text-slate-600">
+                                    <p className="mt-1 text-xs font-semibold text-on-surface-variant">
                                         Tgl bayar: {formatDate(activationFeePaidAt)}
                                     </p>
                                 </>
@@ -4566,25 +4559,25 @@ function CustomerDetailPage({
                             <table className="w-full min-w-[900px] border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-slate-50/80">
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             No
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Nomor Kontrak
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Status
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Periode Awal
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Periode Akhir
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Dibuat
                                         </th>
-                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Aksi
                                         </th>
                                     </tr>
@@ -4593,7 +4586,7 @@ function CustomerDetailPage({
                                 <tbody className="divide-y divide-slate-100">
                                     {sortedContracts.length === 0 && (
                                         <tr>
-                                            <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan="7">
+                                            <td className="px-4 py-6 text-center text-sm text-on-surface-variant" colSpan="7">
                                                 Belum ada data kontrak.
                                             </td>
                                         </tr>
@@ -4657,28 +4650,28 @@ function CustomerDetailPage({
                             <table className="w-full min-w-[1120px] border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-slate-50/80">
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             No
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Nomor Invoice
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Periode
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Jumlah
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Status
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Dokumen
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Diperbarui
                                         </th>
-                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Aksi
                                         </th>
                                     </tr>
@@ -4687,7 +4680,7 @@ function CustomerDetailPage({
                                 <tbody className="divide-y divide-slate-100">
                                     {invoices.length === 0 && (
                                         <tr>
-                                            <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan="8">
+                                            <td className="px-4 py-6 text-center text-sm text-on-surface-variant" colSpan="8">
                                                 Belum ada data invoice.
                                             </td>
                                         </tr>
@@ -4747,7 +4740,7 @@ function CustomerDetailPage({
                         <div className="relative space-y-6 before:absolute before:bottom-0 before:left-5 before:top-0 before:w-0.5 before:bg-surface-container">
                             {timeline.map((event) => (
                                 <div key={event.id} className="relative flex items-start gap-4">
-                                    <div className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full ${timelineColorMap[event.type] ?? "bg-slate-100 text-slate-600"}`}>
+                                    <div className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full ${timelineColorMap[event.type] ?? "bg-slate-100 text-on-surface-variant"}`}>
                                         <span className="material-symbols-outlined text-base">
                                             {timelineIconMap[event.type] ?? "history"}
                                         </span>
@@ -4797,7 +4790,7 @@ function CustomerDetailPage({
                             </select>
 
                             <button
-                                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50"
                                 onClick={() => {
                                     void loadDocuments();
                                 }}
@@ -4921,22 +4914,22 @@ function CustomerDetailPage({
                             <table className="w-full min-w-[860px] border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-slate-50/80">
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Jenis
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Nomor
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Tanggal
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Kontrak
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Arsip
                                         </th>
-                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
                                             Aksi
                                         </th>
                                     </tr>
@@ -4945,7 +4938,7 @@ function CustomerDetailPage({
                                 <tbody className="divide-y divide-slate-100">
                                     {isLoadingDocuments && (
                                         <tr>
-                                            <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan="6">
+                                            <td className="px-4 py-6 text-center text-sm text-on-surface-variant" colSpan="6">
                                                 Memuat dokumen...
                                             </td>
                                         </tr>
@@ -4953,7 +4946,7 @@ function CustomerDetailPage({
 
                                     {!isLoadingDocuments && documents.length === 0 && (
                                         <tr>
-                                            <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan="6">
+                                            <td className="px-4 py-6 text-center text-sm text-on-surface-variant" colSpan="6">
                                                 Belum ada dokumen untuk filter ini.
                                             </td>
                                         </tr>
@@ -4987,7 +4980,7 @@ function CustomerDetailPage({
                                                             Buka File
                                                         </a>
                                                     ) : (
-                                                        <span className="font-semibold text-slate-500">Arsip Internal</span>
+                                                        <span className="font-semibold text-on-surface-variant">Arsip Internal</span>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 text-right">
@@ -5023,7 +5016,7 @@ function CustomerDetailPage({
                             </div>
 
                             <button
-                                className="rounded-lg bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200"
+                                className="rounded-lg bg-slate-100 p-2 text-on-surface-variant transition-colors hover:bg-slate-200"
                                 onClick={() => {
                                     setContractEditor(null);
                                     setContractEditorError("");
@@ -5036,7 +5029,7 @@ function CustomerDetailPage({
 
                         <form className="space-y-4" onSubmit={handleSubmitContractEditor}>
                             <div>
-                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                     Nomor Kontrak
                                 </label>
                                 <input
@@ -5059,7 +5052,7 @@ function CustomerDetailPage({
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
-                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                         Periode Awal
                                     </label>
                                     <input
@@ -5080,7 +5073,7 @@ function CustomerDetailPage({
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                         Periode Akhir
                                     </label>
                                     <input
@@ -5103,7 +5096,7 @@ function CustomerDetailPage({
 
                             {contractEditor.mode === "edit" && (
                                 <div>
-                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                         Status
                                     </label>
                                     <select
@@ -5135,7 +5128,7 @@ function CustomerDetailPage({
 
                             <div className="flex justify-end gap-2">
                                 <button
-                                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50"
                                     onClick={() => {
                                         setContractEditor(null);
                                         setContractEditorError("");
@@ -5170,7 +5163,7 @@ function CustomerDetailPage({
                             </div>
 
                             <button
-                                className="rounded-lg bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200"
+                                className="rounded-lg bg-slate-100 p-2 text-on-surface-variant transition-colors hover:bg-slate-200"
                                 onClick={() => setInvoiceUploadDraft(null)}
                                 type="button"
                             >
@@ -5180,7 +5173,7 @@ function CustomerDetailPage({
 
                         <form className="space-y-4" onSubmit={handleSubmitInvoiceUpload}>
                             <div>
-                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                     Nomor Invoice
                                 </label>
                                 <input
@@ -5202,7 +5195,7 @@ function CustomerDetailPage({
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                     Tanggal Invoice
                                 </label>
                                 <input
@@ -5230,7 +5223,7 @@ function CustomerDetailPage({
 
                             <div className="flex justify-end gap-2">
                                 <button
-                                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50"
                                     onClick={() => setInvoiceUploadDraft(null)}
                                     type="button"
                                 >
@@ -5267,10 +5260,18 @@ function CustomerWorkspacePage({
     onRefresh,
 }) {
     const [searchTerm, setSearchTerm] = useState("");
+    const [listType, setListType] = useState("aktif");
     const [collapsedMap, setCollapsedMap] = useState({});
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
-    const groups = useMemo(() => isps
+    const filteredIsps = useMemo(() => {
+        return isps.filter((isp) => {
+            const status = isp.status ?? "aktif";
+            return listType === "aktif" ? status === "aktif" : status === "nonaktif";
+        });
+    }, [isps, listType]);
+
+    const groups = useMemo(() => filteredIsps
         .map((isp) => {
             const tenants = customers
                 .filter((customer) => Array.isArray(customer.ispList) && customer.ispList.includes(isp.name))
@@ -5286,7 +5287,7 @@ function CustomerWorkspacePage({
             !normalizedSearch
             || group.name.toLowerCase().includes(normalizedSearch)
             || group.tenants.some((tenant) => tenant.name.toLowerCase().includes(normalizedSearch)))
-        .sort((left, right) => left.name.localeCompare(right.name)), [customers, isps, normalizedSearch]);
+        .sort((left, right) => left.name.localeCompare(right.name)), [customers, filteredIsps, normalizedSearch]);
 
     const totalActiveTenants = customers.filter((tenant) => tenant.rawStatus === "aktif").length;
     const totalNonActiveTenants = customers.length - totalActiveTenants;
@@ -5308,7 +5309,7 @@ function CustomerWorkspacePage({
                     </div>
                     <div className="flex flex-wrap gap-3">
                         <button
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                            className="inline-flex items-center gap-2 rounded-xl bg-surface-container-lowest px-5 py-3 text-sm font-bold text-on-surface shadow-card transition-all hover:shadow-glass-hover"
                             onClick={onOpenCreateIsp}
                             type="button"
                         >
@@ -5316,7 +5317,7 @@ function CustomerWorkspacePage({
                             + Tambah ISP
                         </button>
                         <button
-                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-primary to-primary-container px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-opacity hover:opacity-95"
+                            className="inline-flex items-center gap-2 rounded-xl btn-gradient px-5 py-3 text-sm font-bold"
                             onClick={onOpenCreateTenant}
                             type="button"
                         >
@@ -5324,7 +5325,7 @@ function CustomerWorkspacePage({
                             + Tambah Tenant
                         </button>
                         <button
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                            className="inline-flex items-center gap-2 rounded-xl bg-surface-container-lowest px-5 py-3 text-sm font-bold text-on-surface shadow-card transition-all hover:shadow-glass-hover"
                             onClick={() => void onRefresh()}
                             type="button"
                         >
@@ -5336,8 +5337,8 @@ function CustomerWorkspacePage({
 
                 {(error || secondaryError) && (
                     <div className="space-y-3">
-                        {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
-                        {secondaryError && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">{secondaryError}</div>}
+                        {error && <div className="rounded-xl bg-error/5 px-4 py-3 text-sm font-medium text-error">{error}</div>}
+                        {secondaryError && <div className="rounded-xl bg-primary-container/20 px-4 py-3 text-sm font-medium text-primary">{secondaryError}</div>}
                     </div>
                 )}
 
@@ -5348,13 +5349,31 @@ function CustomerWorkspacePage({
                     <SummaryCard label="Non-active Tenant" value={totalNonActiveTenants} icon="cancel" />
                 </section>
 
-                <section className="rounded-2xl bg-surface-container-low p-5">
+                <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-card">
+                    <div className="mb-5">
+                        <nav className="flex gap-6">
+                            <button
+                                className={`pb-3 text-sm font-bold transition-colors ${listType === "aktif" ? "text-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+                                onClick={() => setListType("aktif")}
+                                type="button"
+                            >
+                                ISP Aktif
+                            </button>
+                            <button
+                                className={`pb-3 text-sm font-bold transition-colors ${listType === "riwayat" ? "text-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+                                onClick={() => setListType("riwayat")}
+                                type="button"
+                            >
+                                Riwayat (ISP Non-aktif)
+                            </button>
+                        </nav>
+                    </div>
                     <div className="relative">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50">search</span>
                         <input
-                            className="w-full rounded-xl border-none bg-surface-container-lowest py-3 pl-12 pr-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/10"
+                            className="w-full rounded-xl bg-surface-container-low py-3 pl-12 pr-4 text-sm outline-none transition-all glass-input"
                             onChange={(event) => setSearchTerm(event.target.value)}
-                            placeholder="Search ISP / Tenant"
+                            placeholder="Cari ISP / Tenant..."
                             type="text"
                             value={searchTerm}
                         />
@@ -5362,28 +5381,28 @@ function CustomerWorkspacePage({
                 </section>
 
                 <section className="space-y-4">
-                    {isLoading && <div className="rounded-2xl border border-slate-100 bg-white px-6 py-6 text-center text-sm text-slate-500 shadow-sm">Memuat data ISP dan tenant...</div>}
+                    {isLoading && <div className="rounded-2xl bg-surface-container-lowest px-6 py-6 text-center text-sm text-on-surface-variant shadow-card">Memuat data ISP dan tenant...</div>}
                     {!isLoading && groups.map((group) => {
                         const isExpanded = normalizedSearch ? true : !collapsedMap[group.id];
                         return (
-                            <div key={group.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-surface-container-lowest shadow-sm">
-                                <div className="flex flex-col gap-4 bg-slate-50/70 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div key={group.id} className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-card transition-all hover:shadow-glass">
+                                <div className="flex flex-col gap-4 bg-surface-container-low/50 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
                                     <button
                                         className="flex flex-1 items-center justify-between gap-4 text-left"
                                         onClick={() => setCollapsedMap((previous) => ({ ...previous, [group.id]: !previous[group.id] }))}
                                         type="button"
                                     >
                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">ISP</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">ISP</p>
                                             <h3 className="mt-1 text-lg font-extrabold text-primary">{group.name}</h3>
-                                            <p className="mt-1 text-xs text-slate-500">Kontrak induk: {group.contractReference || "-"}</p>
+                                            <p className="mt-1 text-xs text-on-surface-variant">{group.contractReference || "-"}</p>
                                         </div>
-                                        <span className={`material-symbols-outlined text-slate-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+                                        <span className={`material-symbols-outlined text-on-surface-variant transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
                                     </button>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-bold text-blue-700">{group.tenants.length} tenant</span>
+                                        <span className="rounded-full bg-secondary/10 px-3 py-1 text-[11px] font-bold text-secondary">{group.tenants.length} tenant</span>
                                         <button
-                                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                                            className="rounded-xl bg-surface-container-low px-3 py-2 text-xs font-semibold text-on-surface transition-all hover:bg-surface-container-high"
                                             onClick={() => onOpenIsp(group)}
                                             type="button"
                                         >
@@ -5393,31 +5412,35 @@ function CustomerWorkspacePage({
                                 </div>
 
                                 {isExpanded && (
-                                    <div className="border-t border-slate-100">
+                                    <div>
                                         <div className="overflow-x-auto">
                                             <table className="w-full border-collapse">
                                                 <thead>
-                                                    <tr className="bg-white">
-                                                        <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Tenant</th>
-                                                        <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
-                                                        <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">To Do</th>
-                                                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Aksi</th>
+                                                    <tr className="bg-surface-container-low/40">
+                                                        <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Tenant</th>
+                                                        <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
+                                                        <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest text-on-surface-variant">To Do</th>
+                                                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Aksi</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-100">
+                                                <tbody>
                                                     {group.tenants.map((tenant) => (
-                                                        <tr key={`${group.id}-${tenant.id}`} className="hover:bg-slate-50/80">
+                                                        <tr key={`${group.id}-${tenant.id}`} className="hover:bg-primary-container/5 transition-colors">
                                                             <td className="px-6 py-4">
                                                                 <p className="text-sm font-semibold text-on-surface">{tenant.name}</p>
-                                                                <p className="mt-1 text-[11px] text-slate-500">{tenant.customerId}</p>
+                                                                <p className="mt-1 text-[11px] text-on-surface-variant">{tenant.customerId}</p>
                                                             </td>
-                                                            <td className="px-6 py-4 text-sm text-slate-600">{tenant.rawStatus === "aktif" ? "Aktif" : "Non-aktif"}</td>
-                                                            <td className="px-6 py-4 text-sm text-slate-600">
+                                                            <td className="px-6 py-4 text-sm">
+                                                                <span className={tenant.rawStatus === 'aktif' ? 'badge-active rounded-full px-3 py-1 text-xs font-bold' : 'badge-neutral rounded-full px-3 py-1 text-xs font-bold'}>
+                                                                    {tenant.rawStatus === "aktif" ? "Aktif" : "Non-aktif"}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-sm text-on-surface-variant">
                                                                 {tenant.todoSummary?.counts?.priority ?? 0} prioritas / {tenant.todoSummary?.counts?.needAction ?? 0} tindakan
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
                                                                 <button
-                                                                    className="inline-flex items-center gap-1 rounded-lg bg-primary/5 px-3 py-2 text-primary transition-colors hover:bg-primary/10"
+                                                                    className="inline-flex items-center gap-1 rounded-xl bg-primary/5 px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
                                                                     onClick={() => onOpenTenant(tenant, "overview", group)}
                                                                     type="button"
                                                                 >
@@ -5429,7 +5452,7 @@ function CustomerWorkspacePage({
                                                     ))}
                                                     {group.tenants.length === 0 && (
                                                         <tr>
-                                                            <td className="px-6 py-6 text-center text-sm text-slate-500" colSpan="4">
+                                                            <td className="px-6 py-6 text-center text-sm text-on-surface-variant" colSpan="4">
                                                                 Belum ada tenant yang terhubung ke ISP ini.
                                                             </td>
                                                         </tr>
@@ -5453,6 +5476,8 @@ function TenantAdminFormPage({ isps = [], onCancel, onNavigate, onSaved }) {
     const [form, setForm] = useState({
         name: "",
         status: "aktif",
+        paket: "core",
+        jumlah: "0",
         ratioLeft: "1",
         ratioRight: "8",
         contractStartDate: "",
@@ -5464,15 +5489,12 @@ function TenantAdminFormPage({ isps = [], onCancel, onNavigate, onSaved }) {
         contractNumber: "",
         newIspName: "",
     });
-    const [selectedIspIds, setSelectedIspIds] = useState([]);
+    const [selectedIspId, setSelectedIspId] = useState(null);
     const [submitError, setSubmitError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const toggleIsp = (ispId) => {
-        setSelectedIspIds((previous) =>
-            previous.includes(ispId)
-                ? previous.filter((value) => value !== ispId)
-                : [...previous, ispId]);
+    const selectIsp = (ispId) => {
+        setSelectedIspId(ispId);
     };
 
     const handleSubmit = async (event) => {
@@ -5482,11 +5504,11 @@ function TenantAdminFormPage({ isps = [], onCancel, onNavigate, onSaved }) {
             setSubmitError("Nama tenant wajib diisi.");
             return;
         }
-        if (selectedIspIds.length === 0 && !form.newIspName.trim()) {
-            setSubmitError("Tenant harus terhubung ke minimal satu ISP atau masukkan nama ISP baru.");
+        if (!selectedIspId) {
+            setSubmitError("Tenant harus terhubung ke satu ISP.");
             return;
         }
-        if (!form.ratioLeft || !form.ratioRight || Number(form.ratioLeft) < 1 || Number(form.ratioRight) < 1) {
+        if (form.paket === "shared" && (!form.ratioLeft || !form.ratioRight || Number(form.ratioLeft) < 1 || Number(form.ratioRight) < 1)) {
             setSubmitError("Shared Core ratio tidak valid. Masukkan angka >= 1 di kedua kolom.");
             return;
         }
@@ -5505,12 +5527,13 @@ function TenantAdminFormPage({ isps = [], onCancel, onNavigate, onSaved }) {
                 body: JSON.stringify({
                     name: form.name.trim(),
                     status: form.status,
-                    ispIds: selectedIspIds,
-                    newIspNames: form.newIspName.trim() ? [form.newIspName.trim()] : undefined,
+                    ispIds: [selectedIspId],
                     contractNumber: form.contractNumber.trim() || undefined,
                     contractStartDate: form.contractStartDate,
                     contractEndDate: form.contractEndDate,
-                    contractSharingRatio: `${form.ratioLeft || 1}:${form.ratioRight || 8}`,
+                    paket: form.paket,
+                    jumlah: form.paket === "core" ? Math.round(Number(form.jumlah || 0)) : 0,
+                    contractSharingRatio: form.paket === "shared" ? `${form.ratioLeft || 1}:${form.ratioRight || 8}` : undefined,
                     billingPeriodMode: form.billingPeriodMode,
                     billingCustomEvery: form.billingPeriodMode === "custom" ? Number(form.billingCustomEvery) : undefined,
                     billingCustomUnit: form.billingPeriodMode === "custom" ? form.billingCustomUnit : undefined,
@@ -5553,14 +5576,19 @@ function TenantAdminFormPage({ isps = [], onCancel, onNavigate, onSaved }) {
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <FieldInput label="Nama Tenant" value={form.name} onChange={(value) => setForm((previous) => ({ ...previous, name: value }))} />
                                 <FieldSelect label="Status" value={form.status} onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} options={[{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Non-aktif" }]} />
-                                <div>
-                                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Rasio Shared Core</label>
-                                <div className="flex items-center gap-2">
-                                    <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioLeft} onChange={(e) => setForm((prev) => ({ ...prev, ratioLeft: e.target.value }))} placeholder="1" />
-                                    <span className="text-lg font-bold text-slate-400">:</span>
-                                    <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioRight} onChange={(e) => setForm((prev) => ({ ...prev, ratioRight: e.target.value }))} placeholder="8" />
-                                </div>
-                            </div>
+                                <FieldSelect label="Paket" value={form.paket} onChange={(value) => setForm((previous) => ({ ...previous, paket: value }))} options={[{ value: "core", label: "Core" }, { value: "shared", label: "Shared Core" }]} />
+                                {form.paket === "core" ? (
+                                    <FieldInput label="Jumlah Core" type="number" value={form.jumlah} onChange={(value) => setForm((previous) => ({ ...previous, jumlah: value }))} placeholder="Contoh: 4" />
+                                ) : (
+                                    <div>
+                                        <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Rasio Shared Core</label>
+                                        <div className="flex items-center gap-2">
+                                            <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioLeft} onChange={(e) => setForm((prev) => ({ ...prev, ratioLeft: e.target.value }))} placeholder="1" />
+                                            <span className="text-lg font-bold text-slate-400">:</span>
+                                            <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioRight} onChange={(e) => setForm((prev) => ({ ...prev, ratioRight: e.target.value }))} placeholder="8" />
+                                        </div>
+                                    </div>
+                                )}
                                 <FieldInput label="Nomor Kontrak" value={form.contractNumber} onChange={(value) => setForm((previous) => ({ ...previous, contractNumber: value }))} placeholder="Otomatis jika kosong" />
                                 <FieldInput label="Contract Start" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
                                 <FieldInput label="Contract End" type="date" value={form.contractEndDate} onChange={(value) => setForm((previous) => ({ ...previous, contractEndDate: value }))} />
@@ -5569,23 +5597,19 @@ function TenantAdminFormPage({ isps = [], onCancel, onNavigate, onSaved }) {
 
                         <div className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
                             <div className="mb-6 flex items-center justify-between gap-3">
-                                <h3 className="text-lg font-bold text-blue-950">Pilih ISP</h3>
-                                <p className="text-xs text-slate-500">Gunakan tombol `Tambah ISP` jika ISP belum tersedia.</p>
+                                <h3 className="text-lg font-bold text-on-surface">Pilih ISP</h3>
+                                <p className="text-xs text-on-surface-variant">Gunakan tombol `Tambah ISP` jika ISP belum tersedia.</p>
                             </div>
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 {isps.map((isp) => (
-                                    <label key={isp.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${selectedIspIds.includes(isp.id) ? "border-primary bg-blue-50/60" : "border-slate-200 bg-white"}`}>
-                                        <input checked={selectedIspIds.includes(isp.id)} className="mt-1" onChange={() => toggleIsp(isp.id)} type="checkbox" />
+                                    <label key={isp.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${selectedIspId === isp.id ? "border-primary bg-blue-50/60" : "border-slate-200 bg-white"}`}>
+                                        <input checked={selectedIspId === isp.id} className="mt-1 flex-shrink-0" name="selectIspRadio" onChange={() => selectIsp(isp.id)} type="radio" />
                                         <div>
-                                            <p className="text-sm font-semibold text-slate-800">{isp.name}</p>
-                                            <p className="mt-1 text-xs text-slate-500">{isp.contractReference || "Tanpa referensi kontrak"}</p>
+                                            <p className="text-sm font-semibold text-on-surface">{isp.name}</p>
+                                            <p className="mt-1 text-xs text-on-surface-variant">{isp.contractReference || "Tanpa referensi kontrak"}</p>
                                         </div>
                                     </label>
                                 ))}
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-slate-100">
-                                <h4 className="mb-3 text-sm font-bold text-slate-800">Atau Tambah ISP Baru</h4>
-                                <FieldInput label="Nama ISP Baru (Opsional)" value={form.newIspName} onChange={(value) => setForm((previous) => ({ ...previous, newIspName: value }))} placeholder="Ketik nama ISP jika belum ada di atas" />
                             </div>
                         </div>
                     </section>
@@ -5629,10 +5653,7 @@ function IspAdminFormPage({ onCancel, onNavigate, onSaved }) {
         contractStartDate: "",
         contractPeriodStart: "",
         contractPeriodEnd: "",
-        paket: "core",
-        jumlah: "0",
-        ratioLeft: "1",
-        ratioRight: "8",
+        bakFileName: "",
     });
     const [submitError, setSubmitError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -5657,9 +5678,7 @@ function IspAdminFormPage({ onCancel, onNavigate, onSaved }) {
                     contractStartDate: form.contractStartDate || null,
                     contractPeriodStart: form.contractPeriodStart || null,
                     contractPeriodEnd: form.contractPeriodEnd || null,
-                    paket: form.paket,
-                    jumlah: form.paket === "core" ? Math.round(Number(form.jumlah || 0)) : 0,
-                    sharingRatio: form.paket === "shared" ? `${form.ratioLeft || 1}:${form.ratioRight || 8}` : undefined,
+                    bakFileName: form.bakFileName || undefined,
                 }),
             });
             if (onSaved) {
@@ -5696,19 +5715,20 @@ function IspAdminFormPage({ onCancel, onNavigate, onSaved }) {
                         <FieldInput label="Awal kontrak" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
                         <FieldInput label="Periode berjalan mulai" type="date" value={form.contractPeriodStart} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodStart: value }))} />
                         <FieldInput label="Periode berjalan akhir" type="date" value={form.contractPeriodEnd} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodEnd: value }))} />
-                        <FieldSelect label="Paket" value={form.paket} onChange={(value) => setForm((previous) => ({ ...previous, paket: value }))} options={[{ value: "core", label: "Core" }, { value: "shared", label: "Shared Core" }]} />
-                        {form.paket === "core" ? (
-                            <FieldInput label="Jumlah Core" type="number" value={form.jumlah} onChange={(value) => setForm((previous) => ({ ...previous, jumlah: value }))} placeholder="Contoh: 4" />
-                        ) : (
-                            <div>
-                                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Rasio Shared Core</label>
-                                <div className="flex items-center gap-2">
-                                    <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioLeft} onChange={(e) => setForm((prev) => ({ ...prev, ratioLeft: e.target.value }))} placeholder="1" />
-                                    <span className="text-lg font-bold text-slate-400">:</span>
-                                    <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioRight} onChange={(e) => setForm((prev) => ({ ...prev, ratioRight: e.target.value }))} placeholder="8" />
-                                </div>
-                            </div>
-                        )}
+                        <div>
+                            <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Upload BAK (Opsional)</label>
+                            <input
+                                accept=".pdf,.png,.jpg,.jpeg,.zip"
+                                className="w-full rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                onChange={(event) =>
+                                    setForm((previous) => ({
+                                        ...previous,
+                                        bakFileName: event.target.files?.[0]?.name ?? "",
+                                    }))
+                                }
+                                type="file"
+                            />
+                        </div>
                     </div>
                 </div>
             </form>
@@ -5753,8 +5773,9 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
     // Derived header properties
     const ispName = detail?.name ?? isp.name;
     const contractRef = detail?.contractReference ?? isp.contractReference ?? "-";
-    const paketStr = (detail?.paket || isp.paket) === "shared" ? "Shared Core" : "Core";
-    const jumlahStr = detail?.jumlah || isp.jumlah || "-";
+    const isExpiringSoon = (detail?.contractPeriodEnd || isp.contractPeriodEnd) 
+        ? (new Date(detail?.contractPeriodEnd || isp.contractPeriodEnd).getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 90 
+        : false;
 
     const renderEmptyState = (message) => (
         <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
@@ -5762,7 +5783,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                 <span className="material-symbols-outlined text-3xl text-slate-300">inbox</span>
             </div>
             <h3 className="mt-4 text-base font-bold text-slate-700">Belum Ada Data</h3>
-            <p className="mt-1 text-sm text-slate-500">{message}</p>
+            <p className="mt-1 text-sm text-on-surface-variant">{message}</p>
         </div>
     );
 
@@ -5786,26 +5807,28 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                         {((detail?.status ?? isp.status) === "aktif") ? "Aktif" : "Non-aktif"}
                                     </span>
                                 </div>
-                                <h1 className="text-4xl font-extrabold tracking-tight text-blue-950">{ispName}</h1>
-                                <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                                <h1 className="text-4xl font-extrabold tracking-tight text-on-surface">{ispName}</h1>
+                                <p className="mt-2 flex items-center gap-2 text-sm text-on-surface-variant">
                                     <span className="material-symbols-outlined text-base">description</span>
                                     Kontrak Induk: {contractRef}
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-4">
                                 <div className="rounded-xl bg-white/60 px-4 py-3 shadow-sm">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Paket Default</p>
-                                    <p className="mt-1 text-sm font-bold text-slate-800">{paketStr} ({jumlahStr})</p>
-                                </div>
-                                <div className="rounded-xl bg-white/60 px-4 py-3 shadow-sm">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Periode Berjalan</p>
-                                    <p className="mt-1 text-sm font-bold text-slate-800">{formatContractPeriod(detail?.contractPeriodStart ?? isp.contractPeriodStart, detail?.contractPeriodEnd ?? isp.contractPeriodEnd)}</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Periode Berjalan</p>
+                                    <p className="mt-1 text-sm font-bold text-on-surface">{formatContractPeriod(detail?.contractPeriodStart ?? isp.contractPeriodStart, detail?.contractPeriodEnd ?? isp.contractPeriodEnd)}</p>
                                 </div>
                             </div>
                         </div>
                         <div className="flex gap-3">
                             <button className="rounded-xl border border-blue-200 bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50" onClick={() => void loadDetail()} type="button">
                                 Refresh Data
+                            </button>
+                            <button className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-100" type="button">
+                                Edit Data ISP
+                            </button>
+                            <button className="rounded-xl bg-red-50 px-5 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-100" type="button">
+                                Hapus ISP
                             </button>
                         </div>
                     </div>
@@ -5815,14 +5838,14 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                     <nav className="-mb-px flex gap-6 overflow-x-auto">
                         {[
                             { id: "overview", label: "Ringkasan", icon: "dashboard" },
-                            { id: "customers", label: "Customer (Baru)", icon: "groups" },
+                            { id: "customers", label: "Pelanggan/Tenant", icon: "groups" },
                             { id: "contracts", label: "Kontrak", icon: "description" },
-                            { id: "invoices", label: "Invoice", icon: "receipt_long" },
-                            { id: "timeline", label: "Timeline & Log", icon: "history" },
+                            { id: "risalah", label: "Risalah Rapat", icon: "campaign" },
+                            { id: "timeline", label: "Timeline", icon: "history" },
                         ].map((tab) => (
                             <button
                                 key={tab.id}
-                                className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-semibold transition-colors ${activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}
+                                className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-semibold transition-colors ${activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:border-slate-300 hover:text-slate-700"}`}
                                 onClick={() => setActiveTab(tab.id)}
                                 type="button">
                                 <span className="material-symbols-outlined text-xl">{tab.icon}</span>
@@ -5832,26 +5855,116 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                     </nav>
                 </div>
 
-                {isLoading && <div className="p-8 text-center text-slate-500">Memuat...</div>}
+                {isLoading && <div className="p-8 text-center text-on-surface-variant">Memuat...</div>}
                 
                 {!isLoading && activeTab === "overview" && (
                     <div className="space-y-6">
                         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <SummaryCard label="Total Tenant" value={summary.tenantCount ?? tenants.length} icon="groups" />
-                            <SummaryCard label="Missing BAK" value={summary.tenantsMissingBak ?? 0} icon="history_toggle_off" />
-                            <SummaryCard label="Unpaid Tenant" value={summary.tenantsUnpaid ?? 0} icon="payments" />
-                            <SummaryCard label="Expiring Contract" value={summary.tenantsExpiringContract ?? 0} icon="event_busy" />
+                            <SummaryCard label="Tenant Aktif" value={tenants.filter(t => t.status === "aktif").length} icon="check_circle" />
+                            <SummaryCard label="Tenant Non-aktif" value={tenants.filter(t => t.status !== "aktif").length} icon="cancel" />
+                            <div className="flex flex-col rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+                                <span className="mb-2 material-symbols-outlined text-2xl text-blue-500">calendar_month</span>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Kontrak ISP</p>
+                                <p className="mt-1 text-[13px] font-semibold text-on-surface">Awal: {formatDate(detail?.contractStartDate ?? isp.contractStartDate)}</p>
+                                <p className="mt-1 text-[11px] text-on-surface-variant">Berjalan: {formatContractPeriod(detail?.contractPeriodStart ?? isp.contractPeriodStart, detail?.contractPeriodEnd ?? isp.contractPeriodEnd)}</p>
+                            </div>
                         </section>
-                        <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                            <h3 className="mb-4 text-lg font-bold text-blue-950">Ringkasan Tagihan (Demo)</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500">Total Bulanan (Estimasi)</p>
-                                    <p className="mt-1 text-xl font-black text-slate-800">Rp 0</p>
+                        
+                        <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                            <div className="space-y-6">
+                                <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm border-l-4 border-amber-400">
+                                    <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
+                                        <span className="material-symbols-outlined text-xl text-amber-500">warning</span>
+                                        Status Tindak Lanjut ISP
+                                    </h3>
+                                    <div className="space-y-3">
+                                        <div className="rounded-lg border border-red-100 bg-red-50 p-4">
+                                            <p className="text-sm font-bold text-red-800">Kontrak Berakhir dalam 3 bulan</p>
+                                            <p className="text-xs text-red-600 mt-1">Sistem mengidentifikasi periode berjalan hampir habis. Segera buatkan surat untuk perpanjangan atau penutupan layanan.</p>
+                                            <div className="mt-3 flex gap-2">
+                                                <button className="rounded border border-red-300 bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-red-700">Akan Diperpanjang</button>
+                                                <button className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50">Tidak Diperpanjang</button>
+                                            </div>
+                                        </div>
+                                        <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 flex justify-between items-center">
+                                            <div>
+                                                <p className="text-sm font-bold text-amber-800">Risalah Rapat</p>
+                                                <p className="text-xs text-amber-700">Terdapat 1 baris risalah rapat yang belum dilengkapi berkasnya.</p>
+                                            </div>
+                                            <button className="rounded bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 hover:bg-amber-200">Lengkapi</button>
+                                        </div>
+                                        <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 flex justify-between items-center">
+                                            <div>
+                                                <p className="text-sm font-bold text-amber-800">Upload BAK</p>
+                                                <p className="text-xs text-amber-700">Kontrak terbaru belum memiliki file BAK yang diupload.</p>
+                                            </div>
+                                            <button className="rounded bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 hover:bg-amber-200">Upload</button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500">Biaya Aktivasi Status</p>
-                                    <p className="mt-1 text-base font-bold text-slate-800">{(detail?.activationFeeAmount || isp.activationFeeAmount) ? `Rp ${(detail?.activationFeeAmount || isp.activationFeeAmount).toLocaleString('id-ID')} (Menunggu)` : "Selesai"}</p>
+                                <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
+                                    <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
+                                        <span className="material-symbols-outlined text-xl text-blue-500">groups</span>
+                                        Status Kelengkapan Berkas Tenant
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {tenants.map(t => (
+                                            <div key={t.id} className="flex flex-col rounded-xl border border-slate-100 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer" onClick={() => onOpenTenant(t, "overview")}>
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-sm font-bold text-on-surface">{t.name}</p>
+                                                    <span className="material-symbols-outlined text-slate-400 text-sm">arrow_forward_ios</span>
+                                                </div>
+                                                <p className="mt-1 text-xs font-medium text-amber-600 flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-xs">error</span>
+                                                    {t.name} terdapat 9 masalah/yang perlu ditindaklanjuti
+                                                </p>
+                                            </div>
+                                        ))}
+                                        {tenants.length === 0 && <p className="text-sm text-on-surface-variant">Belum ada tenant aktif untuk dicek.</p>}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-6">
+                                <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
+                                    <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
+                                        <span className="material-symbols-outlined text-xl text-emerald-500">assignment</span>
+                                        Ringkasan Action & Tugas
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="rounded-xl border border-rose-100 bg-rose-50 p-5">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-rose-600">Butuh Action ISP</p>
+                                            <p className="mt-2 text-3xl font-black text-rose-700">3</p>
+                                        </div>
+                                        <div className="rounded-xl border border-orange-100 bg-orange-50 p-5">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-600">Action Tenant</p>
+                                            <p className="mt-2 text-3xl font-black text-orange-700">12</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
+                                    <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
+                                        <span className="material-symbols-outlined text-xl text-blue-500">history</span>
+                                        Aktivitas Terbaru
+                                    </h3>
+                                    {timeline.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {timeline.slice(0, 5).map((event) => (
+                                                <div key={event.id} className="flex gap-4">
+                                                    <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-on-surface-variant">
+                                                        <span className="material-symbols-outlined text-sm">radio_button_checked</span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-on-surface">{event.title}</p>
+                                                        <p className="text-xs text-on-surface-variant">{event.description}</p>
+                                                        <p className="mt-1 text-[10px] uppercase font-bold text-slate-400">{new Date(event.date).toLocaleString("id-ID")}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-6 text-center text-sm text-on-surface-variant">Belum ada aktivitas tercatat.</div>
+                                    )}
                                 </div>
                             </div>
                         </section>
@@ -5860,33 +5973,48 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
 
                 {!isLoading && activeTab === "customers" && (
                     <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <h2 className="text-lg font-bold text-blue-950">Tenant di Bawah ISP Ini</h2>
-                            <button className="rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white">Tambah Tenant</button>
+                        <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                            <div>
+                                <h2 className="text-lg font-bold text-on-surface">Tenant di Bawah ISP Ini</h2>
+                                <div className="mt-2 flex items-center gap-3">
+                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">Total: {tenants.length}</span>
+                                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Aktif: {tenants.filter(t => t.status === "aktif").length}</span>
+                                    <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">Non-aktif: {tenants.filter(t => t.status !== "aktif").length}</span>
+                                </div>
+                            </div>
+                            <button className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90">Tambah Tenant</button>
                         </div>
                         {tenants.length === 0 ? renderEmptyState("Belum ada tenant pada ISP ini.") : (
                             <div className="overflow-x-auto">
                                 <table className="w-full border-collapse">
                                     <thead>
-                                        <tr className="border-b border-slate-100">
-                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Tenant</th>
-                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Status</th>
-                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Shared Core</th>
-                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">To Do</th>
-                                            <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-slate-500">Aksi</th>
+                                        <tr className="border-b border-slate-100 bg-slate-50">
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">No</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Tenant</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Status</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Paket</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Jumlah</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">To Do</th>
+                                            <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                        {tenants.map((tenant) => (
-                                            <tr key={tenant.id} className="hover:bg-slate-50/80">
-                                                <td className="px-4 py-3 text-sm font-semibold text-slate-800">{tenant.name}</td>
-                                                <td className="px-4 py-3 text-sm text-slate-600">{tenant.status === "aktif" ? "Aktif" : "Non-aktif"}</td>
-                                                <td className="px-4 py-3 text-sm text-slate-600">{tenant.contractSharingRatio ?? "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-slate-600">{tenant.todoSummary?.counts?.priority ?? 0} prioritas</td>
-                                                <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                                    <button className="rounded-lg bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10" onClick={() => onOpenTenant(tenant, "overview")} type="button">Detail</button>
-                                                    <button className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100" type="button">Edit</button>
-                                                    <button className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100" type="button">Hapus</button>
+                                        {tenants.map((tenant, idx) => (
+                                            <tr key={tenant.id} className="hover:bg-slate-50/80 transition-colors">
+                                                <td className="px-4 py-3 text-sm font-medium text-on-surface-variant">{idx + 1}</td>
+                                                <td className="px-4 py-3 text-sm font-bold text-on-surface">{tenant.name}</td>
+                                                <td className="px-4 py-3 text-sm text-on-surface-variant">
+                                                    <span className={`rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${tenant.status === 'aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{tenant.status === "aktif" ? "Aktif" : "Non-aktif"}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-on-surface-variant">{(tenant.paket || "-").toUpperCase()}</td>
+                                                <td className="px-4 py-3 text-sm font-medium text-slate-700">{tenant.contractSharingRatio ?? tenant.jumlah ?? "-"}</td>
+                                                <td className="px-4 py-3 text-sm">
+                                                    <span className="rounded bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-700">{tenant.todoSummary?.counts?.priority ?? 0}</span>
+                                                </td>
+                                                <td className="px-4 py-3 flex justify-end gap-2">
+                                                    <button className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100" onClick={() => onOpenTenant(tenant, "overview")} type="button">Detail</button>
+                                                    <button className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100" type="button">Edit</button>
+                                                    <button className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100" type="button">Hapus</button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -5900,56 +6028,94 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                 {!isLoading && activeTab === "contracts" && (
                     <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
                         <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                            <h2 className="text-lg font-bold text-blue-950">Daftar Kontrak (Adendum)</h2>
-                            <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90" type="button">
-                                <span className="material-symbols-outlined text-base">add</span>
-                                Tambah Kontrak
-                            </button>
+                            <h2 className="text-lg font-bold text-on-surface">Daftar Kontrak / Adendum</h2>
                         </div>
-                        {contracts.length === 0 ? renderEmptyState("Belum ada kontrak tercatat.") : (
+                        <div className="overflow-x-auto">
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-slate-50/50">
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">Nomor</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">Status</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">Periode</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">Dibuat</th>
-                                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-500">Aksi</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">No</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Nomor Kontrak</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Awal Kontrak</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Periode Berjalan</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Upload BAK</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Berkas Perpanjangan</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Berkas Tanggapan</th>
+                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {contracts.map((c) => (
-                                        <tr key={c.id}>
-                                            <td className="px-4 py-3 text-sm">{c.contractNumber || "-"}</td>
-                                            <td className="px-4 py-3 text-sm">{c.status || "-"}</td>
-                                            <td className="px-4 py-3 text-sm">{formatContractPeriod(c.startDate, c.endDate)}</td>
-                                            <td className="px-4 py-3 text-sm">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("id-ID") : "-"}</td>
-                                            <td className="px-4 py-3 text-right text-sm">
-                                                <button className="text-blue-600 hover:underline">Detail</button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    <tr>
+                                        <td className="px-4 py-4 text-sm font-semibold">1</td>
+                                        <td className="px-4 py-4 text-sm font-medium text-on-surface">{contractRef}</td>
+                                        <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface-variant">{formatDate(detail?.contractStartDate)}</td>
+                                        <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface-variant">{formatContractPeriod(detail?.contractPeriodStart, detail?.contractPeriodEnd)}</td>
+                                        <td className="px-4 py-4 text-sm"><input type="file" className="text-[10px] w-48 text-on-surface-variant file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[10px] file:bg-slate-100 file:text-slate-700 file:rounded-md" /></td>
+                                        <td className="px-4 py-4 text-sm">{isExpiringSoon ? <input type="file" className="text-[10px] w-48 text-on-surface-variant file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary file:rounded-md" /> : <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Belum Waktunya</span>}</td>
+                                        <td className="px-4 py-4 text-sm">{isExpiringSoon ? <input type="file" className="text-[10px] w-48 text-on-surface-variant file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary file:rounded-md" /> : <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Belum Waktunya</span>}</td>
+                                        <td className="px-4 py-4 text-right text-sm">
+                                            <button className="mr-3 text-amber-600 font-bold hover:underline">Edit</button>
+                                            <button className="text-red-600 font-bold hover:underline">Hapus</button>
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
-                        )}
+                        </div>
                     </section>
                 )}
 
-                {!isLoading && activeTab === "invoices" && (
+                {!isLoading && activeTab === "risalah" && (
                     <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
                         <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                            <h2 className="text-lg font-bold text-blue-950">Tagihan & Invoice</h2>
+                            <h2 className="text-lg font-bold text-on-surface">Risalah Rapat</h2>
+                            <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90" type="button">
+                                <span className="material-symbols-outlined text-base">add</span>
+                                Tambah Baris
+                            </button>
                         </div>
-                        {invoices.length === 0 ? renderEmptyState("Belum ada invoice terkait ISP ini.") : (
-                            <div className="text-sm text-slate-500">Daftar invoice...</div>
-                        )}
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="border-b border-slate-100 bg-slate-50">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">No</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Tanggal Rapat</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Upload Berkas</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Dokumen</th>
+                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-4 py-4 text-sm font-semibold">1</td>
+                                        <td className="px-4 py-4 text-sm"><input type="date" className="rounded-md border p-1.5 text-xs text-on-surface-variant outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" /></td>
+                                        <td className="px-4 py-4 text-sm"><input type="file" className="text-[10px] w-48 text-on-surface-variant file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary file:rounded-md" /></td>
+                                        <td className="px-4 py-4 text-sm text-on-surface-variant font-medium">Belum ada dokumen</td>
+                                        <td className="px-4 py-4 text-right">
+                                            <button className="mr-3 text-primary font-bold hover:underline">Simpan</button>
+                                            <button className="text-red-600 font-bold hover:underline">Hapus</button>
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-slate-50/50">
+                                        <td className="px-4 py-4 text-sm font-semibold text-on-surface-variant">2</td>
+                                        <td className="px-4 py-4 text-sm font-medium text-slate-700">12 Feb 2026</td>
+                                        <td className="px-4 py-4 text-sm text-on-surface-variant">-</td>
+                                        <td className="px-4 py-4 text-sm text-blue-600 font-semibold flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">description</span> risalah_12feb.pdf</td>
+                                        <td className="px-4 py-4 text-right">
+                                            <button className="mr-3 text-amber-600 font-bold hover:underline">Edit</button>
+                                            <button className="mr-3 text-amber-600 font-bold hover:underline">Edit</button>
+                                            <button className="text-red-600 font-bold hover:underline">Hapus</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </section>
                 )}
 
                 {!isLoading && activeTab === "timeline" && (
                     <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
                         <div className="mb-6 border-b border-slate-100 pb-4">
-                            <h2 className="text-lg font-bold text-blue-950">Riwayat Aktifitas & Timeline</h2>
+                            <h2 className="text-lg font-bold text-on-surface">Riwayat Aktifitas & Timeline</h2>
                         </div>
                         {timeline.length === 0 ? renderEmptyState("Belum ada aktifitas baru.") : (
                             <div className="space-y-4">
@@ -5957,8 +6123,8 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                     <div key={event.id} className="flex gap-4">
                                         <span className="material-symbols-outlined text-slate-400">radio_button_checked</span>
                                         <div>
-                                            <p className="text-sm font-bold text-slate-800">{event.title}</p>
-                                            <p className="text-xs text-slate-500">{event.description}</p>
+                                            <p className="text-sm font-bold text-on-surface">{event.title}</p>
+                                            <p className="text-xs text-on-surface-variant">{event.description}</p>
                                             <p className="mt-1 text-[10px] text-slate-400">{new Date(event.date).toLocaleString("id-ID")}</p>
                                         </div>
                                     </div>
@@ -5979,10 +6145,11 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [documentDraft, setDocumentDraft] = useState({
-        jenisDokumen: "BAK",
+        jenisDokumen: "penawaran",
         nomorDokumen: "",
         tanggalDokumen: new Date().toISOString().slice(0, 10),
         contractVersionId: "",
+        customJenisDokumen: "",
     });
     const [documentError, setDocumentError] = useState("");
     const [documentFeedback, setDocumentFeedback] = useState("");
@@ -6018,7 +6185,7 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
         void loadDetail();
     }, [initialTab, loadDetail]);
 
-    const tenantName = detail?.name ?? customer.name;
+    const tenantName = detail?.name ?? customer?.name;
     const isps = Array.isArray(detail?.isps) ? detail.isps : [];
     const contract = Array.isArray(detail?.contracts) ? detail.contracts[0] ?? null : null;
     const versions = Array.isArray(detail?.contractVersions) ? detail.contractVersions : [];
@@ -6026,6 +6193,21 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
     const todoSummary = detail?.todoSummary ?? { priority: [], needAction: [], info: [], counts: {} };
     const latestDocuments = Array.isArray(detail?.latestDocuments) ? detail.latestDocuments : [];
     const requiredDocuments = latestDocuments.filter((item) => ["penawaran", "tanggapan", "hasil_nego"].includes(item.jenisDokumen));
+    const allDocuments = latestDocuments; // Now includes all documents uploaded by user
+
+    // Dynamic mock for invoice generation
+    const mockContractDurationMonths = 6;
+    const mockBillingPeriodMonths = 2;
+    const totalAutoInvoices = Math.ceil(mockContractDurationMonths / mockBillingPeriodMonths);
+    const displayInvoices = invoices.length > 0 ? invoices : Array.from({ length: totalAutoInvoices }).map((_, idx) => ({
+        id: `mock-inv-${idx}`,
+        number: `INV/${String(4 + (idx * mockBillingPeriodMonths)).padStart(2, '0')}/2026`,
+        monthStr: new Date(2026, 3 + (idx * mockBillingPeriodMonths), 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' }),
+        isPaid: idx < 2,
+        paidDate: idx < 2 ? `1 ${new Date(2026, 3 + (idx * mockBillingPeriodMonths), 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' })}` : "-",
+        amount: 12000000,
+        file: idx < 2 ? "bukti_bayar.pdf" : null
+    }));
 
     const openVersionEditor = () => {
         const latestVersion = versions[0];
@@ -6127,11 +6309,11 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
     };
 
     const tabs = [
-        { key: "overview", label: "Overview" },
-        { key: "contracts", label: "Contract" },
-        { key: "invoices", label: "Invoice" },
-        { key: "documents", label: "Documents" },
-        { key: "timeline", label: "Timeline" },
+        { key: "overview", label: "Ringkasan" },
+        { key: "contracts", label: "Kontrak & Riwayat" },
+        { key: "invoices", label: "Tagihan / Invoice" },
+        { key: "documents", label: "Arsip Dokumen" },
+        { key: "timeline", label: "Timeline Aktifitas" },
     ];
 
     return (
@@ -6149,21 +6331,22 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
                             <div className="mt-2 flex flex-wrap items-center gap-3">
                                 <h1 className="text-3xl font-extrabold text-primary">{tenantName}</h1>
                                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${detail?.status === "aktif" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{detail?.status === "aktif" ? "Aktif" : "Non-aktif"}</span>
+                                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">Paket: {(detail?.paket || customer?.paket || "CORE").toUpperCase()}</span>
+                                <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">Jumlah: {detail?.contractSharingRatio ?? detail?.jumlah ?? customer?.contractSharingRatio ?? customer?.jumlah ?? "-"}</span>
                             </div>
-                            <p className="mt-2 text-sm text-slate-500">ISP: {isps.length > 0 ? isps.map((item) => item.name).join(", ") : "-"}</p>
-                            {contextIsp?.name && <p className="mt-1 text-sm text-slate-500">Dibuka dari grup ISP: {contextIsp.name}</p>}
+                            <p className="mt-2 text-sm text-on-surface-variant">ISP: {isps.length > 0 ? isps.map((item) => item.name).join(", ") : "-"}</p>
+                            {contextIsp?.name && <p className="mt-1 text-sm text-on-surface-variant">Dibuka dari grup ISP: {contextIsp.name}</p>}
                         </div>
                         <div className="flex flex-wrap gap-3">
-                            <button className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={openVersionEditor} type="button">Ubah Ratio</button>
-                            <button className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={() => setDeleteModalOpen(true)} type="button">Hapus Relasi ISP</button>
-                            <button className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={onCreateIsp} type="button">Tambah ISP Baru</button>
-                            <button className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={() => void Promise.all([loadDetail(), onRefreshAll?.()])} type="button">Refresh</button>
+                            <button className="rounded-xl border border-primary bg-primary/5 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10" onClick={() => void Promise.all([loadDetail(), onRefreshAll?.()])} type="button">Refresh</button>
+                            <button className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100" type="button">Edit Tenant</button>
+                            <button className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100" type="button">Hapus Tenant</button>
                         </div>
                     </div>
                 </section>
 
                 {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
-                {isLoading && <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600">Memuat detail tenant...</div>}
+                {isLoading && <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-on-surface-variant">Memuat detail tenant...</div>}
 
                 <div className="flex gap-6 overflow-x-auto border-b border-slate-200">
                     {tabs.map((tab) => (
@@ -6173,17 +6356,28 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
 
                 {activeTab === "overview" && (
                     <div className="space-y-8">
-                        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <SummaryCard label="ISP Terkait" value={isps.length} icon="device_hub" />
-                            <SummaryCard label="Invoice" value={invoices.length} icon="receipt_long" />
-                            <SummaryCard label="Priority To Do" value={todoSummary.counts?.priority ?? 0} icon="priority_high" />
-                            <SummaryCard label="Need Action" value={todoSummary.counts?.needAction ?? 0} icon="pending_actions" />
+                        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                            <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+                                <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Invoice Bulanan</p>
+                                <div className="flex items-end gap-3"><span className="text-3xl font-extrabold text-on-surface">{displayInvoices.length}</span><span className="text-sm font-semibold text-on-surface-variant mb-1">Total</span></div>
+                                <div className="mt-3 flex gap-4 text-xs font-semibold"><span className="text-emerald-600">{displayInvoices.filter(i => i.isPaid).length} Terbayar</span><span className="text-rose-600">{displayInvoices.filter(i => !i.isPaid).length} Belum</span></div>
+                            </div>
+                            <SummaryCard label="Butuh Action" value={(todoSummary.counts?.priority ?? 0) + (todoSummary.counts?.needAction ?? 0)} icon="pending_actions" />
+                            <SummaryCard label="Status Aktivasi" value={(detail?.activationFeePaidAt) ? "Lunas" : "Belum Lunas"} icon="payments" />
+                            <div className="flex flex-col col-span-2 rounded-xl bg-white p-5 shadow-sm border border-slate-100 justify-center">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <span className="material-symbols-outlined text-2xl text-blue-500">calendar_month</span>
+                                    <p className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Periode Tagihan</p>
+                                </div>
+                                <p className="text-xl font-bold text-on-surface">Setiap {mockBillingPeriodMonths} Bulan</p>
+                                <p className="mt-1 text-xs text-on-surface-variant">Invoice dibuat otomatis H-7</p>
+                            </div>
                         </section>
 
                         <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                             {/* Status Kelengkapan Berkas */}
                             <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-950">
+                                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
                                     <span className="material-symbols-outlined text-xl">task_alt</span>
                                     Status Kelengkapan Berkas
                                 </h2>
@@ -6230,7 +6424,7 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
                             {/* Biaya Aktivasi */}
                             <div className="space-y-6">
                                 <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-950">
+                                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
                                         <span className="material-symbols-outlined text-xl">payments</span>
                                         Biaya Aktivasi
                                     </h2>
@@ -6255,7 +6449,7 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
 
                                 {/* Dokumen Terbaru */}
                                 <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-950">
+                                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
                                         <span className="material-symbols-outlined text-xl">description</span>
                                         Dokumen Terbaru
                                     </h2>
@@ -6265,45 +6459,24 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
                                                 <div key={doc.id} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3">
                                                     <span className="material-symbols-outlined text-base text-blue-400">article</span>
                                                     <div>
-                                                        <p className="text-sm font-semibold text-slate-800">{documentTypeLabelMap[doc.jenisDokumen] || doc.jenisDokumen}</p>
-                                                        <p className="text-xs text-slate-500">{doc.nomorDokumen || "-"} • {formatDate(doc.tanggalDokumen)}</p>
+                                                        <p className="text-sm font-semibold text-on-surface">{documentTypeLabelMap[doc.jenisDokumen] || doc.jenisDokumen}</p>
+                                                        <p className="text-xs text-on-surface-variant">{doc.nomorDokumen || "-"} • {formatDate(doc.tanggalDokumen)}</p>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-slate-500">Belum ada dokumen terunggah.</p>
+                                        <p className="text-sm text-on-surface-variant">Belum ada dokumen terunggah.</p>
                                     )}
                                 </div>
                             </div>
                         </section>
 
                         <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                            {/* Kontrak Berjalan */}
-                            <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-950">
-                                    <span className="material-symbols-outlined text-xl">handshake</span>
-                                    Kontrak Berjalan
-                                </h2>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-slate-100">
-                                                <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Nomor kontrak</th>
-                                                <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Periode</th>
-                                                <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Status</th>
-                                                <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">BAK</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody><tr><td className="px-3 py-4 text-sm font-semibold text-slate-800">{contract?.contractNumber ?? "-"}</td><td className="px-3 py-4 text-sm text-slate-600">{formatContractPeriod(contract?.startDate, contract?.endDate)}</td><td className="px-3 py-4 text-sm text-slate-600">{contract?.status ?? "-"}</td><td className="px-3 py-4 text-sm text-slate-600">{versions[0]?.bakDocumentId ? `#${versions[0].bakDocumentId}` : "Belum ada BAK"}</td></tr></tbody>
-                                    </table>
-                                </div>
-                            </div>
-
                             {/* Aktivitas Terbaru */}
-                            <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-950">
-                                    <span className="material-symbols-outlined text-xl">history</span>
+                            <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm border-l-4 border-emerald-400">
+                                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
+                                    <span className="material-symbols-outlined text-xl text-emerald-500">history</span>
                                     Aktivitas Terbaru
                                 </h2>
                                 {timeline.length > 0 ? (
@@ -6314,15 +6487,15 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
                                                     <span className="material-symbols-outlined text-sm">{timelineIconMap[event.type] ?? "history"}</span>
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-semibold text-slate-800">{event.title}</p>
-                                                    <p className="text-xs text-slate-500">{event.description}</p>
+                                                    <p className="text-sm font-semibold text-on-surface">{event.title}</p>
+                                                    <p className="text-xs text-on-surface-variant">{event.description}</p>
                                                     <p className="mt-1 text-[10px] text-slate-400">{formatDate(event.date)}</p>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-slate-500">Belum ada aktivitas tercatat.</p>
+                                    <p className="text-sm text-on-surface-variant">Belum ada aktivitas tercatat.</p>
                                 )}
                             </div>
                         </section>
@@ -6331,22 +6504,62 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
 
                 {activeTab === "contracts" && (
                     <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <h2 className="text-lg font-bold text-blue-950">Riwayat Perubahan</h2>
-                            <button className="rounded-lg bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10" onClick={openVersionEditor} type="button">Tambah Perubahan Ratio</button>
+                        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                            <h2 className="text-lg font-bold text-on-surface">Daftar Kontrak Tenant</h2>
+                            <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90" onClick={openVersionEditor} type="button">
+                                <span className="material-symbols-outlined text-base">add</span>
+                                Tambah Kontrak / Perubahan
+                            </button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100">
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Versi</th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Periode</th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Ratio</th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">BAK</th>
+                                    <tr className="border-b border-slate-100 bg-slate-50/50">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Tgl Ditambahkan</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Alasan</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Periode Awal</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Periode Akhir</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Paket</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Jumlah Aktual</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Upload BAK</th>
+                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Aksi</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {versions.map((version) => <tr key={version.id}><td className="px-4 py-3 text-sm font-semibold text-slate-800">#{version.versionNumber}</td><td className="px-4 py-3 text-sm text-slate-600">{formatContractPeriod(version.startDate, version.endDate)}</td><td className="px-4 py-3 text-sm text-slate-600">{version.sharedCoreRatio || "-"}</td><td className="px-4 py-3 text-sm text-slate-600">{version.bakDocumentId ? `Tersedia (#${version.bakDocumentId})` : "Belum upload"}</td></tr>)}
+                                <tbody>
+                                    <tr className="bg-white border-b border-slate-50">
+                                        <td className="px-4 py-4 text-sm font-medium text-on-surface">{formatDate(contract?.startDate ?? new Date().toISOString())}</td>
+                                        <td className="px-4 py-4 text-sm text-on-surface-variant"><span className="rounded bg-blue-50 text-blue-700 px-2 py-1 text-[10px] font-bold">Kontrak Awal</span></td>
+                                        <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface-variant">{formatDate(contract?.startDate)}</td>
+                                        <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface-variant">{formatDate(contract?.endDate)}</td>
+                                        <td className="px-4 py-4 text-sm font-bold text-slate-700 uppercase">{(customer?.paket || "CORE")}</td>
+                                        <td className="px-4 py-4 text-sm font-bold text-slate-700">{versions[0]?.sharedCoreRatio ?? customer?.jumlah ?? "-"}</td>
+                                        <td className="px-4 py-4 text-sm text-on-surface-variant">
+                                            {versions[0]?.bakDocumentId ? (
+                                                <span className="text-emerald-600 flex items-center gap-1 text-xs"><span className="material-symbols-outlined text-[14px]">check_circle</span> Tersedia</span>
+                                            ) : (
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <input type="file" className="text-[10px] w-48 text-on-surface-variant file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary file:rounded-md" />
+                                                    <button className="text-[10px] font-semibold text-amber-600 text-left hover:underline">Tandai Memang Kosong</button>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-4 text-right text-sm">
+                                            <button className="text-amber-600 font-bold hover:underline mr-4">Edit</button>
+                                            <button className="text-red-600 font-bold hover:underline">Hapus</button>
+                                        </td>
+                                    </tr>
+                                    {versions.slice(1).map((version) => (
+                                        <tr key={version.id} className="bg-slate-50/50 opacity-70 border-b border-slate-50">
+                                            <td className="px-4 py-4 text-sm text-on-surface-variant">{formatDate(version.startDate)}</td>
+                                            <td className="px-4 py-4 text-sm text-on-surface-variant"><span className="rounded bg-slate-200 text-slate-700 px-2 py-1 text-[10px] font-bold">Ubah Paket</span></td>
+                                            <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface-variant">{formatDate(version.startDate)}</td>
+                                            <td className="px-4 py-4 text-sm whitespace-nowrap text-on-surface-variant">{formatDate(version.endDate)}</td>
+                                            <td className="px-4 py-4 text-sm font-bold text-on-surface-variant uppercase">{(customer?.paket || "CORE")}</td>
+                                            <td className="px-4 py-4 text-sm text-on-surface-variant font-bold">{version.sharedCoreRatio || "-"}</td>
+                                            <td className="px-4 py-4 text-sm text-on-surface-variant">{version.bakDocumentId ? "Tersedia" : "Kosong"}</td>
+                                            <td className="px-4 py-4 text-right text-sm">-</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
@@ -6355,20 +6568,69 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
 
                 {activeTab === "invoices" && (
                     <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                        <h2 className="mb-4 text-lg font-bold text-blue-950">Invoice Tenant</h2>
+                        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-on-surface">Daftar Invoice Bulanan</h2>
+                                <p className="text-xs text-on-surface-variant mt-1">Invoice terbuat otomatis sesuai periode tagihan dan durasi kontrak.</p>
+                            </div>
+                            <button className="inline-flex items-center gap-2 rounded-xl bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition-colors hover:bg-primary/20" type="button">
+                                <span className="material-symbols-outlined text-base">add</span>
+                                Tambah Manual
+                            </button>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100">
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Invoice</th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Periode</th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Status</th>
-                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Due date</th>
-                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-slate-500">Nilai</th>
+                                    <tr className="border-b border-slate-100 bg-slate-50/50">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">No</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Nomor Invoice</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Bulan Tagihan</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Status</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Waktu Terbayar</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Jumlah Dibayar</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Berkas / Bukti Bayar</th>
+                                        <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Aksi</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {invoices.map((invoice) => <tr key={invoice.id}><td className="px-4 py-3 text-sm font-semibold text-slate-800">{invoice.invoiceNumber || `#${invoice.id}`}</td><td className="px-4 py-3 text-sm text-slate-600">{formatContractPeriod(invoice.periodStartDate, invoice.periodEndDate)}</td><td className="px-4 py-3 text-sm text-slate-600">{invoiceStatusLabelMap[invoice.status] || invoice.status}</td><td className="px-4 py-3 text-sm text-slate-600">{formatDate(invoice.dueDate)}</td><td className="px-4 py-3 text-right text-sm font-semibold text-slate-700">{formatCurrency(invoice.amount)}</td></tr>)}
+                                <tbody>
+                                    {displayInvoices.map((inv, idx) => (
+                                        <tr key={inv.id} className="bg-white hover:bg-slate-50 transition-colors border-b border-slate-50">
+                                            <td className="px-4 py-4 text-sm font-medium text-on-surface">{idx + 1}</td>
+                                            <td className="px-4 py-4 text-sm font-semibold text-on-surface">{inv.number}</td>
+                                            <td className="px-4 py-4 text-sm text-on-surface-variant">{inv.monthStr}</td>
+                                            <td className="px-4 py-4 text-sm"><span className={`rounded px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${inv.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{inv.isPaid ? 'Paid' : 'Unpaid'}</span></td>
+                                            <td className="px-4 py-4 text-sm text-on-surface-variant font-bold">{inv.paidDate}</td>
+                                            <td className="px-4 py-4 text-sm font-semibold text-on-surface">
+                                                {!inv.isPaid ? (
+                                                    <div className="flex items-center gap-1 border border-slate-200 rounded px-2 py-1 bg-white focus-within:border-primary">
+                                                        <span className="text-[10px] font-bold text-slate-400">Rp</span>
+                                                        <input type="number" className="w-20 outline-none text-xs text-on-surface" placeholder="0" defaultValue={inv.amount} />
+                                                    </div>
+                                                ) : (
+                                                    formatCurrency(inv.amount)
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-4 text-sm">
+                                                {!inv.isPaid ? (
+                                                    <div className="flex flex-col items-start gap-1">
+                                                        <input type="file" className="text-[10px] w-48 text-on-surface-variant file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary file:rounded-md" />
+                                                        <p className="text-[10px] font-semibold text-amber-600">Invoice belum diupload</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-start gap-1">
+                                                        <button className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">description</span> {inv.file}</button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-4 text-right text-sm">
+                                                {!inv.isPaid ? (
+                                                    <button className="rounded px-3 py-1.5 bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100 transition-colors">Tandai Bayar</button>
+                                                ) : (
+                                                    <button className="text-on-surface-variant hover:text-slate-700 font-bold text-xs hover:underline mr-3">Edit</button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
@@ -6378,19 +6640,19 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
                 {activeTab === "documents" && (
                     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                         <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                            <h2 className="mb-4 text-lg font-bold text-blue-950">Dokumen Tenant</h2>
+                            <h2 className="mb-4 text-lg font-bold text-on-surface">Dokumen Tenant</h2>
                             <div className="space-y-3">
-                                {requiredDocuments.map((document) => <div key={document.id} className="rounded-xl border border-slate-100 bg-white px-4 py-3"><p className="text-sm font-semibold text-slate-800">{documentTypeLabelMap[document.jenisDokumen] || document.jenisDokumen}</p><p className="mt-1 text-xs text-slate-500">{document.nomorDokumen || "-"} • {formatDate(document.tanggalDokumen)}</p></div>)}
-                                {requiredDocuments.length === 0 && <p className="text-sm text-slate-500">Dokumen wajib tenant belum tersedia.</p>}
+                                {allDocuments.map((document) => <div key={document?.id} className="flex justify-between items-center rounded-xl border border-slate-100 bg-white px-4 py-3"><div><p className="text-sm font-semibold text-on-surface">{documentTypeLabelMap[document?.jenisDokumen] || document?.jenisDokumen}</p><p className="mt-1 text-xs text-on-surface-variant">{document?.nomorDokumen || "-"} • {formatDate(document?.tanggalDokumen)}</p></div><button className="text-xs font-bold text-amber-600 hover:underline">Edit</button></div>)}
+                                {allDocuments.length === 0 && <p className="text-sm text-on-surface-variant">Belum ada dokumen yang diunggah.</p>}
                             </div>
                         </section>
                         <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                            <h2 className="mb-4 text-lg font-bold text-blue-950">Upload Dokumen</h2>
+                            <h2 className="mb-4 text-lg font-bold text-on-surface">Upload Dokumen</h2>
                             <form className="space-y-4" onSubmit={handleUploadDocument}>
-                                <FieldSelect label="Jenis Dokumen" value={documentDraft.jenisDokumen} onChange={(value) => setDocumentDraft((previous) => ({ ...previous, jenisDokumen: value }))} options={[{ value: "BAK", label: "BAK" }, { value: "penawaran", label: "Surat penawaran" }, { value: "tanggapan", label: "Surat tanggapan" }, { value: "hasil_nego", label: "Surat negosiasi" }, { value: "invoice", label: "Invoice" }]} />
-                                <FieldInput label="Nomor Dokumen" value={documentDraft.nomorDokumen} onChange={(value) => setDocumentDraft((previous) => ({ ...previous, nomorDokumen: value }))} />
+                                <FieldSelect label="Jenis Dokumen" value={documentDraft.jenisDokumen} onChange={(value) => setDocumentDraft((previous) => ({ ...previous, jenisDokumen: value }))} options={[{ value: "penawaran", label: "Surat Penawaran Harga" }, { value: "tanggapan", label: "Surat Tanggapan" }, { value: "hasil_nego", label: "Surat Negosiasi" }, { value: "custom", label: "Lainnya / Input Manual" }]} />
+                                {documentDraft.jenisDokumen === "custom" && <FieldInput label="Nama Jenis Dokumen Baru" value={documentDraft.customJenisDokumen} onChange={(value) => setDocumentDraft((previous) => ({ ...previous, customJenisDokumen: value }))} placeholder="Misal: Surat Kuasa" />}
+                                <FieldInput label="Nomor Dokumen (Opsional)" value={documentDraft.nomorDokumen} onChange={(value) => setDocumentDraft((previous) => ({ ...previous, nomorDokumen: value }))} placeholder="Boleh dikosongkan" />
                                 <FieldInput label="Tanggal Dokumen" type="date" value={documentDraft.tanggalDokumen} onChange={(value) => setDocumentDraft((previous) => ({ ...previous, tanggalDokumen: value }))} />
-                                {documentDraft.jenisDokumen === "BAK" && <FieldSelect label="Contract Version" value={documentDraft.contractVersionId} onChange={(value) => setDocumentDraft((previous) => ({ ...previous, contractVersionId: value }))} options={[{ value: "", label: "Pilih versi kontrak" }, ...versions.map((version) => ({ value: String(version.id), label: `Versi ${version.versionNumber} • ${version.sharedCoreRatio || "-"}` }))]} />}
                                 {documentError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{documentError}</div>}
                                 {documentFeedback && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{documentFeedback}</div>}
                                 <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60" disabled={isUploadingDocument} type="submit">{isUploadingDocument ? "Mengunggah..." : "Simpan Dokumen"}</button>
@@ -6401,9 +6663,9 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
 
                 {activeTab === "timeline" && (
                     <section className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
-                        <h2 className="mb-4 text-lg font-bold text-blue-950">Timeline</h2>
+                        <h2 className="mb-4 text-lg font-bold text-on-surface">Timeline</h2>
                         <div className="space-y-4">
-                            {timeline.map((event) => <div key={event.id} className="flex gap-4 rounded-xl border border-slate-100 bg-white p-4"><div className={`flex h-11 w-11 items-center justify-center rounded-full ${timelineColorMap[event.type] ?? "text-slate-700 bg-slate-100"}`}><span className="material-symbols-outlined text-base">{timelineIconMap[event.type] ?? "history"}</span></div><div><p className="text-sm font-semibold text-slate-800">{event.title}</p><p className="mt-1 text-sm text-slate-500">{event.description}</p><p className="mt-2 text-xs text-slate-400">{formatDate(event.date)}</p></div></div>)}
+                            {timeline.map((event) => <div key={event.id} className="flex gap-4 rounded-xl border border-slate-100 bg-white p-4"><div className={`flex h-11 w-11 items-center justify-center rounded-full ${timelineColorMap[event.type] ?? "text-slate-700 bg-slate-100"}`}><span className="material-symbols-outlined text-base">{timelineIconMap[event.type] ?? "history"}</span></div><div><p className="text-sm font-semibold text-on-surface">{event.title}</p><p className="mt-1 text-sm text-on-surface-variant">{event.description}</p><p className="mt-2 text-xs text-slate-400">{formatDate(event.date)}</p></div></div>)}
                         </div>
                     </section>
                 )}
@@ -6413,17 +6675,18 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
                         <div className="w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl">
                             <div className="mb-4 flex items-start justify-between gap-4">
                                 <div><p className="text-xs font-black uppercase tracking-widest text-primary">Riwayat Perubahan</p><h3 className="text-xl font-bold text-on-surface">{tenantName}</h3><p className="text-xs text-on-surface-variant">Kontrak tetap satu baris, perubahan ratio dibuat sebagai version baru.</p></div>
-                                <button className="rounded-lg bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200" onClick={() => setVersionEditor(null)} type="button"><span className="material-symbols-outlined text-base">close</span></button>
+                                <button className="rounded-lg bg-slate-100 p-2 text-on-surface-variant transition-colors hover:bg-slate-200" onClick={() => setVersionEditor(null)} type="button"><span className="material-symbols-outlined text-base">close</span></button>
                             </div>
                             <form className="space-y-4" onSubmit={handleCreateVersion}>
-                                <FieldInput label="Shared Core Ratio" value={versionEditor.ratio} onChange={(value) => setVersionEditor((previous) => previous ? { ...previous, ratio: value } : previous)} />
+                                <FieldSelect label="Alasan Kontrak" value={versionEditor.reason ?? "ubah_paket"} onChange={(value) => setVersionEditor((previous) => previous ? { ...previous, reason: value } : previous)} options={[{ value: "ubah_paket", label: "Ubah Paket" }, { value: "lainnya", label: "Alasan Lain" }]} />
+                                <FieldInput label="Shared Core Ratio Baru" value={versionEditor.ratio} onChange={(value) => setVersionEditor((previous) => previous ? { ...previous, ratio: value } : previous)} />
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <FieldInput label="Start Date" type="date" value={versionEditor.startDate} onChange={(value) => setVersionEditor((previous) => previous ? { ...previous, startDate: value } : previous)} />
+                                    <FieldInput label="Start Date (Periode Baru)" type="date" value={versionEditor.startDate} onChange={(value) => setVersionEditor((previous) => previous ? { ...previous, startDate: value } : previous)} />
                                     <FieldInput label="End Date" type="date" value={versionEditor.endDate} onChange={(value) => setVersionEditor((previous) => previous ? { ...previous, endDate: value } : previous)} />
                                 </div>
                                 {versionError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{versionError}</div>}
                                 <div className="flex justify-end gap-2">
-                                    <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50" onClick={() => setVersionEditor(null)} type="button">Batal</button>
+                                    <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50" onClick={() => setVersionEditor(null)} type="button">Batal</button>
                                     <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmittingVersion} type="submit">{isSubmittingVersion ? "Menyimpan..." : "Simpan Perubahan"}</button>
                                 </div>
                             </form>
@@ -6436,13 +6699,13 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
                         <div className="w-full max-w-xl rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl">
                             <div className="mb-4"><p className="text-xs font-black uppercase tracking-widest text-primary">Delete Tenant Logic</p><h3 className="text-xl font-bold text-on-surface">{tenantName}</h3></div>
                             <div className="space-y-3">
-                                <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"><input checked={deleteMode === "this"} disabled={!contextIsp?.id} onChange={() => setDeleteMode("this")} type="radio" /><div><p className="text-sm font-semibold text-slate-800">Remove from this ISP only</p><p className="text-xs text-slate-500">{contextIsp?.name ? `Lepas dari ${contextIsp.name}.` : "Hanya tersedia jika tenant dibuka dari detail ISP."}</p></div></label>
-                                <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"><input checked={deleteMode === "all"} onChange={() => setDeleteMode("all")} type="radio" /><div><p className="text-sm font-semibold text-slate-800">Remove from all ISP</p><p className="text-xs text-slate-500">Lepas tenant dari seluruh grouping ISP.</p></div></label>
-                                <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"><input checked={deleteMode === "selected"} onChange={() => setDeleteMode("selected")} type="radio" /><div className="w-full"><p className="text-sm font-semibold text-slate-800">Select ISP(s)</p><div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">{isps.map((ispItem) => <label key={ispItem.id} className="flex items-center gap-2 text-sm text-slate-700"><input checked={selectedDeleteIspIds.includes(ispItem.id)} disabled={deleteMode !== "selected"} onChange={() => setSelectedDeleteIspIds((previous) => previous.includes(ispItem.id) ? previous.filter((value) => value !== ispItem.id) : [...previous, ispItem.id])} type="checkbox" />{ispItem.name}</label>)}</div></div></label>
+                                <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"><input checked={deleteMode === "this"} disabled={!contextIsp?.id} onChange={() => setDeleteMode("this")} type="radio" /><div><p className="text-sm font-semibold text-on-surface">Remove from this ISP only</p><p className="text-xs text-on-surface-variant">{contextIsp?.name ? `Lepas dari ${contextIsp.name}.` : "Hanya tersedia jika tenant dibuka dari detail ISP."}</p></div></label>
+                                <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"><input checked={deleteMode === "all"} onChange={() => setDeleteMode("all")} type="radio" /><div><p className="text-sm font-semibold text-on-surface">Remove from all ISP</p><p className="text-xs text-on-surface-variant">Lepas tenant dari seluruh grouping ISP.</p></div></label>
+                                <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"><input checked={deleteMode === "selected"} onChange={() => setDeleteMode("selected")} type="radio" /><div className="w-full"><p className="text-sm font-semibold text-on-surface">Select ISP(s)</p><div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">{isps.map((ispItem) => <label key={ispItem.id} className="flex items-center gap-2 text-sm text-slate-700"><input checked={selectedDeleteIspIds.includes(ispItem.id)} disabled={deleteMode !== "selected"} onChange={() => setSelectedDeleteIspIds((previous) => previous.includes(ispItem.id) ? previous.filter((value) => value !== ispItem.id) : [...previous, ispItem.id])} type="checkbox" />{ispItem.name}</label>)}</div></div></label>
                             </div>
                             {deleteError && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{deleteError}</div>}
                             <div className="mt-6 flex justify-end gap-2">
-                                <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50" onClick={() => setDeleteModalOpen(false)} type="button">Batal</button>
+                                <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50" onClick={() => setDeleteModalOpen(false)} type="button">Batal</button>
                                 <button className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60" disabled={isDeletingLink || (deleteMode === "selected" && selectedDeleteIspIds.length === 0)} onClick={() => void handleRemoveTenantLinks()} type="button">{isDeletingLink ? "Memproses..." : "Lanjutkan"}</button>
                             </div>
                         </div>
@@ -6455,7 +6718,7 @@ function TenantDetailPage({ customer, contextIsp, initialTab = "overview", onBac
 
 function SummaryCard({ label, value, icon }) {
     return (
-        <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl bg-surface-container-lowest p-5 shadow-card">
             <div className="flex items-center justify-between gap-4">
                 <div>
                     <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant/60">
@@ -6463,7 +6726,7 @@ function SummaryCard({ label, value, icon }) {
                     </p>
                     <p className="mt-3 text-3xl font-extrabold text-on-surface">{value}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-primary">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-container/15 text-primary">
                     <span className="material-symbols-outlined">{icon}</span>
                 </div>
             </div>
@@ -6473,16 +6736,16 @@ function SummaryCard({ label, value, icon }) {
 
 function TodoColumn({ title, items }) {
     return (
-        <div className="rounded-xl border border-slate-100 bg-white p-4">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">{title}</p>
+        <div className="rounded-xl bg-surface-container-low p-4">
+            <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant">{title}</p>
             <div className="mt-3 space-y-3">
                 {items.length > 0 ? items.map((item) => (
-                    <div key={item.id} className="rounded-lg bg-slate-50 px-3 py-3">
-                        <p className="text-sm font-semibold text-slate-800">{item.title}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.message}</p>
+                    <div key={item.id} className="rounded-xl bg-surface-container-lowest p-3 shadow-soft">
+                        <p className="text-sm font-semibold text-on-surface">{item.title}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">{item.message}</p>
                     </div>
                 )) : (
-                    <p className="text-sm text-slate-500">Tidak ada item.</p>
+                    <p className="text-sm text-on-surface-variant">Tidak ada item.</p>
                 )}
             </div>
         </div>
@@ -6496,7 +6759,7 @@ function FieldInput({ label, type = "text", value, onChange, placeholder = "" })
                 {label}
             </label>
             <input
-                className="w-full rounded-lg border-none bg-surface p-3 text-sm focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl bg-surface-container-low p-3 text-sm outline-none transition-all glass-input"
                 onChange={(event) => onChange(event.target.value)}
                 placeholder={placeholder}
                 type={type}
@@ -6513,7 +6776,7 @@ function FieldSelect({ label, value, onChange, options }) {
                 {label}
             </label>
             <select
-                className="w-full rounded-lg border-none bg-surface p-3 text-sm focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl bg-surface-container-low p-3 text-sm outline-none transition-all glass-input"
                 onChange={(event) => onChange(event.target.value)}
                 value={value}
             >
@@ -6532,7 +6795,7 @@ function ComplianceItem({ active, label }) {
         <div className="flex items-center justify-between rounded-lg bg-surface-container-low px-4 py-3">
             <span className="text-sm font-medium text-on-surface">{label}</span>
             <span
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${active ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${active ? "bg-secondary/10 text-secondary" : "bg-primary-container/20 text-primary"
                     }`}
             >
                 <span className="material-symbols-outlined text-sm">
