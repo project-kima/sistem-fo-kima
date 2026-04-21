@@ -107,7 +107,7 @@ export class CustomersService {
       const billing = this.parseBillingSettings(payload);
 
       const contract = this.store.createPrimaryContract(createdCustomer.id, {
-        contractNumber: contractNumber ?? undefined,
+        contractNumber: contractNumber ?? null,
         startDate: contractPeriod.startDate,
         endDate: contractPeriod.endDate,
         coreType: technical.coreType,

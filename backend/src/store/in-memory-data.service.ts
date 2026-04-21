@@ -64,7 +64,7 @@ interface UpdateIspInput {
 }
 
 interface CreateContractInput {
-  contractNumber?: string;
+  contractNumber?: string | null;
   startDate: string;
   endDate: string;
   coreType: CoreAllocationType;
@@ -568,11 +568,17 @@ export class InMemoryDataService {
     }
 
     const now = nowIso();
+    const normalizedContractNumber = typeof input.contractNumber === 'string'
+      ? input.contractNumber.trim()
+      : input.contractNumber === null
+        ? ''
+        : undefined;
+
     const createdContract: Contract = {
       id: this.nextContractId,
       customerId,
-      contractNumber: input.contractNumber?.trim()
-        ? input.contractNumber.trim()
+      contractNumber: normalizedContractNumber !== undefined
+        ? normalizedContractNumber
         : buildContractNumber(this.nextContractId, parseDate(input.startDate).getUTCFullYear()),
       startDate: input.startDate,
       endDate: input.endDate,
