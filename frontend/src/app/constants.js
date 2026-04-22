@@ -85,9 +85,9 @@ export const invoiceStatusBadgeClass = {
 };
 
 export const contractStatusLabelMap = {
-    aktif: "Aktif",
-    expired: "Expired",
-    terminated: "Terminated",
+    aktif: "Beroperasi",
+    expired: "Kedaluwarsa",
+    terminated: "Berhenti",
 };
 
 export const contractStatusBadgeClass = {

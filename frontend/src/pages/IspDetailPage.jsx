@@ -7,9 +7,11 @@ import {
     formatContractPeriod,
     formatDate,
     getIspContractActionItems,
+    isOpenableFileUrl,
+    readFileAsDataUrl,
 } from "../app/utils";
 
-function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) {
+function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant, onOpenTenant, onRefreshAll }) {
     const [detail, setDetail] = useState(null);
     const [activeTab, setActiveTab] = useState("overview");
     const [error, setError] = useState("");
@@ -19,6 +21,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
     const [, setIsActionLoading] = useState(false);
     const [editingRow, setEditingRow] = useState(null);
     const [risalahRows, setRisalahRows] = useState([]);
+    const [risalahEditor, setRisalahEditor] = useState(null);
 
     const loadDetail = useCallback(async () => {
         setIsLoading(true);
@@ -84,7 +87,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
     // Derived header properties
     const ispName = detail?.name ?? isp.name;
     const contractRef = detail?.contractReference ?? isp.contractReference ?? "-";
-    const handleFileUpload = async (rowId, type, file) => {
+    const handleFileUpload = async (rowId, type, file, followUpId = null) => {
         if (!file) return;
 
         setIsActionLoading(true);
@@ -92,6 +95,9 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
 
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("fileDataUrl", await readFileAsDataUrl(file));
+        formData.append("fileName", file.name);
+        if (followUpId) formData.append("followUpId", String(followUpId));
 
         let endpoint = "";
         if (type === "bak") endpoint = `${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/bak`;
@@ -111,7 +117,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
         }
     };
 
-    const handleRespondRenewal = async (rowId, decision, file) => {
+    const handleRespondRenewal = async (rowId, decision, file, followUpId = null) => {
         if (!file) {
             setError("Harap pilih berkas tanggapan.");
             return;
@@ -123,6 +129,9 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
         const formData = new FormData();
         formData.append("file", file);
         formData.append("decision", decision);
+        formData.append("fileDataUrl", await readFileAsDataUrl(file));
+        formData.append("fileName", file.name);
+        if (followUpId) formData.append("followUpId", String(followUpId));
 
         try {
             await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/response`, {
@@ -136,6 +145,98 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
         } finally {
             setIsActionLoading(false);
         }
+    };
+
+    const handleAddRenewalSplit = async (rowId) => {
+        setIsActionLoading(true);
+        setError("");
+        try {
+            await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/follow-ups`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            });
+            await loadDetail();
+            if (onRefreshAll) onRefreshAll();
+        } catch (requestError) {
+            setError(requestError instanceof Error ? requestError.message : "Gagal menambah split tindak lanjut.");
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const hasInitialRenewalUpload = (row) => {
+        const followUps = Array.isArray(row?.renewalFollowUps) ? row.renewalFollowUps : [];
+        return followUps.some((followUp) => isOpenableFileUrl(followUp?.renewalFileUrl));
+    };
+
+    const renderRenewalFollowUps = (row, columnType) => {
+        const followUps = Array.isArray(row?.renewalFollowUps) ? row.renewalFollowUps : [];
+        if (followUps.length === 0) {
+            if (columnType === "renewal") {
+                return (
+                    <label className="cursor-pointer font-bold text-[10px] text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded hover:bg-slate-200">
+                        Upload
+                        <input type="file" className="hidden" onChange={(e) => handleFileUpload(row.id, "renewal", e.target.files?.[0] ?? null)} />
+                    </label>
+                );
+            }
+
+            return <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Belum Ada</span>;
+        }
+
+        return (
+            <div className="flex flex-col divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-100">
+                {followUps.map((followUp) => {
+                    const hasRenewalFile = isOpenableFileUrl(followUp?.renewalFileUrl);
+                    const hasResponseFile = isOpenableFileUrl(followUp?.responseFileUrl);
+                    const sourceLabel = followUp?.source === "auto" ? "Auto" : followUp?.source === "manual" ? "Manual" : "Upload";
+
+                    return (
+                        <div key={followUp.id} className="bg-white px-3 py-2">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                                    Split {followUp.splitOrder}
+                                </span>
+                                <span className="text-[10px] font-semibold text-slate-400">{sourceLabel}</span>
+                            </div>
+                            <p className="text-[11px] font-semibold text-on-surface">{followUp.title}</p>
+                            {columnType === "renewal" ? (
+                                <div className="mt-2">
+                                    {hasRenewalFile ? (
+                                        <a href={followUp.renewalFileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold text-[11px] uppercase tracking-wider">Buka Berkas</a>
+                                    ) : (
+                                        <label className="cursor-pointer font-bold text-[10px] text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded hover:bg-slate-200">
+                                            Upload
+                                            <input type="file" className="hidden" onChange={(e) => handleFileUpload(row.id, "renewal", e.target.files?.[0] ?? null, followUp.id)} />
+                                        </label>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="mt-2">
+                                    {hasResponseFile ? (
+                                        <a href={followUp.responseFileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold text-[11px] uppercase tracking-wider">Tanggapan</a>
+                                    ) : hasRenewalFile ? (
+                                        <div className="flex flex-col items-start gap-2">
+                                            <label className="relative rounded border border-slate-200 bg-primary px-2 py-1 text-[10px] font-bold text-white">
+                                                Lanjut
+                                                <input type="file" className="absolute inset-0 cursor-pointer opacity-0" onChange={(e) => handleRespondRenewal(row.id, "lanjut", e.target.files?.[0] ?? null, followUp.id)} />
+                                            </label>
+                                            <label className="relative rounded border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700">
+                                                Tidak
+                                                <input type="file" className="absolute inset-0 cursor-pointer opacity-0" onChange={(e) => handleRespondRenewal(row.id, "tidak", e.target.files?.[0] ?? null, followUp.id)} />
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <span className="text-[10px] font-medium text-slate-400">Menunggu upload perpanjangan</span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
     };
 
     const handleUpdateRow = async (rowId, updates) => {
@@ -156,57 +257,89 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
     };
 
     const handleAddRisalah = () => {
-        const today = new Date().toISOString().slice(0, 10);
-        setRisalahRows((previousRows) => [
-            { id: `new-${Date.now()}`, tanggal: today, fileUrl: "", fileName: "", isNew: true },
-            ...previousRows,
-        ]);
-    };
-
-    const handleRisalahFileChange = (rowId, file) => {
         setError("");
-        setRisalahRows((previousRows) =>
-            previousRows.map((row) => {
-                if (row.id !== rowId) {
-                    return row;
-                }
-
-                if (!file) {
-                    return {
-                        ...row,
-                        fileUrl: "",
-                        fileName: "",
-                    };
-                }
-
-                return {
-                    ...row,
-                    fileUrl: `upload://${file.name}`,
-                    fileName: file.name,
-                };
-            }),
-        );
+        setRisalahEditor({
+            id: null,
+            tanggal: "",
+            fileUrl: "",
+            fileName: "",
+            uploadedFileName: "",
+        });
     };
 
-    const handleSaveRisalah = (row) => {
-        if (!row.fileName) {
+    const handleEditRisalah = (row) => {
+        setError("");
+        setRisalahEditor({
+            id: row.id,
+            tanggal: row.tanggal ?? "",
+            fileUrl: row.fileUrl ?? "",
+            fileName: row.fileName ?? "",
+            uploadedFileName: row.fileName ?? "",
+        });
+    };
+
+    const handleRisalahEditorFileChange = (file) => {
+        if (!file) {
+            setRisalahEditor((previous) => (previous
+                ? {
+                    ...previous,
+                    fileUrl: "",
+                    uploadedFileName: "",
+                }
+                : previous));
+            return;
+        }
+
+        void readFileAsDataUrl(file).then((fileUrl) => {
+            setRisalahEditor((previous) => (previous
+                ? {
+                    ...previous,
+                    fileUrl,
+                    uploadedFileName: file.name,
+                }
+                : previous));
+        }).catch((requestError) => {
+            setError(requestError instanceof Error ? requestError.message : "Gagal membaca berkas.");
+        });
+    };
+
+    const handleSaveRisalah = () => {
+        if (!risalahEditor) {
+            return;
+        }
+
+        if (!String(risalahEditor.fileName ?? "").trim()) {
+            setError("Nama berkas risalah wajib diisi.");
+            return;
+        }
+
+        if (!String(risalahEditor.fileUrl ?? "").trim()) {
             setError("Harap unggah berkas risalah terlebih dahulu.");
             return;
         }
 
+        const normalizedDate = String(risalahEditor.tanggal ?? "").trim() || new Date().toISOString().slice(0, 10);
+        const nextRow = {
+            id: risalahEditor.id ?? `new-${Date.now()}`,
+            tanggal: normalizedDate,
+            fileUrl: risalahEditor.fileUrl,
+            fileName: String(risalahEditor.fileName ?? "").trim(),
+        };
+
         setError("");
-        setRisalahRows((previousRows) =>
-            previousRows.map((currentRow) =>
-                currentRow.id === row.id
-                    ? {
-                        ...currentRow,
-                        tanggal: currentRow.tanggal || new Date().toISOString().slice(0, 10),
-                        isNew: false,
-                    }
-                    : currentRow,
-            ),
-        );
+        setRisalahRows((previousRows) => {
+            if (risalahEditor.id) {
+                return previousRows.map((row) => (row.id === risalahEditor.id ? nextRow : row));
+            }
+
+            return [nextRow, ...previousRows];
+        });
+        setRisalahEditor(null);
         // Real app would fetch/save to backend
+    };
+
+    const handleDeleteRisalah = (rowId) => {
+        setRisalahRows((previousRows) => previousRows.filter((row) => row.id !== rowId));
     };
 
     const renderEmptyState = (message) => (
@@ -256,7 +389,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                             <button className="rounded-xl border border-blue-200 bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50" onClick={() => void loadDetail()} type="button">
                                 Refresh Data
                             </button>
-                            <button className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-100" type="button">
+                            <button className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-100" onClick={() => onEditIsp?.(detail ?? isp)} type="button">
                                 Edit Data ISP
                             </button>
                             <button className="rounded-xl bg-red-50 px-5 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-100" type="button">
@@ -362,7 +495,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                                 <input
                                                                     type="file"
                                                                     className="hidden"
-                                                                    onChange={(e) => handleFileUpload(row.id, "renewal", e.target.files[0])}
+                                                                    onChange={(e) => handleFileUpload(row.id, "renewal", e.target.files[0], item.followUpId ?? null)}
                                                                 />
                                                             </label>
                                                         )}
@@ -374,7 +507,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                                         <input
                                                                             type="file"
                                                                             className="absolute inset-0 cursor-pointer opacity-0"
-                                                                            onChange={(e) => handleRespondRenewal(row.id, "lanjut", e.target.files[0])}
+                                                                            onChange={(e) => handleRespondRenewal(row.id, "lanjut", e.target.files[0], item.followUpId ?? null)}
                                                                         />
                                                                     </button>
                                                                 </div>
@@ -384,7 +517,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                                         <input
                                                                             type="file"
                                                                             className="absolute inset-0 cursor-pointer opacity-0"
-                                                                            onChange={(e) => handleRespondRenewal(row.id, "tidak", e.target.files[0])}
+                                                                            onChange={(e) => handleRespondRenewal(row.id, "tidak", e.target.files[0], item.followUpId ?? null)}
                                                                         />
                                                                     </button>
                                                                 </div>
@@ -511,7 +644,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                     <span className="material-symbols-outlined text-base">table_view</span>
                                     Konversi ke Excel
                                 </button>
-                                <button className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90" type="button">Tambah Tenant</button>
+                                <button className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90" onClick={() => onOpenCreateTenant?.(detail ?? isp)} type="button">Tambah Tenant</button>
                             </div>
                         </div>
                         {tenants.length === 0 ? renderEmptyState("Belum ada tenant pada ISP ini.") : (
@@ -542,6 +675,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                     <span className="rounded bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-700">{tenant.todoSummary?.counts?.priority ?? 0}</span>
                                                 </td>
                                                 <td className="px-4 py-3 flex justify-end gap-2">
+                                                    <button className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100" onClick={() => onOpenTenant(tenant, "invoices")} type="button">Invoice</button>
                                                     <button className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100" onClick={() => onOpenTenant(tenant, "overview")} type="button">Detail</button>
                                                     <button className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100" type="button">Edit</button>
                                                     <button className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100" type="button">Hapus</button>
@@ -615,7 +749,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                 )}
                                             </td>
                                             <td className="px-4 py-4 text-sm">
-                                                {row.bakFileUrl ? (
+                                                {isOpenableFileUrl(row.bakFileUrl) ? (
                                                     <a href={row.bakFileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold text-[11px] uppercase tracking-wider">Buka BAK</a>
                                                 ) : (
                                                     <label className="cursor-pointer font-bold text-[10px] text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded hover:bg-slate-200">
@@ -625,18 +759,23 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                 )}
                                             </td>
                                             <td className="px-4 py-4 text-sm">
-                                                {row.renewalFileUrl ? (
-                                                    <a href={row.renewalFileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold text-[11px] uppercase tracking-wider">Berkas</a>
-                                                ) : (
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Belum Ada</span>
-                                                )}
+                                                <div className="space-y-2">
+                                                    {renderRenewalFollowUps(row, "renewal")}
+                                                    <button
+                                                        className="rounded bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        disabled={!hasInitialRenewalUpload(row)}
+                                                        onClick={() => {
+                                                            void handleAddRenewalSplit(row.id);
+                                                        }}
+                                                        title={!hasInitialRenewalUpload(row) ? "Upload berkas perpanjangan pertama terlebih dahulu." : "Tambah split tindak lanjut"}
+                                                        type="button"
+                                                    >
+                                                        Tambah Split
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td className="px-4 py-4 text-sm">
-                                                {row.responseFileUrl ? (
-                                                    <a href={row.responseFileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold text-[11px] uppercase tracking-wider">Tanggapan</a>
-                                                ) : (
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">Belum Ada</span>
-                                                )}
+                                                {renderRenewalFollowUps(row, "response")}
                                             </td>
                                             <td className="px-4 py-4 text-right">
                                                 {editingRow?.id === row.id ? (
@@ -647,7 +786,6 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                 ) : (
                                                     <div className="flex justify-end gap-3">
                                                         <button className="text-amber-600 font-bold hover:underline" onClick={() => setEditingRow({ ...row })}>Edit</button>
-                                                        <button className="text-red-600 font-bold hover:underline">Hapus</button>
                                                     </div>
                                                 )}
                                             </td>
@@ -674,7 +812,7 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                 onClick={handleAddRisalah}
                             >
                                 <span className="material-symbols-outlined text-base">add</span>
-                                Tambah Baris
+                                Tambah Berkas
                             </button>
                         </div>
                         <div className="overflow-x-auto">
@@ -696,32 +834,92 @@ function IspDetailPage({ isp, onBack, onNavigate, onOpenTenant, onRefreshAll }) 
                                                 <span className="font-medium text-slate-700">{formatDate(row.tanggal)}</span>
                                             </td>
                                             <td className="px-4 py-4 text-sm">
-                                                <input
-                                                    type="file"
-                                                    className="w-48 text-[10px] text-on-surface-variant file:mr-2 file:rounded-md file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:text-primary"
-                                                    onChange={(event) => handleRisalahFileChange(row.id, event.target.files?.[0] ?? null)}
-                                                />
+                                                {isOpenableFileUrl(row.fileUrl) ? (
+                                                    <a className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:underline" href={row.fileUrl} rel="noreferrer" target="_blank">
+                                                        <span className="material-symbols-outlined text-[14px]">attach_file</span>
+                                                        Buka berkas
+                                                    </a>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
+                                                        <span className="material-symbols-outlined text-[14px]">attach_file</span>
+                                                        Belum ada berkas
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-4 py-4 text-sm text-on-surface-variant font-medium">
                                                 {row.fileName ? (
-                                                    <span className="text-blue-600 font-semibold flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">description</span> {row.fileName}</span>
+                                                    <span className="font-semibold text-on-surface">{row.fileName}</span>
                                                 ) : "Belum ada berkas"}
                                             </td>
                                             <td className="px-4 py-4 text-right">
-                                                <button className="mr-3 text-primary font-bold hover:underline" onClick={() => handleSaveRisalah(row)}>Simpan</button>
-                                                <button className="text-red-600 font-bold hover:underline" onClick={() => setRisalahRows((previousRows) => previousRows.filter((r) => r.id !== row.id))}>Hapus</button>
+                                                <button className="mr-3 text-primary font-bold hover:underline" onClick={() => handleEditRisalah(row)} type="button">Edit</button>
+                                                <button className="text-red-600 font-bold hover:underline" onClick={() => handleDeleteRisalah(row.id)} type="button">Hapus</button>
                                             </td>
                                         </tr>
                                     ))}
                                     {risalahRows.length === 0 && (
                                         <tr>
-                                            <td colSpan="5" className="py-12 text-center text-on-surface-variant italic">Belum ada risalah rapat. Klik "Tambah Baris" untuk membuat baru.</td>
+                                            <td colSpan="5" className="py-12 text-center text-on-surface-variant italic">Belum ada risalah rapat. Klik "Tambah Berkas" untuk membuat baru.</td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </section>
+                )}
+
+                {risalahEditor && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 px-4">
+                        <div className="w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl">
+                            <div className="mb-4 flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-widest text-primary">Risalah Rapat</p>
+                                    <h3 className="text-xl font-bold text-on-surface">{risalahEditor.id ? "Edit Berkas Risalah" : "Tambah Berkas Risalah"}</h3>
+                                    <p className="text-xs text-on-surface-variant">Isi nama berkas manual, unggah file, lalu atur tanggal jika diperlukan.</p>
+                                </div>
+                                <button className="rounded-lg bg-slate-100 p-2 text-on-surface-variant transition-colors hover:bg-slate-200" onClick={() => setRisalahEditor(null)} type="button">
+                                    <span className="material-symbols-outlined text-base">close</span>
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Nama Berkas</label>
+                                    <input
+                                        className="w-full rounded-xl bg-surface-container-low p-3 text-sm outline-none transition-all glass-input"
+                                        onChange={(event) => setRisalahEditor((previous) => previous ? { ...previous, fileName: event.target.value } : previous)}
+                                        placeholder="Contoh: Risalah Meeting April 2026"
+                                        type="text"
+                                        value={risalahEditor.fileName}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Upload Berkas</label>
+                                    <input
+                                        className="w-full rounded-xl border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm outline-none transition-colors file:mr-2 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary"
+                                        onChange={(event) => handleRisalahEditorFileChange(event.target.files?.[0] ?? null)}
+                                        type="file"
+                                    />
+                                    <p className="mt-2 text-xs text-on-surface-variant">
+                                        {risalahEditor.uploadedFileName ? `File dipilih: ${risalahEditor.uploadedFileName}` : "Belum ada file dipilih."}
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tanggal Rapat</label>
+                                    <input
+                                        className="w-full rounded-xl bg-surface-container-low p-3 text-sm outline-none transition-all glass-input"
+                                        onChange={(event) => setRisalahEditor((previous) => previous ? { ...previous, tanggal: event.target.value } : previous)}
+                                        type="date"
+                                        value={risalahEditor.tanggal}
+                                    />
+                                    <p className="mt-2 text-xs text-on-surface-variant">Kosongkan jika ingin otomatis memakai tanggal hari ini.</p>
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end gap-2">
+                                <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-slate-50" onClick={() => setRisalahEditor(null)} type="button">Batal</button>
+                                <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" onClick={handleSaveRisalah} type="button">Simpan</button>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
                 {!isLoading && activeTab === "timeline" && (

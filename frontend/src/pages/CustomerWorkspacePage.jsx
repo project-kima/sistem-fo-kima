@@ -17,21 +17,18 @@ function CustomerWorkspacePage({
     onRefresh,
 }) {
     const [searchTerm, setSearchTerm] = useState("");
-    const [listType, setListType] = useState("aktif");
+    const [listType, setListType] = useState("current");
     const [selectedIspFilter, setSelectedIspFilter] = useState("all");
-    const [tenantStatusFilter, setTenantStatusFilter] = useState("all");
+    const [contractStatusFilter, setContractStatusFilter] = useState("all");
+    const [routeStatusFilter, setRouteStatusFilter] = useState("all");
     const [todoFilter, setTodoFilter] = useState("all");
     const [collapsedMap, setCollapsedMap] = useState({});
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
+    const todayIso = new Date().toISOString().slice(0, 10);
 
     // --- LOGIC: Filter ISP ---
-    const filteredIsps = useMemo(() => {
-        return isps.filter((isp) => {
-            const status = isp.status ?? "aktif";
-            return listType === "aktif" ? status === "aktif" : status === "nonaktif";
-        });
-    }, [isps, listType]);
+    const filteredIsps = useMemo(() => isps, [isps]);
 
     const ispFilterOptions = useMemo(
         () => filteredIsps.map((isp) => isp.name).sort((a, b) => a.localeCompare(b)),
@@ -57,16 +54,26 @@ function CustomerWorkspacePage({
                         isp.name,
                     ].filter(Boolean).join(" ").toLowerCase();
 
-                    const tenantStatusKey = tenant.rawStatus === "aktif" ? "aktif" : "nonaktif";
+                    const contractEndDate = typeof tenant.contractPeriodEnd === "string"
+                        ? tenant.contractPeriodEnd.slice(0, 10)
+                        : "";
+                    const contractStatusKey = contractEndDate && contractEndDate < todayIso
+                        ? "expired"
+                        : "beroperasi";
+                    const matchesListType = listType === "riwayat"
+                        ? tenant.rawStatus !== "aktif"
+                        : tenant.rawStatus === "aktif";
+                    const tenantRouteStatus = typeof tenant.routeStatus === "string" ? tenant.routeStatus : "aktif";
                     const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
                     const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
                     const todoStatusKey = priorityCount + needActionCount > 0 ? "perlu_tindakan" : "tidak_ada";
 
                     const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
-                    const matchesTenantStatus = tenantStatusFilter === "all" ? true : tenantStatusKey === tenantStatusFilter;
+                    const matchesContractStatus = contractStatusFilter === "all" ? true : contractStatusKey === contractStatusFilter;
+                    const matchesRouteStatus = routeStatusFilter === "all" ? true : tenantRouteStatus === routeStatusFilter;
                     const matchesTodo = todoFilter === "all" ? true : todoStatusKey === todoFilter;
 
-                    return matchesSearch && matchesTenantStatus && matchesTodo;
+                    return matchesListType && matchesSearch && matchesContractStatus && matchesRouteStatus && matchesTodo;
                 })
                 .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -96,7 +103,10 @@ function CustomerWorkspacePage({
         filteredIsps,
         normalizedSearch,
         effectiveSelectedIspFilter,
-        tenantStatusFilter,
+        contractStatusFilter,
+        routeStatusFilter,
+        listType,
+        todayIso,
         todoFilter,
     ]);
 
@@ -107,13 +117,15 @@ function CustomerWorkspacePage({
     const filteredActionTenantCount = groups.reduce((total, group) => total + group.actionTenantCount, 0);
     const isAnyFilterActive = Boolean(normalizedSearch)
         || effectiveSelectedIspFilter !== "all"
-        || tenantStatusFilter !== "all"
+        || contractStatusFilter !== "all"
+        || routeStatusFilter !== "all"
         || todoFilter !== "all";
 
     const handleResetFilters = () => {
         setSearchTerm("");
         setSelectedIspFilter("all");
-        setTenantStatusFilter("all");
+        setContractStatusFilter("all");
+        setRouteStatusFilter("all");
         setTodoFilter("all");
         setCollapsedMap({});
     };
@@ -223,16 +235,16 @@ function CustomerWorkspacePage({
                     <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
                         <nav className="flex bg-surface-container-low p-1.5 rounded-2xl w-fit">
                             <button
-                                className={`px-8 py-2.5 rounded-xl text-xs font-black transition-all ${listType === "aktif" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface"}`}
-                                onClick={() => setListType("aktif")}
+                                className={`px-8 py-2.5 rounded-xl text-xs font-black transition-all ${listType === "current" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface"}`}
+                                onClick={() => setListType("current")}
                             >
-                                ISP AKTIF
+                                SAAT INI
                             </button>
                             <button
                                 className={`px-8 py-2.5 rounded-xl text-xs font-black transition-all ${listType === "riwayat" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface"}`}
                                 onClick={() => setListType("riwayat")}
                             >
-                                NON-AKTIF
+                                RIWAYAT
                             </button>
                         </nav>
 
@@ -246,7 +258,7 @@ function CustomerWorkspacePage({
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
                         <div className="relative xl:col-span-2 group">
                             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface/30 group-focus-within:text-primary transition-colors">search</span>
                             <input
@@ -271,12 +283,23 @@ function CustomerWorkspacePage({
 
                         <select
                             className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => setTenantStatusFilter(e.target.value)}
-                            value={tenantStatusFilter}
+                            onChange={(e) => setContractStatusFilter(e.target.value)}
+                            value={contractStatusFilter}
                         >
-                            <option value="all">Status Tenant</option>
-                            <option value="aktif">Hanya Aktif</option>
-                            <option value="nonaktif">Hanya Non-aktif</option>
+                            <option value="all">Status Kontrak</option>
+                            <option value="beroperasi">Beroperasi</option>
+                            <option value="expired">Expired</option>
+                        </select>
+
+                        <select
+                            className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
+                            onChange={(e) => setRouteStatusFilter(e.target.value)}
+                            value={routeStatusFilter}
+                        >
+                            <option value="all">Status Jalur</option>
+                            <option value="aktif">Aktif</option>
+                            <option value="nonaktif">Nonaktif</option>
+                            <option value="gangguan">Gangguan</option>
                         </select>
 
                         <select
@@ -383,13 +406,29 @@ function CustomerWorkspacePage({
                                                                     <p className="text-[10px] font-bold text-on-surface/30 tracking-widest">{tenant.customerId}</p>
                                                                 </td>
                                                                 <td className="px-8 py-5">
-                                                                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${tenant.rawStatus === 'aktif'
-                                                                            ? 'bg-secondary/10 text-secondary border border-secondary/20'
-                                                                            : 'bg-on-surface/5 text-on-surface/40 border border-on-surface/10'
-                                                                        }`}>
-                                                                        <span className={`w-1 h-1 rounded-full ${tenant.rawStatus === 'aktif' ? 'bg-secondary' : 'bg-on-surface/40'}`} />
-                                                                        {tenant.rawStatus === "aktif" ? "Active" : "Disabled"}
-                                                                    </span>
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${tenant.rawStatus === "aktif"
+                                                                            ? "bg-secondary/10 text-secondary border border-secondary/20"
+                                                                            : "bg-on-surface/5 text-on-surface/40 border border-on-surface/10"
+                                                                            }`}>
+                                                                            <span className={`w-1 h-1 rounded-full ${tenant.rawStatus === "aktif" ? "bg-secondary" : "bg-on-surface/40"}`} />
+                                                                            {tenant.rawStatus === "aktif" ? "Beroperasi" : "Berhenti"}
+                                                                        </span>
+                                                                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${tenant.routeStatus === "gangguan"
+                                                                            ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                                                            : tenant.routeStatus === "nonaktif"
+                                                                                ? "bg-slate-100 text-slate-700 border border-slate-200"
+                                                                                : "bg-blue-100 text-blue-800 border border-blue-200"
+                                                                            }`}>
+                                                                            <span className={`w-1 h-1 rounded-full ${tenant.routeStatus === "gangguan"
+                                                                                ? "bg-amber-500"
+                                                                                : tenant.routeStatus === "nonaktif"
+                                                                                    ? "bg-slate-500"
+                                                                                    : "bg-blue-500"
+                                                                                }`} />
+                                                                            Jalur {tenant.routeStatus === "gangguan" ? "Gangguan" : tenant.routeStatus === "nonaktif" ? "Nonaktif" : "Aktif"}
+                                                                        </span>
+                                                                    </div>
                                                                 </td>
                                                                 <td className="px-8 py-5">
                                                                     <div className="flex items-center gap-4">
@@ -405,14 +444,24 @@ function CustomerWorkspacePage({
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-8 py-5 text-right">
-                                                                    <button
-                                                                        className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black text-on-surface border border-on-surface/5 shadow-sm hover:border-primary hover:text-primary transition-all active:scale-95"
-                                                                        onClick={() => handleOpenTenantDetail(tenant, group)}
-                                                                        type="button"
-                                                                    >
-                                                                        <span className="material-symbols-outlined text-sm">open_in_new</span>
-                                                                        View
-                                                                    </button>
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button
+                                                                            className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
+                                                                            onClick={() => onOpenTenant(tenant, "invoices", group)}
+                                                                            type="button"
+                                                                        >
+                                                                            <span className="material-symbols-outlined text-sm">receipt_long</span>
+                                                                            Invoice
+                                                                        </button>
+                                                                        <button
+                                                                            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black text-on-surface border border-on-surface/5 shadow-sm hover:border-primary hover:text-primary transition-all active:scale-95"
+                                                                            onClick={() => handleOpenTenantDetail(tenant, group)}
+                                                                            type="button"
+                                                                        >
+                                                                            <span className="material-symbols-outlined text-sm">open_in_new</span>
+                                                                            Detail
+                                                                        </button>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         ))}

@@ -5,6 +5,8 @@ import MonitoringSpreadsheetPage from "./pages/MonitoringSpreadsheetPage";
 import CustomerWorkspacePage from "./pages/CustomerWorkspacePage";
 import IspDetailPage from "./pages/IspDetailPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
+import TenantAdminFormPage from "./pages/TenantAdminFormPage";
+import IspAdminFormPage from "./pages/IspAdminFormPage";
 import {
     ComplianceItem,
     FieldInput,
@@ -51,6 +53,9 @@ function App() {
     const [selectedCustomerContextIsp, setSelectedCustomerContextIsp] = useState(null);
     const [selectedIsp, setSelectedIsp] = useState(null);
     const [createMode, setCreateMode] = useState(null);
+    const [createTenantContextIsp, setCreateTenantContextIsp] = useState(null);
+    const [editingIsp, setEditingIsp] = useState(null);
+    const [editingCustomer, setEditingCustomer] = useState(null);
     const [customers, setCustomers] = useState([]);
     const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
     const [customersError, setCustomersError] = useState("");
@@ -151,6 +156,9 @@ function App() {
     const handleNavigate = (sectionKey) => {
         setActiveSection(sectionKey);
         setCreateMode(null);
+        setCreateTenantContextIsp(null);
+        setEditingIsp(null);
+        setEditingCustomer(null);
         setSelectedIsp(null);
 
         if (sectionKey !== "customers") {
@@ -202,6 +210,21 @@ function App() {
         setSelectedCustomerInitialTab("overview");
         setSelectedCustomerContextIsp(null);
         setSelectedIsp(null);
+        setCreateTenantContextIsp(null);
+        setEditingIsp(null);
+        setEditingCustomer(null);
+        setCreateMode("tenant");
+    };
+
+    const handleOpenCreateTenantFromIsp = (isp) => {
+        setActiveSection("customers");
+        setSelectedCustomer(null);
+        setSelectedCustomerInitialTab("overview");
+        setSelectedCustomerContextIsp(null);
+        setSelectedIsp(null);
+        setEditingIsp(null);
+        setEditingCustomer(null);
+        setCreateTenantContextIsp(isp);
         setCreateMode("tenant");
     };
 
@@ -211,11 +234,37 @@ function App() {
         setSelectedCustomerInitialTab("overview");
         setSelectedCustomerContextIsp(null);
         setSelectedIsp(null);
+        setCreateTenantContextIsp(null);
+        setEditingIsp(null);
+        setEditingCustomer(null);
         setCreateMode("isp");
     };
 
     const handleCancelCreate = () => {
         setCreateMode(null);
+        setCreateTenantContextIsp(null);
+        setEditingIsp(null);
+        setEditingCustomer(null);
+    };
+
+    const handleOpenEditIsp = (isp) => {
+        setActiveSection("customers");
+        setCreateMode(null);
+        setSelectedCustomer(null);
+        setSelectedCustomerContextIsp(null);
+        setSelectedIsp(null);
+        setEditingCustomer(null);
+        setEditingIsp(isp);
+    };
+
+    const handleOpenEditTenant = (customer) => {
+        setActiveSection("customers");
+        setCreateMode(null);
+        setSelectedIsp(null);
+        setSelectedCustomer(null);
+        setSelectedCustomerContextIsp(null);
+        setEditingIsp(null);
+        setEditingCustomer(customer);
     };
 
     const handleEntitySaved = async (savedEntity, type) => {
@@ -292,6 +341,7 @@ function App() {
         return (
             <TenantAdminFormPage
                 isps={isps}
+                lockedIsp={createTenantContextIsp}
                 onCancel={handleCancelCreate}
                 onNavigate={handleNavigate}
                 onSaved={(entity) => handleEntitySaved(entity, "tenant")}
@@ -309,12 +359,45 @@ function App() {
         );
     }
 
+    if (editingCustomer) {
+        return (
+            <TenantAdminFormPage
+                initialData={editingCustomer}
+                isps={isps}
+                mode="edit"
+                onCancel={handleCancelCreate}
+                onNavigate={handleNavigate}
+                onSaved={async () => {
+                    await Promise.all([loadCustomers(), loadIsps()]);
+                    setEditingCustomer(null);
+                }}
+            />
+        );
+    }
+
+    if (editingIsp) {
+        return (
+            <IspAdminFormPage
+                initialData={editingIsp}
+                mode="edit"
+                onCancel={handleCancelCreate}
+                onNavigate={handleNavigate}
+                onSaved={async () => {
+                    await Promise.all([loadCustomers(), loadIsps()]);
+                    setEditingIsp(null);
+                }}
+            />
+        );
+    }
+
     if (selectedIsp) {
         return (
             <IspDetailPage
                 isp={selectedIsp}
                 onBack={() => setSelectedIsp(null)}
+                onEditIsp={handleOpenEditIsp}
                 onNavigate={handleNavigate}
+                onOpenCreateTenant={handleOpenCreateTenantFromIsp}
                 onOpenTenant={(tenant, initialTab = "overview") =>
                     handleOpenTenantDetail(tenant, initialTab, selectedIsp)}
                 onRefreshAll={async () => {
@@ -335,6 +418,7 @@ function App() {
                     setSelectedCustomerInitialTab("overview");
                     setSelectedCustomerContextIsp(null);
                 }}
+                onEditTenant={handleOpenEditTenant}
                 onCreateIsp={handleOpenCreateIsp}
                 onNavigate={handleNavigate}
                 onRefreshAll={async () => {
@@ -2007,6 +2091,8 @@ function CustomerDetailPage({
     const invoices = Array.isArray(customerDetail?.invoices)
         ? customerDetail.invoices
         : [];
+    const activeInvoices = invoices.filter((invoice) => invoice.scheduleStatus !== "history");
+    const invoiceHistory = invoices.filter((invoice) => invoice.scheduleStatus === "history");
     const latestDocuments = (Array.isArray(customerDetail?.latestDocuments)
         ? customerDetail.latestDocuments
         : []).filter((document) => document.jenisDokumen !== "invoice");
@@ -2015,7 +2101,7 @@ function CustomerDetailPage({
         ? complianceStatus.warnings
         : [];
 
-    const outstandingAmount = invoices.reduce((sum, invoice) => {
+    const outstandingAmount = activeInvoices.reduce((sum, invoice) => {
         if (invoice.status === "lunas") {
             return sum;
         }
@@ -2047,6 +2133,8 @@ function CustomerDetailPage({
             contractNumber: "",
             startDate: startDate.toISOString().slice(0, 10),
             endDate: endDate.toISOString().slice(0, 10),
+            billingEvery: "1",
+            billingUnit: "bulan",
             status: "aktif",
         });
         setContractEditorError("");
@@ -2059,6 +2147,8 @@ function CustomerDetailPage({
             contractNumber: contract.contractNumber ?? "",
             startDate: contract.startDate ? String(contract.startDate).slice(0, 10) : "",
             endDate: contract.endDate ? String(contract.endDate).slice(0, 10) : "",
+            billingEvery: String(contract.billingEvery ?? 1),
+            billingUnit: String(contract.billingUnit ?? "bulan"),
             status: contract.status ?? "aktif",
         });
         setContractEditorError("");
@@ -2075,6 +2165,8 @@ function CustomerDetailPage({
         const endDate = String(contractEditor.endDate ?? "").trim();
         const contractNumber = String(contractEditor.contractNumber ?? "").trim();
         const status = String(contractEditor.status ?? "").trim();
+        const billingEvery = Number(contractEditor.billingEvery);
+        const billingUnit = String(contractEditor.billingUnit ?? "").trim();
 
         if (!startDate || !endDate) {
             setContractEditorError("Periode awal dan periode akhir wajib diisi.");
@@ -2083,6 +2175,16 @@ function CustomerDetailPage({
 
         if (startDate > endDate) {
             setContractEditorError("Periode awal tidak boleh lebih besar dari periode akhir.");
+            return;
+        }
+
+        if (!Number.isInteger(billingEvery) || billingEvery <= 0) {
+            setContractEditorError("Periode tagihan harus berupa angka bulat lebih besar dari 0.");
+            return;
+        }
+
+        if (!["hari", "bulan", "tahun"].includes(billingUnit)) {
+            setContractEditorError("Satuan periode tagihan tidak valid.");
             return;
         }
 
@@ -2112,6 +2214,8 @@ function CustomerDetailPage({
                         contractNumber: contractNumber || undefined,
                         startDate,
                         endDate,
+                        billingEvery,
+                        billingUnit,
                     }),
                 });
 
@@ -2128,6 +2232,8 @@ function CustomerDetailPage({
                             contractNumber,
                             startDate,
                             endDate,
+                            billingEvery,
+                            billingUnit,
                             status,
                         }),
                     },
@@ -2701,7 +2807,7 @@ function CustomerDetailPage({
             {activeTab === "invoices" && (
                 <section className="space-y-4">
                     <p className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                        Upload invoice dilakukan per baris periode di tab ini. Upload invoice tidak perlu dari tab Dokumen.
+                        Upload invoice dilakukan per baris periode di tab ini. Saat periode tagihan diubah, sistem hanya menyusun ulang invoice aktif yang belum lunas dan memindahkan jadwal sebelumnya ke riwayat.
                     </p>
 
                     {invoiceUploadError && (
@@ -2717,6 +2823,12 @@ function CustomerDetailPage({
                     )}
 
                     <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                        <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                            <h4 className="text-sm font-bold text-on-surface">Jadwal Invoice Aktif</h4>
+                            <p className="mt-1 text-xs text-on-surface-variant">
+                                Hanya invoice aktif yang bisa ditindaklanjuti untuk upload dokumen dan pembayaran.
+                            </p>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[1120px] border-collapse">
                                 <thead>
@@ -2749,15 +2861,15 @@ function CustomerDetailPage({
                                 </thead>
 
                                 <tbody className="divide-y divide-slate-100">
-                                    {invoices.length === 0 && (
+                                    {activeInvoices.length === 0 && (
                                         <tr>
                                             <td className="px-4 py-6 text-center text-sm text-on-surface-variant" colSpan="8">
-                                                Belum ada data invoice.
+                                                Belum ada invoice aktif.
                                             </td>
                                         </tr>
                                     )}
 
-                                    {invoices.map((invoice, index) => (
+                                    {activeInvoices.map((invoice, index) => (
                                         <tr key={invoice.id} className="hover:bg-slate-50/80">
                                             <td className="px-4 py-3 text-sm text-slate-700">
                                                 {String(index + 1).padStart(2, "0")}
@@ -2790,6 +2902,86 @@ function CustomerDetailPage({
                                                     {invoice.documentId ? "Update Invoice" : "Upload Invoice"}
                                                 </button>
                                             </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                        <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                            <h4 className="text-sm font-bold text-on-surface">Riwayat Jadwal Invoice</h4>
+                            <p className="mt-1 text-xs text-on-surface-variant">
+                                Invoice yang sudah lunas tetap dipertahankan sebagai histori setiap kali periode tagihan diubah.
+                            </p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[1180px] border-collapse">
+                                <thead>
+                                    <tr className="border-b border-slate-100 bg-slate-50/80">
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            No
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            Versi Jadwal
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            Nomor Invoice
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            Periode
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            Jumlah
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            Status
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            Dokumen
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">
+                                            Diperbarui
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y divide-slate-100">
+                                    {invoiceHistory.length === 0 && (
+                                        <tr>
+                                            <td className="px-4 py-6 text-center text-sm text-on-surface-variant" colSpan="8">
+                                                Belum ada riwayat jadwal invoice.
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {invoiceHistory.map((invoice, index) => (
+                                        <tr key={invoice.id} className="bg-slate-50/30">
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {String(index + 1).padStart(2, "0")}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-slate-700">
+                                                V{invoice.scheduleVersion ?? 1}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-slate-700">
+                                                {invoice.invoiceNumber || "-"}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {monthNames[invoice.periodMonth] ?? invoice.periodMonth} {invoice.periodYear}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-slate-700">
+                                                {formatCurrency(invoice.amount)}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${invoiceStatusBadgeClass[invoice.status] ?? "bg-slate-100 text-slate-700"}`}>
+                                                    {invoiceStatusLabelMap[invoice.status] ?? invoice.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {invoice.documentId ? `Dokumen #${invoice.documentId}` : "-"}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">{formatDateTime(invoice.updatedAt)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -3165,6 +3357,60 @@ function CustomerDetailPage({
                                 </div>
                             </div>
 
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_160px]">
+                                <div>
+                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                                        Periode Tagihan
+                                    </label>
+                                    <input
+                                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                        min="1"
+                                        onChange={(event) =>
+                                            setContractEditor((previous) =>
+                                                previous
+                                                    ? {
+                                                        ...previous,
+                                                        billingEvery: event.target.value,
+                                                    }
+                                                    : previous,
+                                            )
+                                        }
+                                        type="number"
+                                        value={contractEditor.billingEvery ?? "1"}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                                        Satuan
+                                    </label>
+                                    <select
+                                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                        onChange={(event) =>
+                                            setContractEditor((previous) =>
+                                                previous
+                                                    ? {
+                                                        ...previous,
+                                                        billingUnit: event.target.value,
+                                                    }
+                                                    : previous,
+                                            )
+                                        }
+                                        value={contractEditor.billingUnit ?? "bulan"}
+                                    >
+                                        <option value="hari">Hari</option>
+                                        <option value="bulan">Bulan</option>
+                                        <option value="tahun">Tahun</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {contractEditor.mode === "edit" && (
+                                <p className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                                    Perubahan periode tagihan akan menghapus dan membentuk ulang invoice aktif yang belum lunas sesuai periode baru. Invoice yang sudah dibayar tetap tersimpan sebagai riwayat.
+                                </p>
+                            )}
+
                             {contractEditor.mode === "edit" && (
                                 <div>
                                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -3312,270 +3558,6 @@ function CustomerDetailPage({
                     </div>
                 </div>
             )}
-        </AppShell>
-    );
-}
-
-function TenantAdminFormPage({ isps = [], onCancel, onNavigate, onSaved }) {
-    const [form, setForm] = useState({
-        name: "",
-        status: "aktif",
-        paket: "core",
-        jumlah: "0",
-        ratioLeft: "1",
-        ratioRight: "8",
-        contractStartDate: "",
-        contractEndDate: "",
-        billingPeriodMode: "bulanan",
-        billingCustomEvery: "",
-        billingCustomUnit: "bulan",
-        activationFeeAmount: "0",
-        contractNumber: "",
-        newIspName: "",
-    });
-    const [selectedIspId, setSelectedIspId] = useState(null);
-    const [submitError, setSubmitError] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const selectIsp = (ispId) => {
-        setSelectedIspId(ispId);
-    };
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-
-        if (!form.name.trim()) {
-            setSubmitError("Nama tenant wajib diisi.");
-            return;
-        }
-        if (!selectedIspId) {
-            setSubmitError("Tenant harus terhubung ke satu ISP.");
-            return;
-        }
-        if (form.paket === "shared" && (!form.ratioLeft || !form.ratioRight || Number(form.ratioLeft) < 1 || Number(form.ratioRight) < 1)) {
-            setSubmitError("Shared Core ratio tidak valid. Masukkan angka >= 1 di kedua kolom.");
-            return;
-        }
-        if (!form.contractStartDate || !form.contractEndDate || form.contractStartDate > form.contractEndDate) {
-            setSubmitError("Periode kontrak tenant tidak valid.");
-            return;
-        }
-
-        setIsSubmitting(true);
-        setSubmitError("");
-
-        try {
-            const result = await fetchJson(`${API_BASE_URL}/api/customers`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: form.name.trim(),
-                    status: form.status,
-                    ispIds: [selectedIspId],
-                    contractNumber: form.contractNumber.trim() || undefined,
-                    contractStartDate: form.contractStartDate,
-                    contractEndDate: form.contractEndDate,
-                    paket: form.paket,
-                    jumlah: form.paket === "core" ? Math.round(Number(form.jumlah || 0)) : 0,
-                    contractSharingRatio: form.paket === "shared" ? `${form.ratioLeft || 1}:${form.ratioRight || 8}` : undefined,
-                    billingPeriodMode: form.billingPeriodMode,
-                    billingCustomEvery: form.billingPeriodMode === "custom" ? Number(form.billingCustomEvery) : undefined,
-                    billingCustomUnit: form.billingPeriodMode === "custom" ? form.billingCustomUnit : undefined,
-                    activationFeeAmount: Math.round(Number(form.activationFeeAmount || 0)),
-                }),
-            });
-
-            if (onSaved) {
-                await onSaved(result);
-            }
-        } catch (requestError) {
-            setSubmitError(requestError instanceof Error ? requestError.message : "Terjadi kesalahan saat menyimpan tenant.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    return (
-        <AppShell activeSection="customers" onNavigate={onNavigate}>
-            <form className="mx-auto max-w-6xl space-y-8" onSubmit={handleSubmit}>
-                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-                    <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant/60">Tambah Tenant</p>
-                        <h1 className="mt-2 text-3xl font-extrabold text-primary">Tenant Baru</h1>
-                        <p className="mt-2 max-w-xl text-sm text-on-surface-variant">
-                            Sistem akan otomatis membuat kontrak, contract version awal, dan draft invoice.
-                        </p>
-                    </div>
-                    <div className="flex gap-3">
-                        <button className="rounded-xl px-6 py-2.5 font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high" onClick={onCancel} type="button">Batalkan</button>
-                        <button className="rounded-xl bg-gradient-to-br from-primary to-primary-container px-8 py-2.5 font-bold text-white shadow-lg shadow-primary/20 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} type="submit">{isSubmitting ? "Menyimpan..." : "Simpan Tenant"}</button>
-                    </div>
-                </div>
-
-                {submitError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{submitError}</div>}
-
-                <div className="grid grid-cols-12 gap-8">
-                    <section className="col-span-12 space-y-8 lg:col-span-8">
-                        <div className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <FieldInput label="Nama Tenant" value={form.name} onChange={(value) => setForm((previous) => ({ ...previous, name: value }))} />
-                                <FieldSelect label="Status" value={form.status} onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} options={[{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Non-aktif" }]} />
-                                <FieldSelect label="Paket" value={form.paket} onChange={(value) => setForm((previous) => ({ ...previous, paket: value }))} options={[{ value: "core", label: "Core" }, { value: "shared", label: "Shared Core" }]} />
-                                {form.paket === "core" ? (
-                                    <FieldInput label="Jumlah Core" type="number" value={form.jumlah} onChange={(value) => setForm((previous) => ({ ...previous, jumlah: value }))} placeholder="Contoh: 4" />
-                                ) : (
-                                    <div>
-                                        <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Rasio Shared Core</label>
-                                        <div className="flex items-center gap-2">
-                                            <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioLeft} onChange={(e) => setForm((prev) => ({ ...prev, ratioLeft: e.target.value }))} placeholder="1" />
-                                            <span className="text-lg font-bold text-slate-400">:</span>
-                                            <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioRight} onChange={(e) => setForm((prev) => ({ ...prev, ratioRight: e.target.value }))} placeholder="8" />
-                                        </div>
-                                    </div>
-                                )}
-                                <FieldInput label="Nomor Kontrak" value={form.contractNumber} onChange={(value) => setForm((previous) => ({ ...previous, contractNumber: value }))} placeholder="Otomatis jika kosong" />
-                                <FieldInput label="Contract Start" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
-                                <FieldInput label="Contract End" type="date" value={form.contractEndDate} onChange={(value) => setForm((previous) => ({ ...previous, contractEndDate: value }))} />
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
-                            <div className="mb-6 flex items-center justify-between gap-3">
-                                <h3 className="text-lg font-bold text-on-surface">Pilih ISP</h3>
-                                <p className="text-xs text-on-surface-variant">Gunakan tombol `Tambah ISP` jika ISP belum tersedia.</p>
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                {isps.map((isp) => (
-                                    <label key={isp.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${selectedIspId === isp.id ? "border-primary bg-blue-50/60" : "border-slate-200 bg-white"}`}>
-                                        <input checked={selectedIspId === isp.id} className="mt-1 flex-shrink-0" name="selectIspRadio" onChange={() => selectIsp(isp.id)} type="radio" />
-                                        <div>
-                                            <p className="text-sm font-semibold text-on-surface">{isp.name}</p>
-                                            <p className="mt-1 text-xs text-on-surface-variant">{isp.contractReference || "Tanpa referensi kontrak"}</p>
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="col-span-12 space-y-8 lg:col-span-4">
-                        <div className="rounded-lg bg-surface-container-low p-6">
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="mb-3 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Billing Period</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {["bulanan", "3bulanan", "custom"].map((mode) => (
-                                            <button key={mode} className={`rounded-lg py-2 text-xs font-bold transition-colors ${form.billingPeriodMode === mode ? "bg-primary text-white" : "bg-surface-container-lowest text-on-surface-variant hover:bg-slate-200"}`} onClick={() => setForm((previous) => ({ ...previous, billingPeriodMode: mode }))} type="button">{mode === "bulanan" ? "Bulanan" : mode === "3bulanan" ? "3 Bulanan" : "Custom"}</button>
-                                        ))}
-                                    </div>
-                                    <div className="mt-3 rounded-xl bg-surface-container-lowest p-4">
-                                        <div className="flex gap-2">
-                                            <input className="w-20 rounded-lg border-none bg-surface p-2 text-xs disabled:bg-slate-200" disabled={form.billingPeriodMode !== "custom"} min="1" onChange={(event) => setForm((previous) => ({ ...previous, billingCustomEvery: event.target.value }))} step="1" type="number" value={form.billingCustomEvery} />
-                                            <select className="flex-1 rounded-lg border-none bg-surface p-2 text-xs disabled:bg-slate-200" disabled={form.billingPeriodMode !== "custom"} onChange={(event) => setForm((previous) => ({ ...previous, billingCustomUnit: event.target.value }))} value={form.billingCustomUnit}>
-                                                <option value="hari">Hari</option>
-                                                <option value="bulan">Bulan</option>
-                                                <option value="tahun">Tahun</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <FieldInput label="Biaya Aktivasi" type="number" value={form.activationFeeAmount} onChange={(value) => setForm((previous) => ({ ...previous, activationFeeAmount: value }))} />
-                            </div>
-                        </div>
-                    </section>
-                </div>
-            </form>
-        </AppShell>
-    );
-}
-
-function IspAdminFormPage({ onCancel, onNavigate, onSaved }) {
-    const [form, setForm] = useState({
-        name: "",
-        status: "aktif",
-        contractReference: "",
-        contractStartDate: "",
-        contractPeriodStart: "",
-        contractPeriodEnd: "",
-        bakFileName: "",
-    });
-    const [submitError, setSubmitError] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        if (!form.name.trim() || !form.contractReference.trim()) {
-            setSubmitError("Nama ISP dan nomor kontrak induk wajib diisi.");
-            return;
-        }
-
-        setIsSubmitting(true);
-        setSubmitError("");
-        try {
-            const result = await fetchJson(`${API_BASE_URL}/api/isps`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: form.name.trim(),
-                    status: form.status,
-                    contractReference: form.contractReference.trim(),
-                    contractStartDate: form.contractStartDate || null,
-                    contractPeriodStart: form.contractPeriodStart || null,
-                    contractPeriodEnd: form.contractPeriodEnd || null,
-                    bakFileName: form.bakFileName || undefined,
-                }),
-            });
-            if (onSaved) {
-                await onSaved(result);
-            }
-        } catch (requestError) {
-            setSubmitError(requestError instanceof Error ? requestError.message : "Terjadi kesalahan saat menyimpan ISP.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    return (
-        <AppShell activeSection="customers" onNavigate={onNavigate}>
-            <form className="mx-auto max-w-5xl space-y-8" onSubmit={handleSubmit}>
-                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-                    <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant/60">Tambah ISP</p>
-                        <h1 className="mt-2 text-3xl font-extrabold text-primary">ISP Baru</h1>
-                    </div>
-                    <div className="flex gap-3">
-                        <button className="rounded-xl px-6 py-2.5 font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high" onClick={onCancel} type="button">Batalkan</button>
-                        <button className="rounded-xl bg-gradient-to-br from-primary to-primary-container px-8 py-2.5 font-bold text-white shadow-lg shadow-primary/20 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} type="submit">{isSubmitting ? "Menyimpan..." : "Simpan ISP"}</button>
-                    </div>
-                </div>
-
-                {submitError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{submitError}</div>}
-
-                <div className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <FieldInput label="Nama ISP" value={form.name} onChange={(value) => setForm((previous) => ({ ...previous, name: value }))} />
-                        <FieldSelect label="Status" value={form.status} onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} options={[{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Non-aktif" }]} />
-                        <FieldInput label="Nomor kontrak induk" value={form.contractReference} onChange={(value) => setForm((previous) => ({ ...previous, contractReference: value }))} />
-                        <FieldInput label="Awal kontrak" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
-                        <FieldInput label="Periode berjalan mulai" type="date" value={form.contractPeriodStart} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodStart: value }))} />
-                        <FieldInput label="Periode berjalan akhir" type="date" value={form.contractPeriodEnd} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodEnd: value }))} />
-                        <div>
-                            <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Upload BAK (Opsional)</label>
-                            <input
-                                accept=".pdf,.png,.jpg,.jpeg,.zip"
-                                className="w-full rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
-                                onChange={(event) =>
-                                    setForm((previous) => ({
-                                        ...previous,
-                                        bakFileName: event.target.files?.[0]?.name ?? "",
-                                    }))
-                                }
-                                type="file"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </form>
         </AppShell>
     );
 }

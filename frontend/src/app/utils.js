@@ -243,10 +243,16 @@ export const getIspContractActionItems = (contractRows) => {
             ? Math.ceil((endDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
             : null;
 
-        if (row?.renewalStatus === "pending") {
+        const followUps = Array.isArray(row?.renewalFollowUps) ? row.renewalFollowUps : [];
+        const latestOpenFollowUp = [...followUps]
+            .filter((item) => item?.status !== "completed")
+            .sort((left, right) => Number(right?.splitOrder ?? 0) - Number(left?.splitOrder ?? 0))[0] ?? null;
+
+        if (latestOpenFollowUp?.renewalFileUrl) {
             items.push({
-                key: `${row.id}-pending`,
+                key: `${row.id}-${latestOpenFollowUp.id}-pending`,
                 rowId: row.id,
+                followUpId: latestOpenFollowUp.id,
                 tone: "blue",
                 title: "Menunggu Tanggapan ISP",
                 description: "Berkas perpanjangan sudah diunggah. Lanjutkan dengan upload tanggapan ISP: lanjut atau tidak.",
@@ -265,15 +271,16 @@ export const getIspContractActionItems = (contractRows) => {
             });
         }
 
-        if (row?.renewalStatus === "active" && daysLeft !== null && daysLeft <= 90 && !row?.renewalFileUrl) {
+        if (latestOpenFollowUp && !latestOpenFollowUp.renewalFileUrl) {
             items.push({
-                key: `${row.id}-renewal-warning`,
+                key: `${row.id}-${latestOpenFollowUp.id}-renewal-warning`,
                 rowId: row.id,
+                followUpId: latestOpenFollowUp.id,
                 tone: "red",
-                title: daysLeft >= 0
+                title: latestOpenFollowUp.title || (daysLeft >= 0
                     ? `Kontrak berakhir dalam ${daysLeft} hari`
-                    : "Kontrak sudah melewati masa berlaku",
-                description: "Segera unggah berkas perpanjangan untuk konfirmasi lanjut atau tidak ke ISP.",
+                    : "Kontrak sudah melewati masa berlaku"),
+                description: latestOpenFollowUp.description || "Segera unggah berkas perpanjangan untuk konfirmasi lanjut atau tidak ke ISP.",
                 actionType: "renewal",
             });
         }
@@ -296,10 +303,32 @@ export const getIspContractActionItems = (contractRows) => {
 export const isExternalFileUrl = (value) =>
     typeof value === "string" && /^https?:\/\//i.test(value.trim());
 
+export const isOpenableFileUrl = (value) =>
+    typeof value === "string" && /^(https?:\/\/|data:|blob:)/i.test(value.trim());
+
+export const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    if (!file) {
+        resolve("");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        resolve(typeof reader.result === "string" ? reader.result : "");
+    };
+    reader.onerror = () => {
+        reject(new Error(`Gagal membaca file ${file.name}.`));
+    };
+    reader.readAsDataURL(file);
+});
+
 export const mapCustomerToRow = (customer, index) => {
     const active = customer.status === "aktif";
     const activationFeeAmount = Number(customer.activationFeeAmount ?? 0);
     const activationFeePaidAt = customer.activationFeePaidAt ?? null;
+    const routeStatus = typeof customer.routeStatus === "string"
+        ? customer.routeStatus
+        : "aktif";
     const ispList = Array.isArray(customer.isps)
         ? customer.isps
             .map((isp) => isp?.name)
@@ -320,13 +349,16 @@ export const mapCustomerToRow = (customer, index) => {
         ispDisplay,
         ispList: ispList.length > 0 ? ispList : [primaryIsp],
         name: customer.name ?? "-",
-        status: active ? "Aktif" : "Non-aktif",
+        status: active ? "Beroperasi" : "Berhenti",
         active,
         contracts: Number(customer.contractCount ?? 0),
         documents: Number(customer.documentCount ?? 0),
         invoices: Number(customer.invoiceCount ?? 0),
         customerId: customer.customerCode ?? `CUST-${customer.id}`,
         rawStatus: customer.status,
+        routeStatus,
+        contractPeriodStart: customer.contractPeriodStart ?? null,
+        contractPeriodEnd: customer.contractPeriodEnd ?? null,
         activationFeeAmount,
         activationFeePaidAt,
     };
