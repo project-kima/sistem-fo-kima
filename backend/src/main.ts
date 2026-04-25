@@ -1,12 +1,21 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { getRuntimeConfig } from './config/runtime-env';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
+  const { host, port } = getRuntimeConfig();
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
   app.enableCors(); // Enable CORS for frontend
-
-  const port = Number(process.env.PORT ?? 4000);
-  const host = process.env.HOST ?? '127.0.0.1';
+  app.enableShutdownHooks();
 
   await app.listen(port, host);
 

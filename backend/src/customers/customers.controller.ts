@@ -1,7 +1,7 @@
 import {
+  BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -15,13 +15,38 @@ import { CustomersService } from './customers.service';
 import { CreateContractVersionDto } from './dto/create-contract-version.dto';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCustomerContractDto } from './dto/create-customer-contract.dto';
+import { RespondContractVersionRenewalDto } from './dto/respond-contract-version-renewal.dto';
+import { UploadContractVersionRenewalFileDto } from './dto/upload-contract-version-renewal-file.dto';
 import { UpdateCustomerContractDto } from './dto/update-customer-contract.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { UpdateCustomerInvoiceDto } from './dto/update-customer-invoice.dto';
 
+const buildUploadedFileDataUrl = (file?: Express.Multer.File): string => {
+  const mimeType =
+    typeof file?.mimetype === 'string' && file.mimetype.trim().length > 0
+      ? file.mimetype.trim()
+      : 'application/octet-stream';
+
+  return file?.buffer
+    ? `data:${mimeType};base64,${file.buffer.toString('base64')}`
+    : '';
+};
+
+const resolveRequiredFileDataUrl = (
+  file: Express.Multer.File | undefined,
+  fieldName: string,
+): string => {
+  const fileUrl = buildUploadedFileDataUrl(file);
+  if (!fileUrl) {
+    throw new BadRequestException(`${fieldName} is required.`);
+  }
+
+  return fileUrl;
+};
+
 @Controller('api/customers')
 export class CustomersController {
-  constructor(private readonly customersService: CustomersService) { }
+  constructor(private readonly customersService: CustomersService) {}
 
   @Get()
   list() {
@@ -61,7 +86,11 @@ export class CustomersController {
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Body() payload: { title?: string; description?: string },
   ) {
-    return this.customersService.addInvoiceFollowUp(customerId, invoiceId, payload);
+    return this.customersService.addInvoiceFollowUp(
+      customerId,
+      invoiceId,
+      payload,
+    );
   }
 
   @Post(':customerId/contracts')
@@ -78,7 +107,11 @@ export class CustomersController {
     @Param('contractId', ParseIntPipe) contractId: number,
     @Body() payload: UpdateCustomerContractDto,
   ) {
-    return this.customersService.updateContract(customerId, contractId, payload);
+    return this.customersService.updateContract(
+      customerId,
+      contractId,
+      payload,
+    );
   }
 
   @Get(':customerId/contracts/:contractId/versions')
@@ -95,7 +128,11 @@ export class CustomersController {
     @Param('contractId', ParseIntPipe) contractId: number,
     @Body() payload: CreateContractVersionDto,
   ) {
-    return this.customersService.createContractVersion(customerId, contractId, payload);
+    return this.customersService.createContractVersion(
+      customerId,
+      contractId,
+      payload,
+    );
   }
 
   @Post(':customerId/contracts/:contractId/versions/:versionId/follow-ups')
@@ -105,7 +142,12 @@ export class CustomersController {
     @Param('versionId', ParseIntPipe) versionId: number,
     @Body() payload: { title?: string; description?: string },
   ) {
-    return this.customersService.addContractVersionRenewalFollowUp(customerId, contractId, versionId, payload);
+    return this.customersService.addContractVersionRenewalFollowUp(
+      customerId,
+      contractId,
+      versionId,
+      payload,
+    );
   }
 
   @Post(':customerId/contracts/:contractId/versions/:versionId/renewal')
@@ -114,20 +156,19 @@ export class CustomersController {
     @Param('customerId', ParseIntPipe) customerId: number,
     @Param('contractId', ParseIntPipe) contractId: number,
     @Param('versionId', ParseIntPipe) versionId: number,
-    @Body() payload: { followUpId?: number | string },
-    @UploadedFile() file: any,
+    @Body() payload: UploadContractVersionRenewalFileDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    const mimeType =
-      typeof file?.mimetype === 'string' && file.mimetype.trim().length > 0
-        ? file.mimetype.trim()
-        : 'application/octet-stream';
-    const fileUrl = file?.buffer ? `data:${mimeType};base64,${file.buffer.toString('base64')}` : '';
-
-    return this.customersService.uploadContractVersionRenewalFile(customerId, contractId, versionId, {
-      fileUrl,
-      fileName: file?.originalname || 'perpanjangan.pdf',
-      followUpId: payload?.followUpId ? Number(payload.followUpId) : undefined,
-    });
+    return this.customersService.uploadContractVersionRenewalFile(
+      customerId,
+      contractId,
+      versionId,
+      {
+        fileUrl: resolveRequiredFileDataUrl(file, 'renewal file'),
+        fileName: file?.originalname || 'perpanjangan.pdf',
+        followUpId: payload.followUpId,
+      },
+    );
   }
 
   @Post(':customerId/contracts/:contractId/versions/:versionId/response')
@@ -136,21 +177,20 @@ export class CustomersController {
     @Param('customerId', ParseIntPipe) customerId: number,
     @Param('contractId', ParseIntPipe) contractId: number,
     @Param('versionId', ParseIntPipe) versionId: number,
-    @Body() payload: { decision: 'lanjut' | 'tidak'; followUpId?: number | string },
-    @UploadedFile() file: any,
+    @Body() payload: RespondContractVersionRenewalDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    const mimeType =
-      typeof file?.mimetype === 'string' && file.mimetype.trim().length > 0
-        ? file.mimetype.trim()
-        : 'application/octet-stream';
-    const fileUrl = file?.buffer ? `data:${mimeType};base64,${file.buffer.toString('base64')}` : '';
-
-    return this.customersService.respondContractVersionRenewal(customerId, contractId, versionId, {
-      decision: payload.decision,
-      fileUrl,
-      fileName: file?.originalname || 'tanggapan.pdf',
-      followUpId: payload?.followUpId ? Number(payload.followUpId) : undefined,
-    });
+    return this.customersService.respondContractVersionRenewal(
+      customerId,
+      contractId,
+      versionId,
+      {
+        decision: payload.decision,
+        fileUrl: resolveRequiredFileDataUrl(file, 'response file'),
+        fileName: file?.originalname || 'tanggapan.pdf',
+        followUpId: payload.followUpId,
+      },
+    );
   }
 
   @Post(':customerId/isps')
@@ -164,7 +204,12 @@ export class CustomersController {
   @Post(':customerId/isps/remove')
   removeCustomerIsps(
     @Param('customerId', ParseIntPipe) customerId: number,
-    @Body() payload: { mode: 'this' | 'all' | 'selected'; ispId?: number; ispIds?: number[] },
+    @Body()
+    payload: {
+      mode: 'this' | 'all' | 'selected';
+      ispId?: number;
+      ispIds?: number[];
+    },
   ) {
     return this.customersService.removeCustomerIsps(customerId, payload);
   }
@@ -182,81 +227,5 @@ export class CustomersController {
   @Get(':customerId/timeline')
   getTimeline(@Param('customerId', ParseIntPipe) customerId: number) {
     return this.customersService.getTimeline(customerId);
-  }
-
-  @Get(':customerId/routes')
-  getRoutes(@Param('customerId', ParseIntPipe) customerId: number) {
-    return this.customersService.getRoutes(customerId);
-  }
-
-  @Post(':customerId/routes/edit')
-  editRoute(
-    @Param('customerId', ParseIntPipe) customerId: number,
-    @Body()
-    payload: {
-      operation: 'add' | 'update' | 'delete' | 'reorder' | 'status';
-      pathName?: string;
-      pointType?: string;
-      note?: string | null;
-      orderNumber?: number;
-      pointId?: number;
-      orderedPointIds?: number[];
-      flowStatus?: string;
-    },
-  ) {
-    return this.customersService.editRoute(customerId, payload);
-  }
-
-  @Post(':customerId/routes/change')
-  changeRoute(
-    @Param('customerId', ParseIntPipe) customerId: number,
-    @Body()
-    payload: {
-      operation: 'add' | 'update' | 'delete' | 'reorder' | 'status' | 'commit' | 'replace';
-      pathName?: string;
-      pointType?: string;
-      note?: string | null;
-      orderNumber?: number;
-      pointId?: number;
-      orderedPointIds?: number[];
-      flowStatus?: string;
-      changeNote?: string | null;
-      points?: any[];
-      snapshotBefore?: {
-        flowStatus?: string;
-        points?: Array<{
-          orderNumber?: number;
-          pathName?: string;
-          pointType?: string;
-          note?: string | null;
-        }>;
-      };
-      snapshotAfter?: {
-        flowStatus?: string;
-        points?: Array<{
-          orderNumber?: number;
-          pathName?: string;
-          pointType?: string;
-          note?: string | null;
-        }>;
-      };
-    },
-  ) {
-    return this.customersService.changeRoute(customerId, payload);
-  }
-
-  @Delete(':customerId/routes/history/:historyId')
-  deleteRouteHistory(
-    @Param('customerId', ParseIntPipe) customerId: number,
-    @Param('historyId', ParseIntPipe) historyId: number,
-  ) {
-    return this.customersService.deleteRouteHistory(customerId, historyId);
-  }
-
-  @Delete(':customerId/routes/history')
-  deleteAllRouteHistory(
-    @Param('customerId', ParseIntPipe) customerId: number,
-  ) {
-    return this.customersService.deleteAllRouteHistory(customerId);
   }
 }

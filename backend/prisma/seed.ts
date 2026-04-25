@@ -1,40 +1,61 @@
-import { PrismaClient } from '@prisma/client';
-import { InMemoryDataService } from '../src/store/in-memory-data.service';
+import 'dotenv/config';
+import {
+  BillingUnit,
+  ContractStatus,
+  CoreAllocationType,
+  CustomerStatus,
+  DocumentType,
+  InvoiceFollowUpSource,
+  InvoiceFollowUpStatus,
+  InvoiceScheduleStatus,
+  InvoiceStatus,
+  IspPackageType,
+  IspRenewalFollowUpSource,
+  IspRenewalFollowUpStatus,
+  IspRenewalResponseDecision,
+  IspRenewalStatus,
+  IspStatus,
+  PrismaClient,
+  RouteChangeMode,
+  RouteFlowStatus,
+  RouteHistoryOperation,
+  RoutePointType,
+} from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL?.trim();
 
-const toDate = (value: string | null | undefined) => (value ? new Date(value) : null);
-const toDateOnly = (value: string | null | undefined) =>
-  value ? new Date(`${value}T00:00:00.000Z`) : null;
-
-async function resetSequences() {
-  const sequenceMappings = [
-    ['customers', 'id'],
-    ['isps', 'id'],
-    ['customer_isp_memberships', 'id'],
-    ['isp_contract_rows', 'id'],
-    ['isp_renewal_follow_ups', 'id'],
-    ['contracts', 'id'],
-    ['contract_versions', 'id'],
-    ['documents', 'id'],
-    ['invoices', 'id'],
-    ['invoice_follow_ups', 'id'],
-    ['customer_route_versions', 'id'],
-    ['customer_route_points', 'id'],
-    ['customer_route_history', 'id'],
-  ] as const;
-
-  for (const [tableName, idColumn] of sequenceMappings) {
-    await prisma.$executeRawUnsafe(
-      `SELECT setval(pg_get_serial_sequence('"${tableName}"', '${idColumn}'), COALESCE((SELECT MAX("${idColumn}") FROM "${tableName}"), 1), true);`,
-    );
-  }
+if (!connectionString) {
+  throw new Error('DATABASE_URL is required to run prisma seed.');
 }
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString }),
+});
+
+const forceReset = process.env.SEED_FORCE_RESET === 'true';
+const currentDate = new Date();
+const currentYear = currentDate.getUTCFullYear();
+const currentMonth = currentDate.getUTCMonth() + 1;
+const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+const previousMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+const dateOnly = (year: number, month: number, day: number) =>
+  new Date(Date.UTC(year, month - 1, day));
+
+const isoTimestamp = (
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+) => new Date(Date.UTC(year, month - 1, day, hour, minute));
 
 async function clearTables() {
   await prisma.invoiceFollowUp.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.document.deleteMany();
+  await prisma.contractVersionRenewalFollowUp.deleteMany();
   await prisma.contractVersion.deleteMany();
   await prisma.contract.deleteMany();
   await prisma.customerRouteHistory.deleteMany();
@@ -47,282 +68,506 @@ async function clearTables() {
   await prisma.isp.deleteMany();
 }
 
-async function seed() {
-  const store = new InMemoryDataService();
-  const snapshot = store.exportSnapshot();
+async function ensureSafeBootstrap() {
+  const [customerCount, ispCount, contractCount, documentCount, invoiceCount] =
+    await Promise.all([
+      prisma.customer.count(),
+      prisma.isp.count(),
+      prisma.contract.count(),
+      prisma.document.count(),
+      prisma.invoice.count(),
+    ]);
+
+  const existingRows =
+    customerCount + ispCount + contractCount + documentCount + invoiceCount;
+
+  if (existingRows === 0) {
+    return;
+  }
+
+  if (!forceReset) {
+    console.log(
+      'Seed skipped because database already contains data. Re-run with SEED_FORCE_RESET=true to replace bootstrap data.',
+    );
+    process.exit(0);
+  }
 
   await clearTables();
+}
 
-  if (snapshot.customers.length > 0) {
-    await prisma.customer.createMany({
-      data: snapshot.customers.map((customer) => ({
-        id: customer.id,
-        customerCode: customer.customerCode,
-        ispName: customer.ispName,
-        name: customer.name,
-        status: customer.status,
-        activationFeeAmount: customer.activationFeeAmount,
-        activationFeePaidAt: toDate(customer.activationFeePaidAt),
-        createdAt: new Date(customer.createdAt),
-        updatedAt: new Date(customer.updatedAt),
-      })),
-    });
-  }
+async function seed() {
+  await ensureSafeBootstrap();
 
-  if (snapshot.isps.length > 0) {
-    await prisma.isp.createMany({
-      data: snapshot.isps.map((isp) => ({
-        id: isp.id,
-        name: isp.name,
-        status: isp.status,
-        contractReference: isp.contractReference,
-        contractStartDate: toDateOnly(isp.contractStartDate),
-        contractPeriodStart: toDateOnly(isp.contractPeriodStart),
-        contractPeriodEnd: toDateOnly(isp.contractPeriodEnd),
-        paket: isp.paket,
-        jumlah: isp.jumlah,
-        billingPeriodMode: isp.billingPeriodMode ?? null,
-        billingCustomEvery: isp.billingCustomEvery ?? null,
-        billingCustomUnit: isp.billingCustomUnit ?? null,
-        activationFeeAmount: isp.activationFeeAmount ?? 0,
-        activationFeePaidAt: toDate(isp.activationFeePaidAt ?? null),
-        createdAt: new Date(isp.createdAt),
-        updatedAt: new Date(isp.updatedAt),
-      })),
-    });
-  }
+  const primaryIsp = await prisma.isp.create({
+    data: {
+      name: 'PT Telkom Akses',
+      status: IspStatus.aktif,
+      contractReference: `ISP-TELKOM-${currentYear}`,
+      contractStartDate: dateOnly(currentYear, 1, 1),
+      contractPeriodStart: dateOnly(currentYear, 1, 1),
+      contractPeriodEnd: dateOnly(currentYear, 12, 31),
+      paket: IspPackageType.shared,
+      jumlah: 2,
+      billingPeriodMode: 'monthly',
+      activationFeeAmount: '2500000',
+      activationFeePaidAt: isoTimestamp(currentYear, 1, 5, 9, 0),
+    },
+  });
 
-  if (snapshot.memberships.length > 0) {
-    await prisma.customerIspMembership.createMany({
-      data: snapshot.memberships.map((membership) => ({
-        id: membership.id,
-        customerId: membership.customerId,
-        ispId: membership.ispId,
-        createdAt: new Date(membership.createdAt),
-        updatedAt: new Date(membership.updatedAt),
-      })),
-    });
-  }
+  const backupIsp = await prisma.isp.create({
+    data: {
+      name: 'Biznet Dedicated',
+      status: IspStatus.aktif,
+      contractReference: `ISP-BIZNET-${currentYear}`,
+      contractStartDate: dateOnly(currentYear, 2, 1),
+      contractPeriodStart: dateOnly(currentYear, 2, 1),
+      contractPeriodEnd: dateOnly(currentYear, 12, 31),
+      paket: IspPackageType.core,
+      jumlah: 4,
+      billingPeriodMode: 'monthly',
+      activationFeeAmount: '4000000',
+    },
+  });
 
-  if (snapshot.ispContractRows.length > 0) {
-    await prisma.ispContractRow.createMany({
-      data: snapshot.ispContractRows.map((row) => ({
-        id: row.id,
-        ispId: row.ispId,
-        contractReference: row.contractReference,
-        periodStart: toDateOnly(row.periodStart),
-        periodEnd: toDateOnly(row.periodEnd),
-        renewalStatus: row.renewalStatus,
-        bakFileUrl: row.bakFileUrl,
-        bakFileName: row.bakFileName,
-        renewalFileUrl: row.renewalFileUrl,
-        renewalFileName: row.renewalFileName,
-        responseFileUrl: row.responseFileUrl,
-        responseFileName: row.responseFileName,
-        createdAt: new Date(row.createdAt),
-        updatedAt: new Date(row.updatedAt),
-      })),
-    });
+  const activeCustomer = await prisma.customer.create({
+    data: {
+      customerCode: 'CUST-001',
+      ispName: primaryIsp.name,
+      name: 'Dinas Kelautan Makassar',
+      status: CustomerStatus.aktif,
+      activationFeeAmount: '1500000',
+      activationFeePaidAt: isoTimestamp(currentYear, 1, 7, 8, 30),
+    },
+  });
 
-    const renewalFollowUps = snapshot.ispContractRows.flatMap((row) =>
-      (row.renewalFollowUps ?? []).map((followUp) => ({
-        id: followUp.id,
-        rowId: followUp.rowId,
-        splitOrder: followUp.splitOrder,
-        source: followUp.source,
-        triggerCode: followUp.triggerCode,
-        title: followUp.title,
-        description: followUp.description,
-        status: followUp.status,
-        renewalFileUrl: followUp.renewalFileUrl,
-        renewalFileName: followUp.renewalFileName,
-        responseFileUrl: followUp.responseFileUrl,
-        responseFileName: followUp.responseFileName,
-        responseDecision: followUp.responseDecision,
-        createdAt: new Date(followUp.createdAt),
-        updatedAt: new Date(followUp.updatedAt),
-      })),
-    );
+  const warningCustomer = await prisma.customer.create({
+    data: {
+      customerCode: 'CUST-002',
+      ispName: backupIsp.name,
+      name: 'UPTD Pelabuhan Paotere',
+      status: CustomerStatus.aktif,
+      activationFeeAmount: '1800000',
+    },
+  });
 
-    if (renewalFollowUps.length > 0) {
-      await prisma.ispRenewalFollowUp.createMany({ data: renewalFollowUps });
-    }
-  }
+  await prisma.customerIspMembership.createMany({
+    data: [
+      { customerId: activeCustomer.id, ispId: primaryIsp.id },
+      { customerId: warningCustomer.id, ispId: backupIsp.id },
+    ],
+  });
 
-  if (snapshot.contracts.length > 0) {
-    await prisma.contract.createMany({
-      data: snapshot.contracts.map((contract) => ({
-        id: contract.id,
-        customerId: contract.customerId,
-        contractNumber: contract.contractNumber,
-        startDate: toDateOnly(contract.startDate)!,
-        endDate: toDateOnly(contract.endDate)!,
-        coreType: contract.coreType,
-        coreTotal: contract.coreTotal,
-        sharingRatio: contract.sharingRatio ?? null,
-        status: contract.status,
-        billingEvery: contract.billingEvery,
-        billingUnit: contract.billingUnit,
-        createdAt: new Date(contract.createdAt),
-        updatedAt: new Date(contract.updatedAt),
-      })),
-    });
-  }
+  const activeContract = await prisma.contract.create({
+    data: {
+      customerId: activeCustomer.id,
+      contractNumber: `CTR-${currentYear}-0001`,
+      startDate: dateOnly(currentYear, 1, 1),
+      endDate: dateOnly(currentYear, 12, 31),
+      coreType: CoreAllocationType.sharing_core,
+      coreTotal: 2,
+      sharingRatio: '1:2',
+      status: ContractStatus.aktif,
+      billingEvery: 1,
+      billingUnit: BillingUnit.bulan,
+    },
+  });
 
-  if (snapshot.contractVersions.length > 0) {
-    await prisma.contractVersion.createMany({
-      data: snapshot.contractVersions.map((version) => ({
-        id: version.id,
-        contractId: version.contractId,
-        customerId: version.customerId,
-        versionNumber: version.versionNumber,
-        startDate: toDateOnly(version.startDate)!,
-        endDate: toDateOnly(version.endDate)!,
-        coreType: version.coreType,
-        coreTotal: version.coreTotal,
-        sharedCoreRatio: version.sharedCoreRatio ?? null,
-        bakDocumentId: null,
-        renewalFileUrl: version.renewalFileUrl,
-        renewalFileName: version.renewalFileName,
-        responseFileUrl: version.responseFileUrl,
-        responseFileName: version.responseFileName,
-        createdAt: new Date(version.createdAt),
-        updatedAt: new Date(version.updatedAt),
-      })),
-    });
-  }
+  const warningContract = await prisma.contract.create({
+    data: {
+      customerId: warningCustomer.id,
+      contractNumber: `CTR-${currentYear}-0002`,
+      startDate: dateOnly(currentYear, 2, 1),
+      endDate: dateOnly(currentYear, 11, 30),
+      coreType: CoreAllocationType.core,
+      coreTotal: 4,
+      status: ContractStatus.aktif,
+      billingEvery: 1,
+      billingUnit: BillingUnit.bulan,
+    },
+  });
 
-  if (snapshot.documents.length > 0) {
-    await prisma.document.createMany({
-      data: snapshot.documents.map((document) => ({
-        id: document.id,
-        customerId: document.customerId,
-        contractId: document.contractId,
-        contractVersionId: document.contractVersionId,
-        contractNumber: document.contractNumber,
-        jenisDokumen: document.jenisDokumen,
-        nomorDokumen: document.nomorDokumen,
-        tanggalDokumen: toDateOnly(document.tanggalDokumen)!,
-        fileUrl: document.fileUrl,
-        createdAt: new Date(document.createdAt),
-      })),
-    });
+  const activeVersion = await prisma.contractVersion.create({
+    data: {
+      contractId: activeContract.id,
+      customerId: activeCustomer.id,
+      versionNumber: 1,
+      startDate: dateOnly(currentYear, 1, 1),
+      endDate: dateOnly(currentYear, 12, 31),
+      coreType: CoreAllocationType.sharing_core,
+      coreTotal: 2,
+      sharedCoreRatio: '1:2',
+      renewalFileUrl: 'https://files.example.com/contracts/renewal-cust-001.pdf',
+      renewalFileName: 'renewal-cust-001.pdf',
+      responseFileUrl: 'https://files.example.com/contracts/response-cust-001.pdf',
+      responseFileName: 'response-cust-001.pdf',
+    },
+  });
 
-    for (const version of snapshot.contractVersions) {
-      if (!version.bakDocumentId) {
-        continue;
-      }
+  const warningVersion = await prisma.contractVersion.create({
+    data: {
+      contractId: warningContract.id,
+      customerId: warningCustomer.id,
+      versionNumber: 1,
+      startDate: dateOnly(currentYear, 2, 1),
+      endDate: dateOnly(currentYear, 11, 30),
+      coreType: CoreAllocationType.core,
+      coreTotal: 4,
+      renewalFileUrl: 'https://files.example.com/contracts/renewal-cust-002.pdf',
+      renewalFileName: 'renewal-cust-002.pdf',
+    },
+  });
 
-      await prisma.contractVersion.update({
-        where: { id: version.id },
-        data: { bakDocumentId: version.bakDocumentId },
-      });
-    }
-  }
+  const activeContractDoc = await prisma.document.create({
+    data: {
+      customerId: activeCustomer.id,
+      contractId: activeContract.id,
+      contractVersionId: activeVersion.id,
+      contractNumber: activeContract.contractNumber,
+      jenisDokumen: DocumentType.kontrak,
+      nomorDokumen: `DOC-CONTRACT-${currentYear}-001`,
+      tanggalDokumen: dateOnly(currentYear, 1, 1),
+      fileUrl: 'https://files.example.com/documents/contract-cust-001.pdf',
+    },
+  });
 
-  if (snapshot.invoices.length > 0) {
-    await prisma.invoice.createMany({
-      data: snapshot.invoices.map((invoice) => ({
-        id: invoice.id,
-        customerId: invoice.customerId,
-        invoiceNumber: invoice.invoiceNumber,
-        contractId: invoice.contractId,
-        contractVersionId: invoice.contractVersionId ?? null,
-        contractNumber: invoice.contractNumber ?? null,
-        periodMonth: invoice.periodMonth,
-        periodYear: invoice.periodYear,
-        periodStartDate: toDateOnly(invoice.periodStartDate),
-        periodEndDate: toDateOnly(invoice.periodEndDate),
-        dueDate: toDateOnly(invoice.dueDate),
-        amount: invoice.amount,
-        status: invoice.status,
-        scheduleVersion: invoice.scheduleVersion,
-        scheduleStatus: invoice.scheduleStatus,
-        documentId: invoice.documentId ?? null,
-        paidAt: toDate(invoice.paidAt),
-        invoiceFileUrl: invoice.invoiceFileUrl ?? null,
-        paymentProofFileUrl: invoice.paymentProofFileUrl ?? null,
-        createdAt: new Date(invoice.createdAt),
-        updatedAt: new Date(invoice.updatedAt),
-      })),
-    });
+  const activeBakDoc = await prisma.document.create({
+    data: {
+      customerId: activeCustomer.id,
+      contractId: activeContract.id,
+      contractVersionId: activeVersion.id,
+      contractNumber: activeContract.contractNumber,
+      jenisDokumen: DocumentType.BAK,
+      nomorDokumen: `DOC-BAK-${currentYear}-001`,
+      tanggalDokumen: dateOnly(currentYear, currentMonth, 2),
+      fileUrl: 'https://files.example.com/documents/bak-cust-001.pdf',
+    },
+  });
 
-    const invoiceFollowUps = snapshot.invoices.flatMap((invoice) =>
-      (invoice.invoiceFollowUps ?? []).map((followUp) => ({
-        id: followUp.id,
-        invoiceId: followUp.invoiceId,
-        splitOrder: followUp.splitOrder,
-        source: followUp.source,
-        triggerCode: followUp.triggerCode,
-        title: followUp.title,
-        description: followUp.description,
-        status: followUp.status,
-        invoiceNumber: followUp.invoiceNumber,
-        invoiceFileUrl: followUp.invoiceFileUrl,
-        createdAt: new Date(followUp.createdAt),
-        updatedAt: new Date(followUp.updatedAt),
-      })),
-    );
+  const warningOfferDoc = await prisma.document.create({
+    data: {
+      customerId: warningCustomer.id,
+      contractId: warningContract.id,
+      contractVersionId: warningVersion.id,
+      contractNumber: warningContract.contractNumber,
+      jenisDokumen: DocumentType.penawaran,
+      nomorDokumen: `DOC-OFFER-${currentYear}-002`,
+      tanggalDokumen: dateOnly(currentYear, 2, 1),
+      fileUrl: 'https://files.example.com/documents/offer-cust-002.pdf',
+    },
+  });
 
-    if (invoiceFollowUps.length > 0) {
-      await prisma.invoiceFollowUp.createMany({ data: invoiceFollowUps });
-    }
-  }
+  await prisma.contractVersion.update({
+    where: { id: activeVersion.id },
+    data: { bakDocumentId: activeBakDoc.id },
+  });
 
-  if (snapshot.customerRouteVersions.length > 0) {
-    await prisma.customerRouteVersion.createMany({
-      data: snapshot.customerRouteVersions.map((version) => ({
-        id: version.id,
-        customerId: version.customerId,
-        versionNumber: version.versionNumber,
-        flowStatus: version.flowStatus,
-        changeMode: version.changeMode,
-        changeNote: version.changeNote,
-        basedOnVersionId: version.basedOnVersionId,
-        createdAt: new Date(version.createdAt),
-        updatedAt: new Date(version.updatedAt),
-      })),
-    });
-  }
+  const paidInvoiceDocument = await prisma.document.create({
+    data: {
+      customerId: activeCustomer.id,
+      contractId: activeContract.id,
+      contractVersionId: activeVersion.id,
+      contractNumber: activeContract.contractNumber,
+      jenisDokumen: DocumentType.invoice,
+      nomorDokumen: `INV-DOC-${previousMonthYear}${String(previousMonth).padStart(2, '0')}-001`,
+      tanggalDokumen: dateOnly(previousMonthYear, previousMonth, 1),
+      fileUrl: 'https://files.example.com/documents/invoice-cust-001-prev.pdf',
+    },
+  });
 
-  if (snapshot.customerRoutePoints.length > 0) {
-    await prisma.customerRoutePoint.createMany({
-      data: snapshot.customerRoutePoints.map((point) => ({
-        id: point.id,
-        routeVersionId: point.routeVersionId,
-        orderNumber: point.orderNumber,
-        pathName: point.pathName,
-        pointType: point.pointType,
-        note: point.note,
-        createdAt: new Date(point.createdAt),
-        updatedAt: new Date(point.updatedAt),
-      })),
-    });
-  }
+  const paidInvoice = await prisma.invoice.create({
+    data: {
+      customerId: activeCustomer.id,
+      invoiceNumber: `INV-${previousMonthYear}${String(previousMonth).padStart(2, '0')}-001`,
+      contractId: activeContract.id,
+      contractVersionId: activeVersion.id,
+      contractNumber: activeContract.contractNumber,
+      periodMonth: previousMonth,
+      periodYear: previousMonthYear,
+      periodStartDate: dateOnly(previousMonthYear, previousMonth, 1),
+      periodEndDate: dateOnly(previousMonthYear, previousMonth, 28),
+      dueDate: dateOnly(previousMonthYear, previousMonth, 10),
+      amount: '2750000',
+      status: InvoiceStatus.lunas,
+      scheduleVersion: 1,
+      scheduleStatus: InvoiceScheduleStatus.active,
+      documentId: paidInvoiceDocument.id,
+      paidAt: isoTimestamp(previousMonthYear, previousMonth, 9, 10, 15),
+      invoiceFileUrl: 'https://files.example.com/invoices/invoice-cust-001-prev.pdf',
+      paymentProofFileUrl: 'https://files.example.com/invoices/payment-proof-cust-001-prev.pdf',
+    },
+  });
 
-  if (snapshot.customerRouteHistory.length > 0) {
-    await prisma.customerRouteHistory.createMany({
-      data: snapshot.customerRouteHistory.map((entry) => ({
-        id: entry.id,
-        customerId: entry.customerId,
-        operation: entry.operation,
-        note: entry.note,
-        snapshotBefore: entry.snapshotBefore,
-        snapshotAfter: entry.snapshotAfter,
-        createdAt: new Date(entry.createdAt),
-      })),
-    });
-  }
+  const currentInvoiceDocument = await prisma.document.create({
+    data: {
+      customerId: activeCustomer.id,
+      contractId: activeContract.id,
+      contractVersionId: activeVersion.id,
+      contractNumber: activeContract.contractNumber,
+      jenisDokumen: DocumentType.invoice,
+      nomorDokumen: `INV-DOC-${currentYear}${String(currentMonth).padStart(2, '0')}-001`,
+      tanggalDokumen: dateOnly(currentYear, currentMonth, 1),
+      fileUrl: 'https://files.example.com/documents/invoice-cust-001-current.pdf',
+    },
+  });
 
-  await resetSequences();
+  const currentInvoice = await prisma.invoice.create({
+    data: {
+      customerId: activeCustomer.id,
+      invoiceNumber: `INV-${currentYear}${String(currentMonth).padStart(2, '0')}-001`,
+      contractId: activeContract.id,
+      contractVersionId: activeVersion.id,
+      contractNumber: activeContract.contractNumber,
+      periodMonth: currentMonth,
+      periodYear: currentYear,
+      periodStartDate: dateOnly(currentYear, currentMonth, 1),
+      periodEndDate: dateOnly(currentYear, currentMonth, 28),
+      dueDate: dateOnly(currentYear, currentMonth, 10),
+      amount: '2750000',
+      status: InvoiceStatus.belum_bayar,
+      scheduleVersion: 1,
+      scheduleStatus: InvoiceScheduleStatus.active,
+      documentId: currentInvoiceDocument.id,
+      invoiceFileUrl: 'https://files.example.com/invoices/invoice-cust-001-current.pdf',
+    },
+  });
+
+  const warningInvoice = await prisma.invoice.create({
+    data: {
+      customerId: warningCustomer.id,
+      invoiceNumber: `INV-${currentYear}${String(currentMonth).padStart(2, '0')}-002`,
+      contractId: warningContract.id,
+      contractVersionId: warningVersion.id,
+      contractNumber: warningContract.contractNumber,
+      periodMonth: currentMonth,
+      periodYear: currentYear,
+      periodStartDate: dateOnly(currentYear, currentMonth, 1),
+      periodEndDate: dateOnly(currentYear, currentMonth, 28),
+      dueDate: dateOnly(currentYear, currentMonth, 10),
+      amount: '4250000',
+      status: InvoiceStatus.terlambat,
+      scheduleVersion: 1,
+      scheduleStatus: InvoiceScheduleStatus.active,
+      invoiceFileUrl: 'https://files.example.com/invoices/invoice-cust-002-current.pdf',
+    },
+  });
+
+  await prisma.invoiceFollowUp.createMany({
+    data: [
+      {
+        invoiceId: currentInvoice.id,
+        splitOrder: 1,
+        source: InvoiceFollowUpSource.auto,
+        triggerCode: 'payment-reminder',
+        title: 'Pengingat pembayaran berjalan',
+        description:
+          'Invoice bulan berjalan sudah diterbitkan tetapi bukti pembayaran belum masuk.',
+        status: InvoiceFollowUpStatus.warning,
+        invoiceNumber: currentInvoice.invoiceNumber,
+        invoiceFileUrl: currentInvoice.invoiceFileUrl,
+      },
+      {
+        invoiceId: warningInvoice.id,
+        splitOrder: 1,
+        source: InvoiceFollowUpSource.manual,
+        triggerCode: 'late-payment',
+        title: 'Tindak lanjut keterlambatan invoice',
+        description:
+          'Pelanggan perlu dihubungi karena invoice bulan berjalan melewati jatuh tempo.',
+        status: InvoiceFollowUpStatus.sent,
+        invoiceNumber: warningInvoice.invoiceNumber,
+        invoiceFileUrl: warningInvoice.invoiceFileUrl,
+      },
+      {
+        invoiceId: paidInvoice.id,
+        splitOrder: 1,
+        source: InvoiceFollowUpSource.auto,
+        triggerCode: 'payment-complete',
+        title: 'Pembayaran bulan lalu selesai',
+        description: 'Invoice bulan sebelumnya sudah lunas dan arsip lengkap.',
+        status: InvoiceFollowUpStatus.completed,
+        invoiceNumber: paidInvoice.invoiceNumber,
+        invoiceFileUrl: paidInvoice.invoiceFileUrl,
+      },
+    ],
+  });
+
+  const primaryIspContractRow = await prisma.ispContractRow.create({
+    data: {
+      ispId: primaryIsp.id,
+      contractReference: primaryIsp.contractReference ?? `ISP-TELKOM-${currentYear}`,
+      periodStart: dateOnly(currentYear, 1, 1),
+      periodEnd: dateOnly(currentYear, 12, 31),
+      renewalStatus: IspRenewalStatus.renewed,
+      bakFileUrl: 'https://files.example.com/isps/bak-telkom.pdf',
+      bakFileName: 'bak-telkom.pdf',
+      renewalFileUrl: 'https://files.example.com/isps/renewal-telkom.pdf',
+      renewalFileName: 'renewal-telkom.pdf',
+      responseFileUrl: 'https://files.example.com/isps/response-telkom.pdf',
+      responseFileName: 'response-telkom.pdf',
+    },
+  });
+
+  const backupIspContractRow = await prisma.ispContractRow.create({
+    data: {
+      ispId: backupIsp.id,
+      contractReference: backupIsp.contractReference ?? `ISP-BIZNET-${currentYear}`,
+      periodStart: dateOnly(currentYear, 2, 1),
+      periodEnd: dateOnly(currentYear, 12, 31),
+      renewalStatus: IspRenewalStatus.pending,
+      renewalFileUrl: 'https://files.example.com/isps/renewal-biznet.pdf',
+      renewalFileName: 'renewal-biznet.pdf',
+    },
+  });
+
+  await prisma.ispRenewalFollowUp.createMany({
+    data: [
+      {
+        rowId: primaryIspContractRow.id,
+        splitOrder: 1,
+        source: IspRenewalFollowUpSource.upload,
+        triggerCode: 'renewed',
+        title: 'Perpanjangan ISP selesai',
+        description: 'Dokumen renewal, response, dan BAK sudah lengkap.',
+        status: IspRenewalFollowUpStatus.completed,
+        renewalFileUrl: primaryIspContractRow.renewalFileUrl,
+        renewalFileName: primaryIspContractRow.renewalFileName,
+        responseFileUrl: primaryIspContractRow.responseFileUrl,
+        responseFileName: primaryIspContractRow.responseFileName,
+        responseDecision: IspRenewalResponseDecision.lanjut,
+      },
+      {
+        rowId: backupIspContractRow.id,
+        splitOrder: 1,
+        source: IspRenewalFollowUpSource.manual,
+        triggerCode: 'pending-response',
+        title: 'Menunggu balasan ISP',
+        description:
+          'Dokumen renewal sudah dikirim, tetapi belum ada tanggapan resmi dari ISP.',
+        status: IspRenewalFollowUpStatus.pending_response,
+        renewalFileUrl: backupIspContractRow.renewalFileUrl,
+        renewalFileName: backupIspContractRow.renewalFileName,
+      },
+    ],
+  });
+
+  await prisma.contractVersionRenewalFollowUp.createMany({
+    data: [
+      {
+        versionId: activeVersion.id,
+        splitOrder: 1,
+        source: IspRenewalFollowUpSource.upload,
+        triggerCode: 'completed',
+        title: 'Renewal tenant lengkap',
+        description: 'Renewal tenant sudah mendapat response dan BAK.',
+        status: IspRenewalFollowUpStatus.completed,
+        renewalFileUrl: activeVersion.renewalFileUrl,
+        renewalFileName: activeVersion.renewalFileName,
+        responseFileUrl: activeVersion.responseFileUrl,
+        responseFileName: activeVersion.responseFileName,
+        responseDecision: IspRenewalResponseDecision.lanjut,
+      },
+      {
+        versionId: warningVersion.id,
+        splitOrder: 1,
+        source: IspRenewalFollowUpSource.manual,
+        triggerCode: 'pending',
+        title: 'Renewal tenant perlu tindak lanjut',
+        description:
+          'Kontrak tenant mendekati akhir periode dan dokumen BAK belum tersedia.',
+        status: IspRenewalFollowUpStatus.warning,
+        renewalFileUrl: warningVersion.renewalFileUrl,
+        renewalFileName: warningVersion.renewalFileName,
+      },
+    ],
+  });
+
+  const activeRouteVersion = await prisma.customerRouteVersion.create({
+    data: {
+      customerId: activeCustomer.id,
+      versionNumber: 1,
+      flowStatus: RouteFlowStatus.aktif,
+      changeMode: RouteChangeMode.initial,
+      changeNote: 'Aktivasi awal jalur tenant.',
+    },
+  });
+
+  const warningRouteVersion = await prisma.customerRouteVersion.create({
+    data: {
+      customerId: warningCustomer.id,
+      versionNumber: 1,
+      flowStatus: RouteFlowStatus.gangguan,
+      changeMode: RouteChangeMode.initial,
+      changeNote: 'Jalur aktif tetapi sedang menunggu stabilisasi perangkat.',
+    },
+  });
+
+  await prisma.customerRoutePoint.createMany({
+    data: [
+      {
+        routeVersionId: activeRouteVersion.id,
+        orderNumber: 1,
+        pathName: 'POP Panakkukang',
+        pointType: RoutePointType.awal,
+      },
+      {
+        routeVersionId: activeRouteVersion.id,
+        orderNumber: 2,
+        pathName: 'ODC Karebosi',
+        pointType: RoutePointType.transit,
+      },
+      {
+        routeVersionId: activeRouteVersion.id,
+        orderNumber: 3,
+        pathName: 'Kantor Dinas Kelautan',
+        pointType: RoutePointType.tujuan,
+      },
+      {
+        routeVersionId: warningRouteVersion.id,
+        orderNumber: 1,
+        pathName: 'POP Soekarno Hatta',
+        pointType: RoutePointType.awal,
+      },
+      {
+        routeVersionId: warningRouteVersion.id,
+        orderNumber: 2,
+        pathName: 'Pelabuhan Paotere',
+        pointType: RoutePointType.tujuan,
+      },
+    ],
+  });
+
+  await prisma.customerRouteHistory.createMany({
+    data: [
+      {
+        customerId: activeCustomer.id,
+        operation: RouteHistoryOperation.commit,
+        note: 'Jalur awal tenant disimpan.',
+        snapshotBefore: { points: [] },
+        snapshotAfter: {
+          versionId: activeRouteVersion.id,
+          points: ['POP Panakkukang', 'ODC Karebosi', 'Kantor Dinas Kelautan'],
+        },
+      },
+      {
+        customerId: warningCustomer.id,
+        operation: RouteHistoryOperation.status,
+        note: 'Jalur tenant ditandai gangguan untuk tindak lanjut lapangan.',
+        snapshotBefore: { flowStatus: 'aktif' },
+        snapshotAfter: { flowStatus: 'gangguan' },
+      },
+    ],
+  });
+
+  console.log(
+    `Seed completed: customers=${2}, isps=${2}, contracts=${2}, documents=${5}, invoices=${3}.`,
+  );
 }
 
 seed()
-  .then(async () => {
-    await prisma.$disconnect();
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
   })
-  .catch(async (error: unknown) => {
-    console.error('Prisma seed failed.', error);
+  .finally(async () => {
     await prisma.$disconnect();
-    process.exit(1);
   });

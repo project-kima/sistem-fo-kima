@@ -320,10 +320,34 @@ model ContractVersion {
   customer          Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
   documents         Document[]            @relation("DocumentContractVersion")
   invoices          Invoice[]
+  renewalFollowUps  ContractVersionRenewalFollowUp[]
 
   @@unique([contractId, versionNumber], map: "uq_contract_versions_contract_version_number")
   @@index([customerId], map: "idx_contract_versions_customer_id")
   @@map("contract_versions")
+}
+
+model ContractVersionRenewalFollowUp {
+  id               Int                         @id @default(autoincrement())
+  versionId        Int                         @map("version_id")
+  splitOrder       Int                         @map("split_order")
+  source           IspRenewalFollowUpSource
+  triggerCode      String?                     @map("trigger_code") @db.VarChar(120)
+  title            String                      @db.VarChar(255)
+  description      String
+  status           IspRenewalFollowUpStatus
+  renewalFileUrl   String?                     @map("renewal_file_url")
+  renewalFileName  String?                     @map("renewal_file_name") @db.VarChar(255)
+  responseFileUrl  String?                     @map("response_file_url")
+  responseFileName String?                     @map("response_file_name") @db.VarChar(255)
+  responseDecision IspRenewalResponseDecision? @map("response_decision")
+  createdAt        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version          ContractVersion             @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, splitOrder], map: "uq_contract_version_renewal_follow_ups_version_split_order")
+  @@index([status], map: "idx_contract_version_renewal_follow_ups_status")
+  @@map("contract_version_renewal_follow_ups")
 }
 
 model Document {

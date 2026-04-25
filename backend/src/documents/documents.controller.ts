@@ -39,7 +39,7 @@ export class DocumentsController {
   create(
     @Param('customerId', ParseIntPipe) customerId: number,
     @Body() payload: CreateDocumentDto,
-    @UploadedFile() file?: any,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     return this.documentsService.create(customerId, payload, file);
   }

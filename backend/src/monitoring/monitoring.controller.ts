@@ -3,7 +3,7 @@ import { MonitoringService } from './monitoring.service';
 
 @Controller('api/monitoring')
 export class MonitoringController {
-  constructor(private readonly monitoringService: MonitoringService) { }
+  constructor(private readonly monitoringService: MonitoringService) {}
 
   @Get('billing')
   getBilling(

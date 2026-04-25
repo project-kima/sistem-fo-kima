@@ -184,7 +184,14 @@ export interface CustomerRoutePoint {
 export interface CustomerRouteHistoryEntry {
   id: number;
   customerId: number;
-  operation: 'add' | 'update' | 'delete' | 'reorder' | 'status' | 'commit' | 'replace';
+  operation:
+    | 'add'
+    | 'update'
+    | 'delete'
+    | 'reorder'
+    | 'status'
+    | 'commit'
+    | 'replace';
   note: string;
   snapshotBefore: {
     flowStatus: RouteFlowStatus;
@@ -313,7 +320,13 @@ export interface TimelineEvent {
   id: string;
   customerId: number;
   date: string;
-  type: 'document' | 'contract' | 'contract_version' | 'invoice' | 'payment' | 'todo';
+  type:
+    | 'document'
+    | 'contract'
+    | 'contract_version'
+    | 'invoice'
+    | 'payment'
+    | 'todo';
   title: string;
   description: string;
 }
@@ -325,14 +338,14 @@ export interface TenantTodoItem {
   customerId: number;
   category: TenantTodoCategory;
   code:
-  | 'contract_expiring_90_days'
-  | 'payment_overdue'
-  | 'payment_pending'
-  | 'bak_missing'
-  | 'required_document_missing'
-  | 'invoice_amount_missing'
-  | 'invoice_not_uploaded'
-  | 'recent_activity';
+    | 'contract_expiring_90_days'
+    | 'payment_overdue'
+    | 'payment_pending'
+    | 'bak_missing'
+    | 'required_document_missing'
+    | 'invoice_amount_missing'
+    | 'invoice_not_uploaded'
+    | 'recent_activity';
   title: string;
   message: string;
   dueDate: string | null;
@@ -371,15 +384,15 @@ export interface MonitoringAlert {
   customerId: number;
   customerName: string;
   code:
-  | 'missing_contract'
-  | 'contract_expiring'
-  | 'payment_overdue'
-  | 'bak_missing'
-  | 'missing_required_document'
-  | 'invoice_not_uploaded'
-  | 'missing_invoice_current_month'
-  | 'has_termination_document'
-  | 'activation_fee_unpaid';
+    | 'missing_contract'
+    | 'contract_expiring'
+    | 'payment_overdue'
+    | 'bak_missing'
+    | 'missing_required_document'
+    | 'invoice_not_uploaded'
+    | 'missing_invoice_current_month'
+    | 'has_termination_document'
+    | 'activation_fee_unpaid';
   severity: 'high' | 'medium' | 'low';
   message: string;
 }

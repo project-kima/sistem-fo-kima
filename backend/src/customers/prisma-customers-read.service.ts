@@ -1,14 +1,56 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ContractStatus,
-  CoreAllocationType,
   CustomerStatus,
-  InvoiceStatus,
   RouteFlowStatus,
   TenantTodoCategory,
   TenantTodoItem,
 } from '../shared/types/domain.types';
+
+type CustomerRecord = Prisma.CustomerGetPayload<{
+  include: {
+    ispMemberships: {
+      include: {
+        isp: true;
+      };
+    };
+    contracts: {
+      include: {
+        versions: {
+          include: {
+            renewalFollowUps: {
+              orderBy: {
+                splitOrder: 'asc';
+              };
+            };
+          };
+        };
+      };
+    };
+    documents: true;
+    invoices: {
+      include: {
+        followUps: true;
+      };
+    };
+    routeVersions: {
+      include: {
+        points: {
+          orderBy: {
+            orderNumber: 'asc';
+          };
+        };
+      };
+    };
+    routeHistoryEntries: {
+      orderBy: {
+        createdAt: 'desc';
+      };
+    };
+  };
+}>;
 
 const toIsoTimestamp = (value: Date): string => value.toISOString();
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
@@ -61,6 +103,11 @@ export class PrismaCustomersReadService {
           include: {
             versions: {
               orderBy: { versionNumber: 'desc' },
+              include: {
+                renewalFollowUps: {
+                  orderBy: { splitOrder: 'asc' },
+                },
+              },
             },
           },
         },
@@ -77,6 +124,9 @@ export class PrismaCustomersReadService {
               orderBy: { orderNumber: 'asc' },
             },
           },
+        },
+        routeHistoryEntries: {
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -106,47 +156,7 @@ export class PrismaCustomersReadService {
   }
 
   async getById(customerId: number) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id: customerId },
-      include: {
-        ispMemberships: {
-          include: {
-            isp: true,
-          },
-        },
-        contracts: {
-          orderBy: { id: 'desc' },
-          include: {
-            versions: {
-              orderBy: { versionNumber: 'desc' },
-            },
-          },
-        },
-        documents: true,
-        invoices: {
-          include: {
-            followUps: true,
-          },
-        },
-        routeVersions: {
-          orderBy: { versionNumber: 'desc' },
-          include: {
-            points: {
-              orderBy: { orderNumber: 'asc' },
-            },
-          },
-        },
-        routeHistoryEntries: {
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-    });
-
-    if (!customer) {
-      throw new NotFoundException('Customer not found.');
-    }
-
-    const mapped = this.mapCustomerRecord(customer);
+    const mapped = await this.getMappedCustomer(customerId);
     const contractSnapshot = this.buildCustomerContractSnapshot(mapped);
     const activeRouteVersion = mapped.routeVersions[0] ?? null;
     const timeline = this.listCustomerTimeline(mapped);
@@ -178,7 +188,124 @@ export class PrismaCustomersReadService {
     };
   }
 
-  private mapCustomerRecord(customer: any) {
+  async getTodoSummary(customerId: number) {
+    const mapped = await this.getMappedCustomer(customerId);
+    return this.buildCustomerTodoSummary(mapped);
+  }
+
+  async getComplianceStatus(customerId: number) {
+    const mapped = await this.getMappedCustomer(customerId);
+    const today = toIsoDate(new Date());
+    const nowDate = parseDate(today);
+    const currentMonth = nowDate.getUTCMonth() + 1;
+    const currentYear = nowDate.getUTCFullYear();
+    const customerInvoices = mapped.invoices.filter(
+      (invoice) => invoice.scheduleStatus === 'active',
+    );
+    const activeContract =
+      mapped.primaryContract?.status === 'terminated'
+        ? null
+        : mapped.primaryContract;
+    const activeVersion = this.findActiveContractVersion(
+      mapped.contractVersions,
+      mapped.primaryContract?.status ?? null,
+      today,
+    );
+
+    const currentMonthInvoice = customerInvoices.find(
+      (invoice) =>
+        invoice.periodMonth === currentMonth &&
+        invoice.periodYear === currentYear,
+    );
+
+    const hasTerminationDocument = mapped.documents.some(
+      (document) => document.jenisDokumen === 'pemutusan',
+    );
+
+    const todoSummary = this.buildCustomerTodoSummary(mapped, today);
+    const warnings = [...todoSummary.priority, ...todoSummary.needAction]
+      .map((item) => item.message)
+      .slice(0, 10);
+
+    return {
+      hasContract: Boolean(activeContract),
+      hasInvoiceCurrentMonth: Boolean(
+        currentMonthInvoice &&
+        currentMonthInvoice.invoiceFileUrl &&
+        currentMonthInvoice.paymentProofFileUrl,
+      ),
+      contractExpiringIn30Days: Boolean(
+        activeVersion &&
+        Math.ceil(
+          (parseDate(activeVersion.endDate).getTime() - nowDate.getTime()) /
+            (24 * 60 * 60 * 1000),
+        ) <= 30 &&
+        parseDate(activeVersion.endDate).getTime() >= nowDate.getTime(),
+      ),
+      hasTerminationDocument,
+      hasActivationFeePaid: Boolean(mapped.customer.activationFeePaidAt),
+      activationFeeAmount: Number(mapped.customer.activationFeeAmount ?? 0),
+      activationFeePaidAt: mapped.customer.activationFeePaidAt ?? null,
+      warnings,
+      todoSummary,
+    };
+  }
+
+  async getTimeline(customerId: number) {
+    const mapped = await this.getMappedCustomer(customerId);
+    return this.listCustomerTimeline(mapped);
+  }
+
+  private async getMappedCustomer(customerId: number) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      include: {
+        ispMemberships: {
+          include: {
+            isp: true,
+          },
+        },
+        contracts: {
+          orderBy: { id: 'desc' },
+          include: {
+            versions: {
+              orderBy: { versionNumber: 'desc' },
+              include: {
+                renewalFollowUps: {
+                  orderBy: { splitOrder: 'asc' },
+                },
+              },
+            },
+          },
+        },
+        documents: true,
+        invoices: {
+          include: {
+            followUps: true,
+          },
+        },
+        routeVersions: {
+          orderBy: { versionNumber: 'desc' },
+          include: {
+            points: {
+              orderBy: { orderNumber: 'asc' },
+            },
+          },
+        },
+        routeHistoryEntries: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found.');
+    }
+
+    return this.mapCustomerRecord(customer);
+  }
+
+  private mapCustomerRecord(customer: CustomerRecord) {
     const isps = [...(customer.ispMemberships ?? [])]
       .map((membership) => membership.isp)
       .sort((left, right) => left.name.localeCompare(right.name))
@@ -229,8 +356,9 @@ export class PrismaCustomersReadService {
 
     const primaryContract = contracts[0] ?? null;
     const primaryContractRecord =
-      (customer.contracts ?? []).find((contract) => contract.id === primaryContract?.id) ??
-      null;
+      (customer.contracts ?? []).find(
+        (contract) => contract.id === primaryContract?.id,
+      ) ?? null;
 
     const contractVersions = [...(primaryContractRecord?.versions ?? [])]
       .sort((left, right) => right.versionNumber - left.versionNumber)
@@ -249,7 +377,25 @@ export class PrismaCustomersReadService {
         renewalFileName: version.renewalFileName,
         responseFileUrl: version.responseFileUrl,
         responseFileName: version.responseFileName,
-        renewalFollowUps: [],
+        renewalFollowUps: [...(version.renewalFollowUps ?? [])].map(
+          (followUp) => ({
+            id: followUp.id,
+            rowId: followUp.versionId,
+            splitOrder: followUp.splitOrder,
+            source: followUp.source,
+            triggerCode: followUp.triggerCode ?? null,
+            title: followUp.title,
+            description: followUp.description,
+            status: followUp.status,
+            renewalFileUrl: followUp.renewalFileUrl ?? null,
+            renewalFileName: followUp.renewalFileName ?? null,
+            responseFileUrl: followUp.responseFileUrl ?? null,
+            responseFileName: followUp.responseFileName ?? null,
+            responseDecision: followUp.responseDecision ?? null,
+            createdAt: toIsoTimestamp(followUp.createdAt),
+            updatedAt: toIsoTimestamp(followUp.updatedAt),
+          }),
+        ),
         createdAt: toIsoTimestamp(version.createdAt),
         updatedAt: toIsoTimestamp(version.updatedAt),
       }));
@@ -359,15 +505,17 @@ export class PrismaCustomersReadService {
           })),
       }));
 
-    const routeHistory = [...(customer.routeHistoryEntries ?? [])].map((entry) => ({
-      id: entry.id,
-      customerId: entry.customerId,
-      operation: entry.operation,
-      note: entry.note,
-      snapshotBefore: entry.snapshotBefore,
-      snapshotAfter: entry.snapshotAfter,
-      createdAt: toIsoTimestamp(entry.createdAt),
-    }));
+    const routeHistory = [...(customer.routeHistoryEntries ?? [])].map(
+      (entry) => ({
+        id: entry.id,
+        customerId: entry.customerId,
+        operation: entry.operation,
+        note: entry.note,
+        snapshotBefore: entry.snapshotBefore,
+        snapshotAfter: entry.snapshotAfter,
+        createdAt: toIsoTimestamp(entry.createdAt),
+      }),
+    );
 
     const customerRecord = {
       id: customer.id,
@@ -404,8 +552,9 @@ export class PrismaCustomersReadService {
     };
   }
 
-  private buildCustomerContractSnapshot(mapped: any) {
-    const versionSnapshot = mapped.activeVersion ?? mapped.contractVersions[0] ?? null;
+  private buildCustomerContractSnapshot(mapped: MappedCustomerRecord) {
+    const versionSnapshot =
+      mapped.activeVersion ?? mapped.contractVersions[0] ?? null;
 
     if (!versionSnapshot) {
       return {
@@ -419,11 +568,9 @@ export class PrismaCustomersReadService {
 
     return {
       paket:
-        versionSnapshot.coreType === CoreAllocationType.SharingCore
-          ? 'shared core'
-          : 'core',
+        versionSnapshot.coreType === 'sharing_core' ? 'shared core' : 'core',
       jumlah:
-        versionSnapshot.coreType === CoreAllocationType.Core
+        versionSnapshot.coreType === 'core'
           ? versionSnapshot.coreTotal
           : versionSnapshot.sharedCoreRatio,
       contractSharingRatio: versionSnapshot.sharedCoreRatio ?? null,
@@ -432,7 +579,7 @@ export class PrismaCustomersReadService {
     };
   }
 
-  private listCustomerTimeline(mapped: any) {
+  private listCustomerTimeline(mapped: MappedCustomerRecord) {
     const documentEvents = mapped.documents.map((document) => ({
       id: `document-${document.id}`,
       customerId: mapped.customer.id,
@@ -492,11 +639,15 @@ export class PrismaCustomersReadService {
       ...paymentEvents,
     ].sort(
       (left, right) =>
-        parseDate(right.date).getTime() - parseDate(left.date).getTime(),
+        parseDate(right.date ?? '1970-01-01').getTime() -
+        parseDate(left.date ?? '1970-01-01').getTime(),
     );
   }
 
-  private buildCustomerTodoSummary(mapped: any, referenceDate = toIsoDate(new Date())) {
+  private buildCustomerTodoSummary(
+    mapped: MappedCustomerRecord,
+    referenceDate = toIsoDate(new Date()),
+  ) {
     const priority: TenantTodoItem[] = [];
     const needAction: TenantTodoItem[] = [];
     const info: TenantTodoItem[] = [];
@@ -537,12 +688,12 @@ export class PrismaCustomersReadService {
         return false;
       }
 
-      if (invoice.status === InvoiceStatus.Terlambat) {
+      if (invoice.status === 'terlambat') {
         return true;
       }
 
       if (
-        invoice.status !== InvoiceStatus.Lunas &&
+        invoice.status !== 'lunas' &&
         invoice.dueDate &&
         invoice.dueDate < referenceDate
       ) {
@@ -616,10 +767,7 @@ export class PrismaCustomersReadService {
         return false;
       }
 
-      if (
-        invoice.status === InvoiceStatus.Lunas ||
-        invoice.paymentProofFileUrl
-      ) {
+      if (invoice.status === 'lunas' || invoice.paymentProofFileUrl) {
         return false;
       }
 
@@ -680,7 +828,7 @@ export class PrismaCustomersReadService {
           category: 'info',
           code: 'recent_activity',
           title: 'Aktivitas terbaru',
-          message: `${event.title} (${toIsoDate(parseDate(event.date))})`,
+          message: `${event.title} (${toIsoDate(parseDate(event.date ?? referenceDate))})`,
           dueDate: null,
         }),
       );
@@ -698,17 +846,19 @@ export class PrismaCustomersReadService {
     };
   }
 
-  private findActiveContractVersion(
-    contractVersions: Array<{
+  private findActiveContractVersion<
+    T extends {
       id: number;
       startDate: string;
       endDate: string;
       bakDocumentId: number | null;
-    }>,
-    contractStatus: ContractStatus | null,
+    },
+  >(
+    contractVersions: T[],
+    contractStatus: ContractStatus | string | null,
     referenceDate: string,
   ) {
-    if (contractStatus === ContractStatus.Terminated) {
+    if (contractStatus === 'terminated') {
       return undefined;
     }
 
@@ -742,3 +892,7 @@ export class PrismaCustomersReadService {
     };
   }
 }
+
+type MappedCustomerRecord = ReturnType<
+  PrismaCustomersReadService['mapCustomerRecord']
+>;

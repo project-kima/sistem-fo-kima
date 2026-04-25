@@ -1,11 +1,13 @@
 # Backend API - Sistem Arsip KIMA
 
-Backend ini dibangun dengan NestJS dan saat ini menggunakan penyimpanan in-memory untuk prototipe domain arsip dokumen dan monitoring tenant.
+Backend ini dibangun dengan NestJS dan menggunakan Prisma + PostgreSQL untuk domain arsip dokumen dan monitoring tenant.
 
 ## Menjalankan Aplikasi
 
 ```bash
 npm install
+npm run prisma:deploy
+npm run prisma:seed
 npm run start:dev
 ```
 
@@ -38,5 +40,6 @@ Upload dokumen akan memicu automasi domain:
 
 ## Catatan
 
-- Implementasi persistence database (PostgreSQL/ORM) belum diaktifkan.
+- `DATABASE_URL` wajib tersedia saat aplikasi dijalankan.
+- Seed sekarang aman untuk production-style bootstrap: jika database sudah berisi data, seed akan berhenti kecuali `SEED_FORCE_RESET=true`.
 - Rujukan skema SQL ada di `../docs/document-schema.sql`.
