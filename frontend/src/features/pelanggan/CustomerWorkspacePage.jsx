@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import AppShell from "../components/layout/AppShell";
-import { SummaryCard } from "../components/shared/AppShared";
+import AppShell from "../../components/layout/AppShell";
+import { SummaryCard } from "../../components/shared/AppShared";
 
 function CustomerWorkspacePage({
     activeSection,
@@ -26,6 +26,9 @@ function CustomerWorkspacePage({
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const todayIso = new Date().toISOString().slice(0, 10);
+    const isTenantActive = (tenant) => String(tenant?.rawStatus ?? "")
+        .trim()
+        .toLowerCase() === "aktif";
 
     // --- LOGIC: Filter ISP ---
     const filteredIsps = useMemo(() => isps, [isps]);
@@ -38,6 +41,11 @@ function CustomerWorkspacePage({
     const effectiveSelectedIspFilter = selectedIspFilter !== "all" && !ispFilterOptions.includes(selectedIspFilter)
         ? "all"
         : selectedIspFilter;
+    const shouldIncludeEmptyIspGroups = !normalizedSearch
+        && listType === "current"
+        && contractStatusFilter === "all"
+        && routeStatusFilter === "all"
+        && todoFilter === "all";
 
     // --- LOGIC: Groups & Tenants ---
     const groups = useMemo(() => filteredIsps
@@ -61,8 +69,8 @@ function CustomerWorkspacePage({
                         ? "expired"
                         : "beroperasi";
                     const matchesListType = listType === "riwayat"
-                        ? tenant.rawStatus !== "aktif"
-                        : tenant.rawStatus === "aktif";
+                        ? !isTenantActive(tenant)
+                        : isTenantActive(tenant);
                     const tenantRouteStatus = typeof tenant.routeStatus === "string" ? tenant.routeStatus : "aktif";
                     const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
                     const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
@@ -92,12 +100,12 @@ function CustomerWorkspacePage({
             return {
                 ...isp,
                 tenants,
-                activeTenantCount: tenants.filter((t) => t.rawStatus === "aktif").length,
+                activeTenantCount: tenants.filter((tenant) => isTenantActive(tenant)).length,
                 actionTenantCount,
                 totalActionCount,
             };
         })
-        .filter((group) => group.tenants.length > 0)
+        .filter((group) => group.tenants.length > 0 || shouldIncludeEmptyIspGroups)
         .sort((a, b) => a.name.localeCompare(b.name)), [
         customers,
         filteredIsps,
@@ -108,10 +116,11 @@ function CustomerWorkspacePage({
         listType,
         todayIso,
         todoFilter,
+        shouldIncludeEmptyIspGroups,
     ]);
 
     // --- LOGIC: Stats ---
-    const totalActiveTenants = customers.filter((t) => t.rawStatus === "aktif").length;
+    const totalActiveTenants = customers.filter((tenant) => isTenantActive(tenant)).length;
     const totalNonActiveTenants = customers.length - totalActiveTenants;
     const filteredTenantCount = groups.reduce((total, group) => total + group.tenants.length, 0);
     const filteredActionTenantCount = groups.reduce((total, group) => total + group.actionTenantCount, 0);
@@ -399,72 +408,80 @@ function CustomerWorkspacePage({
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-on-surface/5">
-                                                        {group.tenants.map((tenant) => (
-                                                            <tr key={`${group.id}-${tenant.id}`} className="hover:bg-white/60 transition-colors group/row">
-                                                                <td className="px-8 py-5">
-                                                                    <p className="text-sm font-black text-on-surface group-hover/row:text-primary transition-colors">{tenant.name}</p>
-                                                                    <p className="text-[10px] font-bold text-on-surface/30 tracking-widest">{tenant.customerId}</p>
-                                                                </td>
-                                                                <td className="px-8 py-5">
-                                                                    <div className="flex flex-wrap items-center gap-2">
-                                                                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${tenant.rawStatus === "aktif"
-                                                                            ? "bg-secondary/10 text-secondary border border-secondary/20"
-                                                                            : "bg-on-surface/5 text-on-surface/40 border border-on-surface/10"
-                                                                            }`}>
-                                                                            <span className={`w-1 h-1 rounded-full ${tenant.rawStatus === "aktif" ? "bg-secondary" : "bg-on-surface/40"}`} />
-                                                                            {tenant.rawStatus === "aktif" ? "Beroperasi" : "Berhenti"}
-                                                                        </span>
-                                                                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${tenant.routeStatus === "gangguan"
-                                                                            ? "bg-amber-100 text-amber-800 border border-amber-200"
-                                                                            : tenant.routeStatus === "nonaktif"
-                                                                                ? "bg-slate-100 text-slate-700 border border-slate-200"
-                                                                                : "bg-blue-100 text-blue-800 border border-blue-200"
-                                                                            }`}>
-                                                                            <span className={`w-1 h-1 rounded-full ${tenant.routeStatus === "gangguan"
-                                                                                ? "bg-amber-500"
-                                                                                : tenant.routeStatus === "nonaktif"
-                                                                                    ? "bg-slate-500"
-                                                                                    : "bg-blue-500"
-                                                                                }`} />
-                                                                            Jalur {tenant.routeStatus === "gangguan" ? "Gangguan" : tenant.routeStatus === "nonaktif" ? "Nonaktif" : "Aktif"}
-                                                                        </span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-8 py-5">
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-xs font-black text-on-surface">{tenant.todoSummary?.counts?.priority ?? 0}</span>
-                                                                            <span className="text-[9px] font-bold text-rose-500 uppercase">Priority</span>
-                                                                        </div>
-                                                                        <div className="w-px h-6 bg-on-surface/5" />
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-xs font-black text-on-surface">{tenant.todoSummary?.counts?.needAction ?? 0}</span>
-                                                                            <span className="text-[9px] font-bold text-on-surface/30 uppercase">Actions</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-8 py-5 text-right">
-                                                                    <div className="flex justify-end gap-2">
-                                                                        <button
-                                                                            className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
-                                                                            onClick={() => onOpenTenant(tenant, "invoices", group)}
-                                                                            type="button"
-                                                                        >
-                                                                            <span className="material-symbols-outlined text-sm">receipt_long</span>
-                                                                            Invoice
-                                                                        </button>
-                                                                        <button
-                                                                            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black text-on-surface border border-on-surface/5 shadow-sm hover:border-primary hover:text-primary transition-all active:scale-95"
-                                                                            onClick={() => handleOpenTenantDetail(tenant, group)}
-                                                                            type="button"
-                                                                        >
-                                                                            <span className="material-symbols-outlined text-sm">open_in_new</span>
-                                                                            Detail
-                                                                        </button>
-                                                                    </div>
+                                                        {group.tenants.length === 0 ? (
+                                                            <tr>
+                                                                <td className="px-8 py-8 text-sm font-medium text-on-surface/50" colSpan={4}>
+                                                                    Belum ada tenant terhubung ke ISP ini.
                                                                 </td>
                                                             </tr>
-                                                        ))}
+                                                        ) : (
+                                                            group.tenants.map((tenant) => (
+                                                                <tr key={`${group.id}-${tenant.id}`} className="hover:bg-white/60 transition-colors group/row">
+                                                                    <td className="px-8 py-5">
+                                                                        <p className="text-sm font-black text-on-surface group-hover/row:text-primary transition-colors">{tenant.name}</p>
+                                                                        <p className="text-[10px] font-bold text-on-surface/30 tracking-widest">{tenant.customerId}</p>
+                                                                    </td>
+                                                                    <td className="px-8 py-5">
+                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${isTenantActive(tenant)
+                                                                                ? "bg-secondary/10 text-secondary border border-secondary/20"
+                                                                                : "bg-on-surface/5 text-on-surface/40 border border-on-surface/10"
+                                                                                }`}>
+                                                                                <span className={`w-1 h-1 rounded-full ${isTenantActive(tenant) ? "bg-secondary" : "bg-on-surface/40"}`} />
+                                                                                {isTenantActive(tenant) ? "Beroperasi" : "Berhenti"}
+                                                                            </span>
+                                                                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${tenant.routeStatus === "gangguan"
+                                                                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                                                                : tenant.routeStatus === "nonaktif"
+                                                                                    ? "bg-slate-100 text-slate-700 border border-slate-200"
+                                                                                    : "bg-blue-100 text-blue-800 border border-blue-200"
+                                                                                }`}>
+                                                                                <span className={`w-1 h-1 rounded-full ${tenant.routeStatus === "gangguan"
+                                                                                    ? "bg-amber-500"
+                                                                                    : tenant.routeStatus === "nonaktif"
+                                                                                        ? "bg-slate-500"
+                                                                                        : "bg-blue-500"
+                                                                                    }`} />
+                                                                                Jalur {tenant.routeStatus === "gangguan" ? "Gangguan" : tenant.routeStatus === "nonaktif" ? "Nonaktif" : "Aktif"}
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-8 py-5">
+                                                                        <div className="flex items-center gap-4">
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-xs font-black text-on-surface">{tenant.todoSummary?.counts?.priority ?? 0}</span>
+                                                                                <span className="text-[9px] font-bold text-rose-500 uppercase">Priority</span>
+                                                                            </div>
+                                                                            <div className="w-px h-6 bg-on-surface/5" />
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-xs font-black text-on-surface">{tenant.todoSummary?.counts?.needAction ?? 0}</span>
+                                                                                <span className="text-[9px] font-bold text-on-surface/30 uppercase">Actions</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-8 py-5 text-right">
+                                                                        <div className="flex justify-end gap-2">
+                                                                            <button
+                                                                                className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
+                                                                                onClick={() => onOpenTenant(tenant, "invoices", group)}
+                                                                                type="button"
+                                                                            >
+                                                                                <span className="material-symbols-outlined text-sm">receipt_long</span>
+                                                                                Invoice
+                                                                            </button>
+                                                                            <button
+                                                                                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black text-on-surface border border-on-surface/5 shadow-sm hover:border-primary hover:text-primary transition-all active:scale-95"
+                                                                                onClick={() => handleOpenTenantDetail(tenant, group)}
+                                                                                type="button"
+                                                                            >
+                                                                                <span className="material-symbols-outlined text-sm">open_in_new</span>
+                                                                                Detail
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            ))
+                                                        )}
                                                     </tbody>
                                                 </table>
                                             </div>

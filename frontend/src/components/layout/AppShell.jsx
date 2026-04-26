@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { sidebarItems } from "../../app/constants";
+import { getSectionPath } from "../../app/routes";
 
-export default function AppShell({ activeSection, onNavigate, children }) {
+export default function AppShell({ activeSection, onNavigate, children, hideSidebar = false }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const handleMobileNavigate = (sectionKey) => {
@@ -11,16 +12,18 @@ export default function AppShell({ activeSection, onNavigate, children }) {
 
     return (
         <div className="text-on-surface">
-            <TopNav onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)} />
-            {isMobileMenuOpen && (
+            {!hideSidebar && <TopNav onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)} />}
+            {isMobileMenuOpen && !hideSidebar && (
                 <MobileDropdownMenu
                     activeSection={activeSection}
                     onClose={() => setIsMobileMenuOpen(false)}
                     onNavigate={handleMobileNavigate}
                 />
             )}
-            <Sidebar activeSection={activeSection} onNavigate={onNavigate} />
-            <main className="min-h-screen px-6 pb-10 pt-24 md:ml-64 md:px-12 md:pb-12">{children}</main>
+            {!hideSidebar && <Sidebar activeSection={activeSection} onNavigate={onNavigate} />}
+            <main className={`min-h-screen pb-10 ${hideSidebar ? "pt-6 px-6" : "pt-24 px-6 md:ml-64 md:px-12 md:pb-12"}`}>
+                {children}
+            </main>
         </div>
     );
 }
@@ -65,6 +68,16 @@ function TopNav({ onToggleMenu }) {
 }
 
 function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
+    const handleSectionClick = (event, sectionKey) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+            return;
+        }
+
+        event.preventDefault();
+        onNavigate(sectionKey);
+        onClose();
+    };
+
     return (
         <div className="fixed inset-x-0 top-16 z-40 px-4 md:hidden">
             <div className="rounded-2xl glass-panel p-2">
@@ -84,15 +97,16 @@ function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
                 <div className="space-y-1">
                     {sidebarItems.map((item) => {
                         const isActive = activeSection === item.key;
+                        const href = getSectionPath(item.key);
                         return (
                             <div key={item.key} className={item.separated ? "mt-2 pt-2" : ""}>
-                                <button
+                                <a
+                                    href={href}
                                     className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all ${isActive
                                         ? "bg-primary-container/60 font-bold text-on-surface"
                                         : "text-on-surface-variant hover:bg-surface-container-low"
                                         }`}
-                                    onClick={() => onNavigate(item.key)}
-                                    type="button"
+                                    onClick={(event) => handleSectionClick(event, item.key)}
                                 >
                                     <span
                                         className={`material-symbols-outlined ${isActive ? "text-primary" : ""}`}
@@ -101,7 +115,7 @@ function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
                                         {item.icon}
                                     </span>
                                     <span>{item.label}</span>
-                                </button>
+                                </a>
                             </div>
                         );
                     })}
@@ -112,6 +126,15 @@ function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
 }
 
 function Sidebar({ activeSection, onNavigate }) {
+    const handleSectionClick = (event, sectionKey) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+            return;
+        }
+
+        event.preventDefault();
+        onNavigate(sectionKey);
+    };
+
     return (
         <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col glass-sidebar px-4 py-8 font-manrope text-sm font-medium md:flex">
             <div className="mb-10 px-2">
@@ -132,12 +155,13 @@ function Sidebar({ activeSection, onNavigate }) {
             <nav className="flex-grow space-y-1">
                 {sidebarItems.map((item) => {
                     const isActive = activeSection === item.key;
+                    const href = getSectionPath(item.key);
                     return (
-                        <button
+                        <a
                             key={item.key}
-                            onClick={() => onNavigate(item.key)}
-                            type="button"
+                            href={href}
                             className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all ${isActive ? "bg-primary-container/50 text-on-surface font-bold shadow-soft" : "text-on-surface-variant hover:bg-white/60 hover:text-on-surface"}`}
+                            onClick={(event) => handleSectionClick(event, item.key)}
                         >
                             <span
                                 className={`material-symbols-outlined ${isActive ? "text-primary" : ""}`}
@@ -146,7 +170,7 @@ function Sidebar({ activeSection, onNavigate }) {
                                 {item.icon}
                             </span>
                             <span>{item.label}</span>
-                        </button>
+                        </a>
                     );
                 })}
             </nav>

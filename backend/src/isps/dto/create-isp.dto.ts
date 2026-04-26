@@ -1,14 +1,48 @@
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { IspPackageType, IspStatus } from '../../shared/types/domain.types';
 
 export class CreateIspDto {
+  @IsString()
   name!: string;
+
+  @IsOptional()
+  @IsEnum(IspStatus)
   status?: IspStatus;
+
+  @IsString()
   contractReference!: string;
+
+  @IsOptional()
+  @IsDateString()
   contractStartDate?: string | null;
+
+  @IsOptional()
+  @IsDateString()
   contractPeriodStart?: string | null;
+
+  @IsOptional()
+  @IsDateString()
   contractPeriodEnd?: string | null;
+
+  @IsOptional()
+  @IsString()
   bakFileDataUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
   bakFileName?: string | null;
+
+  @IsOptional()
+  @IsEnum(IspPackageType)
   paket?: IspPackageType;
+
+  @IsOptional()
+  @IsInt()
   jumlah?: number;
 }

@@ -25,6 +25,21 @@ npm install
 npm run start:dev
 ```
 
+Backend sekarang wajib memakai PostgreSQL lewat `DATABASE_URL`. Untuk bootstrap data contoh:
+
+```bash
+cd backend
+npm run prisma:deploy
+npm run prisma:seed
+```
+
+Jika database sudah berisi data dan Anda memang ingin mengganti seluruh isi bootstrap, jalankan:
+
+```bash
+cd backend
+SEED_FORCE_RESET=true npm run prisma:seed
+```
+
 ## Endpoint Utama API
 
 - `GET /api/health`
@@ -41,6 +56,6 @@ npm run start:dev
 
 ## Catatan Implementasi
 
-- Data backend saat ini disimpan in-memory untuk mempercepat iterasi domain.
+- Backend memakai Prisma + PostgreSQL sebagai source of truth.
 - Rujukan desain sistem: `docs/document-archiving-tenant-monitoring-system-design.md`
 - Rujukan skema database: `docs/document-schema.sql`
