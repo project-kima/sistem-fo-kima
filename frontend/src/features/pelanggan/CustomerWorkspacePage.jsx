@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { SummaryCard } from "../../components/shared/AppShared";
+import { API_BASE_URL, fetchJson } from "../../app/utils";
 
 function CustomerWorkspacePage({
     activeSection,
@@ -165,6 +166,24 @@ function CustomerWorkspacePage({
             ?? (resolvedTenantId !== null ? { ...tenant, id: resolvedTenantId } : tenant);
 
         onOpenTenant(payload, "overview", group);
+    };
+
+    const handleArchiveTenant = async (tenant) => {
+        if (!confirm(`Apakah Anda yakin ingin memindahkan tenant "${tenant.name}" ke sampah?`)) {
+            return;
+        }
+
+        try {
+            await fetchJson(`${API_BASE_URL}/api/customers/${tenant.id}/archive`, {
+                method: "PATCH",
+            });
+
+            alert("Tenant berhasil dipindahkan ke sampah.");
+            onRefresh?.();
+        } catch (error) {
+            console.error(error);
+            alert(error instanceof Error ? error.message : "Terjadi kesalahan saat mengarsipkan tenant.");
+        }
     };
 
     return (
@@ -462,20 +481,28 @@ function CustomerWorkspacePage({
                                                                     <td className="px-8 py-5 text-right">
                                                                         <div className="flex justify-end gap-2">
                                                                             <button
-                                                                                className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
+                                                                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
                                                                                 onClick={() => onOpenTenant(tenant, "invoices", group)}
                                                                                 type="button"
                                                                             >
-                                                                                <span className="material-symbols-outlined text-sm">receipt_long</span>
+                                                                                <span className="material-symbols-outlined text-[12px]">receipt_long</span>
                                                                                 Invoice
                                                                             </button>
                                                                             <button
-                                                                                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black text-on-surface border border-on-surface/5 shadow-sm hover:border-primary hover:text-primary transition-all active:scale-95"
+                                                                                className="inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[10px] font-black text-on-surface border border-on-surface/5 shadow-sm hover:border-primary hover:text-primary transition-all active:scale-95"
                                                                                 onClick={() => handleOpenTenantDetail(tenant, group)}
                                                                                 type="button"
                                                                             >
-                                                                                <span className="material-symbols-outlined text-sm">open_in_new</span>
+                                                                                <span className="material-symbols-outlined text-[12px]">open_in_new</span>
                                                                                 Detail
+                                                                            </button>
+                                                                            <button
+                                                                                className="inline-flex items-center justify-center rounded-lg bg-rose-50 px-2 py-1 text-rose-700 border border-rose-100 shadow-sm hover:bg-rose-100 transition-all active:scale-95"
+                                                                                onClick={() => handleArchiveTenant(tenant)}
+                                                                                title="Hapus Tenant"
+                                                                                type="button"
+                                                                            >
+                                                                                <span className="material-symbols-outlined text-[14px]">delete</span>
                                                                             </button>
                                                                         </div>
                                                                     </td>

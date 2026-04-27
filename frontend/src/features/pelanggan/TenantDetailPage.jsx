@@ -1023,6 +1023,13 @@ function TenantDetailPage({
     }
   };
 
+  const handleOpenDeleteModal = () => {
+    setDeleteError("");
+    setSelectedDeleteIspIds([]);
+    setDeleteMode(contextIsp?.id ? "this" : "selected");
+    setDeleteModalOpen(true);
+  };
+
   const routePointTypeLabelMap = {
     awal: "Awal",
     transit: "Transit",
@@ -2213,6 +2220,7 @@ function TenantDetailPage({
               </button>
               <button
                 className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
+                onClick={handleOpenDeleteModal}
                 type="button"
               >
                 Hapus Tenant
