@@ -2232,7 +2232,7 @@ function TenantDetailPage({
           </div>
         )}
 
-        {!isStandaloneJalurView && (
+        {!hideSidebar && (
           <div className="flex gap-6 overflow-x-auto border-b border-slate-200">
             {tabs.map((tab) => (
               <button
