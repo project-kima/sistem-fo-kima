@@ -168,6 +168,26 @@ function CustomerWorkspacePage({
         onOpenTenant(payload, "overview", group);
     };
 
+    const handleDeleteIsp = async (group) => {
+        const confirmDelete = window.confirm(
+            `Apakah Anda yakin ingin menghapus ISP"${group.name}"?`,
+        );
+        if (!confirmDelete) return;
+
+        try {
+            await fetchJson(`${API_BASE_URL}/api/isps/${group.id}`,
+                {
+                    method: "DELETE",
+                });
+
+            alert("ISP berhasil dihapus.");
+            onRefresh?.();
+        } catch (error) {
+            console.error(error);
+            alert(error instanceof Error ? error.message : "Gagal menghapus ISP.");
+        }
+    };
+
     const handleArchiveTenant = async (tenant) => {
         if (!confirm(`Apakah Anda yakin ingin memindahkan tenant "${tenant.name}" ke sampah?`)) {
             return;
@@ -412,6 +432,15 @@ function CustomerWorkspacePage({
                                                 onClick={() => onOpenIsp(group)}
                                             >
                                                 Detail ISP
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteIsp(group)}
+                                                className="h-[48px] w-[48px] rounded-xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center"
+                                                title={`Hapus ISP ${group.name}`}
+                                                aria-label={`Hapus ISP ${group.name}`}
+                                            >
+                                                <span className="material-symbols-outlined text-[20px]">delete</span>
                                             </button>
                                         </div>
                                     </div>

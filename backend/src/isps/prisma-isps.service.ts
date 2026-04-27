@@ -88,7 +88,7 @@ const parseDate = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
 
 @Injectable()
 export class PrismaIspsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   isEnabled(): boolean {
     return this.prisma.isEnabled() && process.env.ISPS_SOURCE === 'prisma';
@@ -184,8 +184,8 @@ export class PrismaIspsService {
           'periodStart',
         )
           ? parseDate(
-              this.parseOptionalIsoDate(payload.periodStart, 'periodStart')!,
-            )
+            this.parseOptionalIsoDate(payload.periodStart, 'periodStart')!,
+          )
           : null;
       }
       if (payload.periodEnd !== undefined) {
@@ -194,8 +194,8 @@ export class PrismaIspsService {
           'periodEnd',
         )
           ? parseDate(
-              this.parseOptionalIsoDate(payload.periodEnd, 'periodEnd')!,
-            )
+            this.parseOptionalIsoDate(payload.periodEnd, 'periodEnd')!,
+          )
           : null;
       }
 
@@ -416,7 +416,7 @@ export class PrismaIspsService {
       }
 
       const lastFollowUp = (refreshed?.renewalFollowUps ?? []);
-          const nextOrder = (lastFollowUp[lastFollowUp.length - 1]?.splitOrder ?? 0) + 1;
+      const nextOrder = (lastFollowUp[lastFollowUp.length - 1]?.splitOrder ?? 0) + 1;
       await tx.ispRenewalFollowUp.create({
         data: {
           rowId,
@@ -509,11 +509,11 @@ export class PrismaIspsService {
             'contractStartDate',
           )
             ? parseDate(
-                this.parseOptionalIsoDate(
-                  payload.contractStartDate,
-                  'contractStartDate',
-                )!,
-              )
+              this.parseOptionalIsoDate(
+                payload.contractStartDate,
+                'contractStartDate',
+              )!,
+            )
             : null,
           contractPeriodStart: contractPeriodStart
             ? parseDate(contractPeriodStart)
@@ -630,6 +630,28 @@ export class PrismaIspsService {
     );
   }
 
+  async deleteIsp(ispId: number) {
+    const existing = await
+      this.prisma.isp.findUnique({
+        where: { id: ispId },
+        select: { id: true, name: true },
+      });
+
+    if (!existing) {
+      throw new NotFoundException('ISP not found.');
+    }
+
+    await this.prisma.isp.delete({
+      where: { id: ispId },
+    });
+
+    return {
+      success: true,
+      deletedId: existing.id,
+      deletedName: existing.name,
+    };
+  }
+
   async listIspTenants(ispId: number) {
     const isp = await this.getIspRecordOrThrow(ispId);
     return this.mapIspTenantsFromRecord(isp);
@@ -703,8 +725,8 @@ export class PrismaIspsService {
     if (mode === 'selected') {
       const ispIds = Array.isArray(payload?.ispIds)
         ? payload.ispIds
-            .map((value) => Number(value))
-            .filter((value) => Number.isFinite(value))
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value))
         : [];
 
       if (ispIds.length === 0) {
@@ -942,7 +964,7 @@ export class PrismaIspsService {
       const daysLeft = Math.ceil(
         (parseDate(activeVersion.endDate).getTime() -
           parseDate(referenceDate).getTime()) /
-          (24 * 60 * 60 * 1000),
+        (24 * 60 * 60 * 1000),
       );
 
       if (daysLeft <= 90 && daysLeft >= 0) {
@@ -1077,7 +1099,7 @@ export class PrismaIspsService {
           const daysLeft = Math.ceil(
             (parseDate(activeVersion.endDate).getTime() -
               parseDate(today).getTime()) /
-              (24 * 60 * 60 * 1000),
+            (24 * 60 * 60 * 1000),
           );
 
           if (daysLeft <= 90 && daysLeft >= 0) {

@@ -81,6 +81,10 @@ export class IspsService {
     return this.prismaIsps.updateIsp(ispId, payload);
   }
 
+  async deleteIsp(ispId: number) {
+    return this.prismaIsps.deleteIsp(ispId);
+  }
+
   async listIspTenants(ispId: number) {
     return this.prismaIsps.listIspTenants(ispId);
   }

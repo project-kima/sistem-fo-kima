@@ -46,7 +46,7 @@ const resolveRequiredFileDataUrl = (
 
 @Controller('api/isps')
 export class IspsController {
-  constructor(private readonly ispsService: IspsService) {}
+  constructor(private readonly ispsService: IspsService) { }
 
   @Get()
   listIsps() {
@@ -74,6 +74,12 @@ export class IspsController {
     @Body() payload: UpdateIspDto,
   ) {
     return this.ispsService.updateIsp(ispId, payload);
+  }
+
+  @Delete(':ispId')
+  deleteIsp(@Param('ispId', ParseIntPipe)
+  ispId: number) {
+    return this.ispsService.deleteIsp(ispId);
   }
 
   @Get(':ispId/tenants')

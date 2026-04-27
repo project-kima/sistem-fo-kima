@@ -342,6 +342,23 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
         setRisalahRows((previousRows) => previousRows.filter((row) => row.id !== rowId));
     };
 
+    const handleDeleteIsp = async () => {
+        const confirmDelete = window.confirm(`Apakah Anda yakin ingin menghapus ISP "${ispName}"? Semua data tenant di bawahnya juga akan terhapus.`);
+        if (!confirmDelete) return;
+
+        setIsLoading(true);
+        try {
+            await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}`, {
+                method: "DELETE",
+            });
+            onBack(); 
+            if (onRefreshAll) onRefreshAll();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Gagal menghapus ISP.");
+            setIsLoading(false);
+        }
+    };
+
     const renderEmptyState = (message) => (
         <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
@@ -392,7 +409,7 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                             <button className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-100" onClick={() => onEditIsp?.(detail ?? isp)} type="button">
                                 Edit Data ISP
                             </button>
-                            <button className="rounded-xl bg-red-50 px-5 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-100" type="button">
+                            <button className="rounded-xl bg-red-50 px-5 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-100" onClick={handleDeleteIsp} type="button">
                                 Hapus ISP
                             </button>
                         </div>
