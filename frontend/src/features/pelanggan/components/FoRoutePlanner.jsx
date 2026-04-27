@@ -62,7 +62,24 @@ function createGlowIcon(label, variant) {
   });
 }
 
-const PROVIDER_ICON = createGlowIcon("A", "provider");
+function createCompanyIcon(logoUrl) {
+  if (!logoUrl) return createGlowIcon("A", "provider");
+
+  return L.divIcon({
+    className: "",
+    html: `
+            <div class="fo-marker fo-marker--provider">
+                <span class="fo-marker__pulse"></span>
+                <div class="fo-marker__core overflow-hidden bg-white p-0.5">
+                    <img src="${logoUrl}" class="h-full w-full object-contain rounded-full" />
+                </div>
+            </div>
+        `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
 const CUSTOMER_ICON = createGlowIcon("B", "customer");
 const WAYPOINT_ICON = createGlowIcon("W", "waypoint");
 
@@ -266,8 +283,9 @@ export default function FoRoutePlanner({
   mode = "full",
   previewPoints = [],
   onPreviewClick,
+  providerIconUrl = "",
 }) {
-  const [basemap, setBasemap] = useState("dark");
+  const [basemap, setBasemap] = useState("osm");
   const [profile, setProfile] = useState("driving");
   const [placementMode, setPlacementMode] = useState("a");
   const [pointA, setPointA] = useState(null);
@@ -291,6 +309,8 @@ export default function FoRoutePlanner({
     wLat: "",
     wLng: "",
   });
+
+  const providerIcon = useMemo(() => createCompanyIcon(providerIconUrl), [providerIconUrl]);
 
   const selectedBasemap =
     BASEMAP_OPTIONS.find((item) => item.key === basemap) ?? BASEMAP_OPTIONS[0];
@@ -891,7 +911,7 @@ export default function FoRoutePlanner({
                 {previewControlPoints.map((point) => {
                   const icon =
                     point.role === "provider"
-                      ? PROVIDER_ICON
+                      ? providerIcon
                       : point.role === "customer"
                         ? CUSTOMER_ICON
                         : WAYPOINT_ICON;
@@ -1188,12 +1208,11 @@ export default function FoRoutePlanner({
                         position.lat,
                         position.lng,
                       );
-                    },
-                  }}
-                  icon={PROVIDER_ICON}
-                  position={[pointA.lat, pointA.lng]}
-                />
-              )}
+                      },
+                      }}
+                      icon={providerIcon}
+                      position={[pointA.lat, pointA.lng]}
+                      />              )}
               {pointB && (
                 <Marker
                   draggable={!disabled}

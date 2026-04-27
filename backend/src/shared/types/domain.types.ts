@@ -14,6 +14,7 @@ export enum DocumentType {
 export enum CustomerStatus {
   Aktif = 'aktif',
   Nonaktif = 'nonaktif',
+  Arsip = 'arsip',
 }
 
 export enum ContractStatus {

@@ -374,10 +374,13 @@ function CustomerWorkspacePage({
                                             onClick={() => setCollapsedMap((prev) => ({ ...prev, [group.id]: !prev[group.id] }))}
                                             type="button"
                                         >
-                                            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary border border-on-surface/5">
-                                                <span className="material-symbols-outlined text-3xl">router</span>
-                                            </div>
-                                            <div>
+                                            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary border border-on-surface/5 overflow-hidden">
+                                                {group.logoUrl ? (
+                                                    <img src={group.logoUrl} alt={group.name} className="w-full h-full object-contain p-2" />
+                                                ) : (
+                                                    <span className="material-symbols-outlined text-3xl">router</span>
+                                                )}
+                                            </div>                                            <div>
                                                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">ISP PROVIDER</p>
                                                 <h3 className="text-2xl font-black text-on-surface tracking-tight">{group.name}</h3>
                                                 <p className="text-xs font-medium text-on-surface/40 italic">{group.contractReference || "No contract info"}</p>

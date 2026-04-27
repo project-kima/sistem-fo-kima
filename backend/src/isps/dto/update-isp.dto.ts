@@ -39,4 +39,8 @@ export class UpdateIspDto {
   @IsOptional()
   @IsInt()
   jumlah?: number;
+
+  @IsOptional()
+  @IsString()
+  logoUrl?: string | null;
 }

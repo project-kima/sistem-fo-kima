@@ -2127,6 +2127,7 @@ function TenantDetailPage({
                 window.setTimeout(() => onBack?.(), 800);
               }}
               mode="full"
+              providerIconUrl={isps[0]?.logoUrl || ""}
             />
           </div>
         </div>
@@ -2687,6 +2688,7 @@ function TenantDetailPage({
               mode="preview"
               onPreviewClick={() => onOpenRoutePlanner?.(detail ?? customer)}
               previewPoints={previewRoutePoints}
+              providerIconUrl={isps[0]?.logoUrl || ""}
             />
 
             <div className="flex flex-col gap-8">

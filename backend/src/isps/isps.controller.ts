@@ -18,6 +18,7 @@ import { UpdateIspDto } from './dto/update-isp.dto';
 import { UploadRenewalFileDto } from './dto/upload-renewal-file.dto';
 import { RespondRenewalDto } from './dto/respond-renewal.dto';
 import { UploadBakFileDto } from './dto/upload-bak-file.dto';
+import { UploadIspLogoDto } from './dto/upload-isp-logo.dto';
 
 const buildUploadedFileDataUrl = (file?: Express.Multer.File): string => {
   const mimeType =
@@ -167,6 +168,19 @@ export class IspsController {
       rowId,
       resolveRequiredFileDataUrl(payload?.fileDataUrl, file, 'bak file'),
       payload?.fileName?.trim() || file?.originalname || 'bak.pdf',
+    );
+  }
+
+  @Post(':ispId/logo')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadIspLogo(
+    @Param('ispId', ParseIntPipe) ispId: number,
+    @Body() payload: UploadIspLogoDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.ispsService.uploadIspLogo(
+      ispId,
+      resolveRequiredFileDataUrl(payload?.fileDataUrl, file, 'logo file'),
     );
   }
 }

@@ -13,6 +13,8 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
         contractPeriodEnd: "",
         bakFileName: "",
         bakFileDataUrl: "",
+        logoUrl: "",
+        logoFileDataUrl: "",
     });
     const [submitError, setSubmitError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,6 +29,7 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
             ...previous,
             name: initialData.name ?? "",
             status: initialData.status ?? "aktif",
+            logoUrl: initialData.logoUrl ?? "",
         }));
     }, [initialData]);
 
@@ -58,24 +61,29 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
             const endpoint = isEditMode && initialData?.id
                 ? `${API_BASE_URL}/api/isps/${initialData.id}`
                 : `${API_BASE_URL}/api/isps`;
+            
+            const payload = isEditMode
+                ? {
+                    name: form.name.trim(),
+                    status: form.status,
+                    logoUrl: form.logoFileDataUrl || form.logoUrl || undefined,
+                }
+                : {
+                    name: form.name.trim(),
+                    status: form.status,
+                    contractReference: form.contractReference.trim(),
+                    contractStartDate: form.contractStartDate || null,
+                    contractPeriodStart: form.contractPeriodStart || null,
+                    contractPeriodEnd: form.contractPeriodEnd || null,
+                    bakFileDataUrl: form.bakFileDataUrl || undefined,
+                    bakFileName: form.bakFileName || undefined,
+                    logoUrl: form.logoFileDataUrl || undefined,
+                };
+
             const result = await fetchJson(endpoint, {
                 method: isEditMode ? "PATCH" : "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(isEditMode
-                    ? {
-                        name: form.name.trim(),
-                        status: form.status,
-                    }
-                    : {
-                        name: form.name.trim(),
-                        status: form.status,
-                        contractReference: form.contractReference.trim(),
-                        contractStartDate: form.contractStartDate || null,
-                        contractPeriodStart: form.contractPeriodStart || null,
-                        contractPeriodEnd: form.contractPeriodEnd || null,
-                        bakFileDataUrl: form.bakFileDataUrl || undefined,
-                        bakFileName: form.bakFileName || undefined,
-                    }),
+                body: JSON.stringify(payload),
             });
             if (onSaved) {
                 await onSaved(result);
@@ -107,6 +115,52 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <FieldInput label="Nama ISP" value={form.name} onChange={(value) => setForm((previous) => ({ ...previous, name: value }))} />
                         <FieldSelect label="Status" value={form.status} onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} options={[{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Non-aktif" }]} />
+                        
+                        <div className="md:col-span-2">
+                            <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Logo Perusahaan (Opsional)</label>
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 transition-colors hover:border-primary/50">
+                                    {(form.logoFileDataUrl || form.logoUrl) ? (
+                                        <img 
+                                            src={form.logoFileDataUrl || form.logoUrl} 
+                                            alt="Preview" 
+                                            className="h-full w-full object-contain p-2"
+                                        />
+                                    ) : (
+                                        <div className="flex h-full w-full flex-col items-center justify-center text-slate-400">
+                                            <span className="material-symbols-outlined text-3xl">image</span>
+                                            <span className="text-[10px] font-bold uppercase">No Logo</span>
+                                        </div>
+                                    )}
+                                    <input
+                                        accept="image/png,image/jpeg,image/webp"
+                                        className="absolute inset-0 cursor-pointer opacity-0"
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0] ?? null;
+                                            if (!file) return;
+                                            void readFileAsDataUrl(file).then((url) => {
+                                                setForm(prev => ({ ...prev, logoFileDataUrl: url }));
+                                            });
+                                        }}
+                                        type="file"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-semibold text-on-surface">Unggah Logo</p>
+                                    <p className="mt-1 text-xs text-on-surface-variant">Format PNG, JPG, atau WebP. Rekomendasi 1:1 (Square).</p>
+                                    {form.logoFileDataUrl && (
+                                        <button 
+                                            className="mt-2 text-xs font-bold text-red-600 hover:underline"
+                                            onClick={() => setForm(prev => ({ ...prev, logoFileDataUrl: "" }))}
+                                            type="button"
+                                        >
+                                            Reset ke Logo Lama
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {!isEditMode && (
                             <>
                                 <FieldInput label="Nomor kontrak induk" value={form.contractReference} onChange={(value) => setForm((previous) => ({ ...previous, contractReference: value }))} />

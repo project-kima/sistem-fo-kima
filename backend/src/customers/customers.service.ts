@@ -37,6 +37,11 @@ export class CustomersService {
     return this.prismaRead.getById(updatedCustomerId);
   }
 
+  async archive(customerId: number) {
+    const archivedCustomerId = await this.prismaWrite.archive(customerId);
+    return this.prismaRead.getById(archivedCustomerId);
+  }
+
   async createContract(customerId: number, payload: CreateCustomerContractDto) {
     return this.prismaWrite.createContract(customerId, payload);
   }

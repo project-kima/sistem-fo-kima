@@ -415,9 +415,8 @@ export class PrismaIspsService {
         );
       }
 
-      const nextOrder =
-        ((refreshed?.renewalFollowUps ?? []).at(-1)?.splitOrder ?? 0) + 1;
-
+      const lastFollowUp = (refreshed?.renewalFollowUps ?? []);
+          const nextOrder = (lastFollowUp[lastFollowUp.length - 1]?.splitOrder ?? 0) + 1;
       await tx.ispRenewalFollowUp.create({
         data: {
           rowId,
@@ -524,6 +523,7 @@ export class PrismaIspsService {
             : null,
           paket: this.parsePackageType(payload.paket),
           jumlah: this.parseJumlah(payload.jumlah, 0),
+          logoUrl: payload.logoUrl,
         },
       });
 
@@ -608,6 +608,10 @@ export class PrismaIspsService {
 
     if (payload.jumlah !== undefined) {
       updates.jumlah = this.parseJumlah(payload.jumlah);
+    }
+
+    if (payload.logoUrl !== undefined) {
+      updates.logoUrl = payload.logoUrl;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -811,6 +815,7 @@ export class PrismaIspsService {
       billingCustomUnit: isp.billingCustomUnit ?? null,
       activationFeeAmount: Number(isp.activationFeeAmount ?? 0),
       activationFeePaidAt: toIsoTimestamp(isp.activationFeePaidAt),
+      logoUrl: isp.logoUrl,
       createdAt: isp.createdAt.toISOString(),
       updatedAt: isp.updatedAt.toISOString(),
     };
@@ -1255,7 +1260,9 @@ export class PrismaIspsService {
       return existingPending;
     }
 
-    const nextOrder = (row.renewalFollowUps.at(-1)?.splitOrder ?? 0) + 1;
+    const nextOrder =
+      (row.renewalFollowUps[row.renewalFollowUps.length - 1]?.splitOrder ?? 0) +
+      1;
     return tx.ispRenewalFollowUp.create({
       data: {
         rowId,
@@ -1513,5 +1520,28 @@ export class PrismaIspsService {
     }
 
     return Math.round(parsed);
+  }
+
+  async uploadIspLogo(ispId: number, fileUrl: string) {
+    const isp = await this.prisma.isp.findUnique({
+      where: { id: ispId },
+    });
+
+    if (!isp) {
+      throw new NotFoundException(`ISP with ID ${ispId} not found.`);
+    }
+
+    const updatedIsp = await this.prisma.isp.update({
+      where: { id: ispId },
+      data: {
+        logoUrl: fileUrl,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'ISP logo uploaded successfully.',
+      data: updatedIsp,
+    };
   }
 }

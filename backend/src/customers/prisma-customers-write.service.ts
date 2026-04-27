@@ -396,6 +396,26 @@ export class PrismaCustomersWriteService {
     });
   }
 
+  async archive(customerId: number): Promise<number> {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found.');
+    }
+
+    await this.prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        status: CustomerStatus.Arsip,
+        updatedAt: new Date(),
+      },
+    });
+
+    return customerId;
+  }
+
   async createContract(customerId: number, payload: CreateCustomerContractDto) {
     const existingCustomer = await this.prisma.customer.findUnique({
       where: { id: customerId },
@@ -2620,11 +2640,15 @@ export class PrismaCustomersWriteService {
   }
 
   private parseStatus(value: unknown): CustomerStatus {
-    if (value !== CustomerStatus.Aktif && value !== CustomerStatus.Nonaktif) {
-      throw new BadRequestException('status must be aktif or nonaktif.');
+    if (
+      value !== CustomerStatus.Aktif &&
+      value !== CustomerStatus.Nonaktif &&
+      value !== CustomerStatus.Arsip
+    ) {
+      throw new BadRequestException('status must be aktif, nonaktif, or arsip.');
     }
 
-    return value;
+    return value as CustomerStatus;
   }
 
   private parseContractStatus(value: unknown): ContractStatus {

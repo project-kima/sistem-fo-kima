@@ -63,6 +63,11 @@ export class CustomersController {
     return this.customersService.getById(customerId);
   }
 
+  @Patch(':customerId/archive')
+  archive(@Param('customerId', ParseIntPipe) customerId: number) {
+    return this.customersService.archive(customerId);
+  }
+
   @Patch(':customerId')
   update(
     @Param('customerId', ParseIntPipe) customerId: number,

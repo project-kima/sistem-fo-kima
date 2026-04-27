@@ -99,4 +99,8 @@ export class IspsService {
   ) {
     return this.prismaIsps.removeTenant(ispId, customerId, payload);
   }
+
+  async uploadIspLogo(ispId: number, fileUrl: string) {
+    return this.prismaIsps.uploadIspLogo(ispId, fileUrl);
+  }
 }

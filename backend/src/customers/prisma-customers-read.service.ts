@@ -143,6 +143,7 @@ export class PrismaCustomersReadService {
           id: isp.id,
           name: isp.name,
           status: isp.status,
+          logoUrl: isp.logoUrl,
         })),
         ...contractSnapshot,
         contractCount: mapped.contracts.length,
@@ -167,6 +168,7 @@ export class PrismaCustomersReadService {
         id: isp.id,
         name: isp.name,
         status: isp.status,
+        logoUrl: isp.logoUrl,
       })),
       ...contractSnapshot,
       contracts: mapped.contracts,
@@ -332,6 +334,7 @@ export class PrismaCustomersReadService {
         activationFeePaidAt: isp.activationFeePaidAt
           ? toIsoTimestamp(isp.activationFeePaidAt)
           : null,
+        logoUrl: isp.logoUrl,
         createdAt: toIsoTimestamp(isp.createdAt),
         updatedAt: toIsoTimestamp(isp.updatedAt),
       }));

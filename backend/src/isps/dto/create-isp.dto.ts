@@ -45,4 +45,8 @@ export class CreateIspDto {
   @IsOptional()
   @IsInt()
   jumlah?: number;
+
+  @IsOptional()
+  @IsString()
+  logoUrl?: string | null;
 }
