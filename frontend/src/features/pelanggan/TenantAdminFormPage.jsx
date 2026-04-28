@@ -23,6 +23,12 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
     const [selectedIspId, setSelectedIspId] = useState(null);
     const [submitError, setSubmitError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // State for Search and Pagination
+    const [ispSearchTerm, setIspSearchTerm] = useState("");
+    const [ispPage, setIspPage] = useState(1);
+    const itemsPerPage = 6;
+
     const isEditMode = mode === "edit";
     const isLockedToIsp = !isEditMode && Boolean(lockedIsp?.id);
 
@@ -49,6 +55,19 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
     const selectIsp = (ispId) => {
         setSelectedIspId(ispId);
     };
+
+    // Filter and Paginate ISPs
+    const filteredIsps = isps.filter(isp => 
+        isp.name.toLowerCase().includes(ispSearchTerm.toLowerCase()) ||
+        (isp.contractReference && isp.contractReference.toLowerCase().includes(ispSearchTerm.toLowerCase()))
+    );
+    
+    const totalPages = Math.ceil(filteredIsps.length / itemsPerPage);
+    const displayedIsps = filteredIsps.slice((ispPage - 1) * itemsPerPage, ispPage * itemsPerPage);
+
+    useEffect(() => {
+        setIspPage(1); // Reset to first page on search
+    }, [ispSearchTerm]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -116,115 +135,146 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
 
     return (
         <AppShell activeSection="customers" onNavigate={onNavigate}>
-            <form className="mx-auto max-w-6xl space-y-8" onSubmit={handleSubmit}>
-                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <form className="mx-auto max-w-6xl space-y-4 md:space-y-8" onSubmit={handleSubmit}>
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end px-2 md:px-0">
                     <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant/60">{isEditMode ? "Edit Tenant" : "Tambah Tenant"}</p>
-                        <h1 className="mt-2 text-3xl font-extrabold text-primary">{isEditMode ? "Edit Lokasi / Tenant" : "Tenant Baru"}</h1>
+                        <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-on-surface-variant/60">{isEditMode ? "Edit Tenant" : "Tambah Tenant"}</p>
+                        <h1 className="mt-1 md:mt-2 text-xl md:text-3xl font-extrabold text-primary">{isEditMode ? "Edit Lokasi / Tenant" : "Tenant Baru"}</h1>
                         {!isEditMode && (
-                            <p className="mt-2 max-w-xl text-sm text-on-surface-variant">
-                                Sistem akan otomatis membuat kontrak, contract version awal, dan draft invoice.
-                            </p>
-                        )}
-                        {isLockedToIsp && (
-                            <p className="mt-2 max-w-xl text-sm text-on-surface-variant">
-                                Tenant ini akan otomatis terhubung ke ISP: <span className="font-semibold text-on-surface">{lockedIsp.name}</span>.
+                            <p className="mt-1 md:mt-2 max-w-xl text-[11px] md:text-sm text-on-surface-variant">
+                                Sistem akan otomatis membuat kontrak dan invoice.
                             </p>
                         )}
                     </div>
-                    <div className="flex gap-3">
-                        <button className="rounded-xl px-6 py-2.5 font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high" onClick={onCancel} type="button">Batalkan</button>
-                        <button className="rounded-xl bg-gradient-to-br from-primary to-primary-container px-8 py-2.5 font-bold text-white shadow-lg shadow-primary/20 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} type="submit">{isSubmitting ? "Menyimpan..." : isEditMode ? "Simpan Perubahan" : "Simpan Tenant"}</button>
+                    <div className="flex gap-2 md:gap-3">
+                        <button className="flex-1 md:flex-none rounded-xl px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high border border-slate-200 md:border-none" onClick={onCancel} type="button">Batalkan</button>
+                        <button className="flex-[2] md:flex-none rounded-xl bg-gradient-to-br from-primary to-primary-container px-4 md:px-8 py-2 md:py-2.5 text-xs md:text-sm font-bold text-white shadow-lg shadow-primary/20 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} type="submit">{isSubmitting ? "..." : isEditMode ? "Simpan" : "Simpan Tenant"}</button>
                     </div>
                 </div>
 
-                {submitError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{submitError}</div>}
+                {submitError && <div className="mx-2 md:mx-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] md:text-sm font-medium text-red-700">{submitError}</div>}
 
-                <div className={`grid gap-8 ${isEditMode ? "grid-cols-1" : "grid-cols-12"}`}>
-                    <section className="col-span-12 space-y-8 lg:col-span-8">
-                        <div className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-12 gap-3 md:gap-8 px-2 md:px-0">
+                    {/* KOLOM KIRI: Detail Utama */}
+                    <section className={`${isEditMode ? "col-span-12" : "col-span-7 md:col-span-8"} space-y-3 md:space-y-8`}>
+                        <div className="rounded-xl bg-surface-container-lowest p-3 md:p-8 shadow-sm">
+                            <div className="grid grid-cols-1 gap-3 md:gap-6">
                                 <FieldInput label="Nama Tenant" value={form.name} onChange={(value) => setForm((previous) => ({ ...previous, name: value }))} />
-                                <FieldSelect label="Status" value={form.status} onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} options={[{ value: "aktif", label: "Beroperasi" }, { value: "nonaktif", label: "Berhenti" }]} />
+                                <FieldSelect label="Status" value={form.status} onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} options={[{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Berhenti" }]} />
                                 {!isEditMode && (
                                     <>
-                                        <FieldSelect label="Paket" value={form.paket} onChange={(value) => setForm((previous) => ({ ...previous, paket: value }))} options={[{ value: "core", label: "Core" }, { value: "shared", label: "Shared Core" }]} />
+                                        <FieldSelect label="Paket" value={form.paket} onChange={(value) => setForm((previous) => ({ ...previous, paket: value }))} options={[{ value: "core", label: "Core" }, { value: "shared", label: "Shared" }]} />
                                         {form.paket === "core" ? (
-                                            <FieldInput label="Jumlah Core" type="number" value={form.jumlah} onChange={(value) => setForm((previous) => ({ ...previous, jumlah: value }))} placeholder="Contoh: 4" />
+                                            <FieldInput label="Core" type="number" value={form.jumlah} onChange={(value) => setForm((previous) => ({ ...previous, jumlah: value }))} />
                                         ) : (
-                                            <div>
-                                                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Rasio Shared Core</label>
-                                                <div className="flex items-center gap-2">
-                                                    <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioLeft} onChange={(event) => setForm((previous) => ({ ...previous, ratioLeft: event.target.value }))} placeholder="1" />
-                                                    <span className="text-lg font-bold text-slate-400">:</span>
-                                                    <input className="w-24 rounded-lg border border-slate-200 bg-surface-container-lowest px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10" type="number" min="1" value={form.ratioRight} onChange={(event) => setForm((previous) => ({ ...previous, ratioRight: event.target.value }))} placeholder="8" />
+                                            <div className="space-y-1">
+                                                <label className="block text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">Ratio</label>
+                                                <div className="flex items-center gap-1">
+                                                    <input className="w-full rounded-lg border border-slate-200 bg-surface-container-lowest px-2 py-1.5 text-xs focus:ring-1 focus:ring-primary/20" type="number" value={form.ratioLeft} onChange={(event) => setForm((previous) => ({ ...previous, ratioLeft: event.target.value }))} />
+                                                    <span className="font-bold text-slate-400">:</span>
+                                                    <input className="w-full rounded-lg border border-slate-200 bg-surface-container-lowest px-2 py-1.5 text-xs focus:ring-1 focus:ring-primary/20" type="number" value={form.ratioRight} onChange={(event) => setForm((previous) => ({ ...previous, ratioRight: event.target.value }))} />
                                                 </div>
                                             </div>
                                         )}
-                                        <FieldInput label="Contract Start" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
-                                        <FieldInput label="Contract End" type="date" value={form.contractEndDate} onChange={(value) => setForm((previous) => ({ ...previous, contractEndDate: value }))} />
+                                        <FieldInput label="Start" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
+                                        <FieldInput label="End" type="date" value={form.contractEndDate} onChange={(value) => setForm((previous) => ({ ...previous, contractEndDate: value }))} />
                                     </>
                                 )}
                             </div>
                         </div>
+                    </section>
 
-                        {!isEditMode && !isLockedToIsp && (
-                            <div className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
-                                <div className="mb-6 flex items-center justify-between gap-3">
-                                    <h3 className="text-lg font-bold text-on-surface">Pilih ISP</h3>
-                                    <p className="text-xs text-on-surface-variant">Gunakan tombol `Tambah ISP` jika ISP belum tersedia.</p>
+                    {/* KOLOM KANAN: Billing & Biaya */}
+                    {!isEditMode && (
+                        <section className="col-span-5 md:col-span-4 space-y-3 md:space-y-8">
+                            <div className="rounded-xl bg-surface-container-lowest p-3 md:p-6 shadow-sm">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="mb-2 block text-[9px] font-bold uppercase tracking-widest text-on-surface-variant leading-tight">Billing Period</label>
+                                        <div className="grid grid-cols-1 gap-1.5">
+                                            {["bulanan", "3bulanan", "custom"].map((modeValue) => (
+                                                <button key={modeValue} className={`rounded-lg py-1.5 text-[10px] font-bold transition-colors ${form.billingPeriodMode === modeValue ? "bg-primary text-white" : "bg-surface-container-lowest text-on-surface-variant border border-slate-100 hover:bg-slate-50"}`} onClick={() => setForm((previous) => ({ ...previous, billingPeriodMode: modeValue }))} type="button">{modeValue === "bulanan" ? "Bulanan" : modeValue === "3bulanan" ? "3 Bln" : "Custom"}</button>
+                                            ))}
+                                        </div>
+                                        {form.billingPeriodMode === "custom" && (
+                                            <div className="mt-2 rounded-lg bg-surface-container-lowest p-2 ring-1 ring-slate-200/50">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <input className="w-full rounded border-none bg-surface p-1.5 text-[10px] focus:ring-1 focus:ring-primary/20" min="1" onChange={(event) => setForm((previous) => ({ ...previous, billingCustomEvery: event.target.value }))} step="1" type="number" value={form.billingCustomEvery} placeholder="Every" />
+                                                    <select className="w-full rounded border-none bg-surface p-1.5 text-[10px] focus:ring-1 focus:ring-primary/20" onChange={(event) => setForm((previous) => ({ ...previous, billingCustomUnit: event.target.value }))} value={form.billingCustomUnit}>
+                                                        <option value="hari">Hari</option>
+                                                        <option value="bulan">Bulan</option>
+                                                        <option value="tahun">Tahun</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <FieldInput label="Aktivasi" type="number" value={form.activationFeeAmount} onChange={(value) => setForm((previous) => ({ ...previous, activationFeeAmount: value }))} />
                                 </div>
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    {isps.map((isp) => (
+                            </div>
+                        </section>
+                    )}
+
+                    {/* BAGIAN ISP: Lebar Penuh (col-span-12) dengan Search & Pagination */}
+                    {!isEditMode && (
+                        <section className="col-span-12">
+                            <div className="rounded-xl bg-surface-container-lowest p-4 md:p-8 shadow-sm">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                    <div>
+                                        <h3 className="text-sm md:text-lg font-bold text-on-surface">Pilih ISP</h3>
+                                        <p className="text-[10px] md:text-xs text-on-surface-variant">Hubungkan tenant ke satu penyedia layanan.</p>
+                                    </div>
+                                    
+                                    <div className="relative">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Cari ISP..." 
+                                            className="w-full md:w-64 rounded-lg border border-slate-200 bg-surface px-3 py-2 text-xs focus:ring-2 focus:ring-primary/20"
+                                            value={ispSearchTerm}
+                                            onChange={(e) => setIspSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {displayedIsps.map((isp) => (
                                         <label key={isp.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${selectedIspId === isp.id ? "border-primary bg-blue-50/60" : "border-slate-200 bg-white"}`}>
-                                            <input checked={selectedIspId === isp.id} className="mt-1 flex-shrink-0" name="selectIspRadio" onChange={() => selectIsp(isp.id)} type="radio" />
-                                            <div>
-                                                <p className="text-sm font-semibold text-on-surface">{isp.name}</p>
-                                                <p className="mt-1 text-xs text-on-surface-variant">{isp.contractReference || "Tanpa referensi kontrak"}</p>
+                                            <input checked={selectedIspId === isp.id} className="mt-1" name="selectIspRadio" onChange={() => selectIsp(isp.id)} type="radio" />
+                                            <div className="min-w-0">
+                                                <p className="text-xs md:text-sm font-bold truncate text-on-surface">{isp.name}</p>
+                                                <p className="text-[10px] md:text-xs text-on-surface-variant truncate">{isp.contractReference || "Tanpa referensi"}</p>
                                             </div>
                                         </label>
                                     ))}
+                                    {displayedIsps.length === 0 && (
+                                        <div className="col-span-full py-8 text-center text-xs text-on-surface-variant">
+                                            ISP tidak ditemukan.
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        )}
-                        {!isEditMode && isLockedToIsp && (
-                            <div className="rounded-lg bg-surface-container-lowest p-8 shadow-sm">
-                                <div className="mb-4 flex items-center justify-between gap-3">
-                                    <h3 className="text-lg font-bold text-on-surface">ISP Tujuan</h3>
-                                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Otomatis Terkunci</span>
-                                </div>
-                                <div className="rounded-xl border border-primary/20 bg-blue-50/60 p-4">
-                                    <p className="text-sm font-semibold text-on-surface">{lockedIsp.name}</p>
-                                    <p className="mt-1 text-xs text-on-surface-variant">{lockedIsp.contractReference || "Tanpa referensi kontrak"}</p>
-                                </div>
-                            </div>
-                        )}
-                    </section>
 
-                    {!isEditMode && (
-                        <section className="col-span-12 space-y-8 lg:col-span-4">
-                            <div className="rounded-lg bg-surface-container-low p-6">
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="mb-3 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Billing Period</label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {["bulanan", "3bulanan", "custom"].map((modeValue) => (
-                                                <button key={modeValue} className={`rounded-lg py-2 text-xs font-bold transition-colors ${form.billingPeriodMode === modeValue ? "bg-primary text-white" : "bg-surface-container-lowest text-on-surface-variant hover:bg-slate-200"}`} onClick={() => setForm((previous) => ({ ...previous, billingPeriodMode: modeValue }))} type="button">{modeValue === "bulanan" ? "Bulanan" : modeValue === "3bulanan" ? "3 Bulanan" : "Custom"}</button>
-                                            ))}
-                                        </div>
-                                        <div className="mt-3 rounded-xl bg-surface-container-lowest p-4">
-                                            <div className="flex gap-2">
-                                                <input className="w-20 rounded-lg border-none bg-surface p-2 text-xs disabled:bg-slate-200" disabled={form.billingPeriodMode !== "custom"} min="1" onChange={(event) => setForm((previous) => ({ ...previous, billingCustomEvery: event.target.value }))} step="1" type="number" value={form.billingCustomEvery} />
-                                                <select className="flex-1 rounded-lg border-none bg-surface p-2 text-xs disabled:bg-slate-200" disabled={form.billingPeriodMode !== "custom"} onChange={(event) => setForm((previous) => ({ ...previous, billingCustomUnit: event.target.value }))} value={form.billingCustomUnit}>
-                                                    <option value="hari">Hari</option>
-                                                    <option value="bulan">Bulan</option>
-                                                    <option value="tahun">Tahun</option>
-                                                </select>
-                                            </div>
-                                        </div>
+                                {/* Pagination Controls */}
+                                {totalPages > 1 && (
+                                    <div className="mt-6 flex items-center justify-center gap-2">
+                                        <button 
+                                            type="button"
+                                            disabled={ispPage === 1}
+                                            onClick={() => setIspPage(p => p - 1)}
+                                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold disabled:opacity-30"
+                                        >
+                                            Sebelumnya
+                                        </button>
+                                        <span className="text-[10px] font-bold text-on-surface-variant">Halaman {ispPage} dari {totalPages}</span>
+                                        <button 
+                                            type="button"
+                                            disabled={ispPage === totalPages}
+                                            onClick={() => setIspPage(p => p + 1)}
+                                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold disabled:opacity-30"
+                                        >
+                                            Selanjutnya
+                                        </button>
                                     </div>
-                                    <FieldInput label="Biaya Aktivasi" type="number" value={form.activationFeeAmount} onChange={(value) => setForm((previous) => ({ ...previous, activationFeeAmount: value }))} />
-                                </div>
+                                )}
                             </div>
                         </section>
                     )}
