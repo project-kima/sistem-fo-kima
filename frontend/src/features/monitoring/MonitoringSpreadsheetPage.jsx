@@ -43,6 +43,17 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
 
+    useEffect(() => {
+        // Prevent horizontal scroll on the entire page just for this feature
+        document.documentElement.style.overflowX = "hidden";
+        document.body.style.overflowX = "hidden";
+        
+        return () => {
+            document.documentElement.style.overflowX = "";
+            document.body.style.overflowX = "";
+        };
+    }, []);
+
     const loadMonitoring = useCallback(async () => {
         setIsLoading(true);
         setError("");
@@ -255,36 +266,98 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
         String(Number(currentYear) + 1),
     ];
 
+    const exportToExcel = () => {
+        if (filteredRows.length === 0) return;
+
+        const headers = [
+            "No", "Nama ISP", "Nama Pelanggan", "Periode Awal", "Berjalan Awal", "Berjalan Akhir",
+            "Paket", "Jumlah", "No. Kontrak", "No. Invoice", "Sisa Sewa", "Status Kontrak", "Status Jalur", "Aktivasi",
+            ...monitoringMonths
+        ];
+
+        const csvRows = filteredRows.map((row, index) => {
+            const monthsData = monitoringMonths.map((_, i) => {
+                const status = Array.isArray(row.months) ? row.months[i] : "belum_ditagih";
+                return invoiceStatusLabelMap[status] || status;
+            });
+
+            const data = [
+                index + 1,
+                row.ispName,
+                row.customerName,
+                formatDate(row.ispContractStart),
+                formatDate(row.contractStart),
+                formatDate(row.contractEnd),
+                toTitleCase(row.coreType),
+                row.coreTotal ?? "-",
+                row.contractNumber ?? "-",
+                row.currentInvoiceNumber ?? "-",
+                getRemainingRentalDays(row.contractEnd) ?? "-",
+                row.customerStatus === "nonaktif" ? "Berhenti" : "Beroperasi",
+                row.routeStatus || "aktif",
+                row.activationFeePaidAt ? "Selesai" : formatCurrency(row.activationFeeAmount),
+                ...monthsData
+            ];
+            return data.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+        });
+
+        const csvContent = [headers.join(","), ...csvRows].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `monitoring_billing_${appliedFilters.year}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const uniqueAlertCustomers = useMemo(() => {
+        return new Set(alerts.map(a => a.customerId)).size;
+    }, [alerts]);
+
     return (
         <AppShell activeSection={activeSection} onNavigate={onNavigate}>
-            <div className="mx-auto max-w-[1450px] space-y-6">
-                <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div className="w-full overflow-x-hidden">
+                <div className="mx-auto w-full max-w-[1450px] space-y-6">
+                    <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end px-1">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
                             <span>Dashboard</span>
                             <span className="material-symbols-outlined text-[10px]">chevron_right</span>
                             <span className="font-bold text-primary">Monitoring Operasional</span>
                         </div>
-                        <h2 className="text-3xl font-extrabold tracking-tight text-blue-900">
+                        <h2 className="text-3xl font-extrabold tracking-tight text-blue-900 text-pretty">
                             Monitoring Informasi Penting
                         </h2>
-                        <p className="text-sm text-on-surface-variant">
+                        <p className="text-sm text-on-surface-variant max-w-3xl">
                             Seluruh informasi operasional penting ditampilkan di sini: prioritas aksi,
                             alert, aktivitas terbaru, dan matriks billing pelanggan. Monitoring bersifat
                             read-only, sedangkan edit/upload dilakukan dari Detail Pelanggan.
                         </p>
                     </div>
 
-                    <button
-                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-white shadow-md transition-opacity hover:opacity-90"
-                        onClick={() => {
-                            void loadMonitoring();
-                        }}
-                        type="button"
-                    >
-                        <span className="material-symbols-outlined text-sm">sync</span>
-                        Refresh Monitoring
-                    </button>
+                    <div className="flex items-center gap-3 shrink-0">
+                        <button
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 font-semibold text-on-surface-variant shadow-sm transition-colors hover:bg-slate-50"
+                            onClick={exportToExcel}
+                            type="button"
+                        >
+                            <span className="material-symbols-outlined text-sm">download_for_offline</span>
+                            Ekspor ke Excel
+                        </button>
+                        <button
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-white shadow-md transition-opacity hover:opacity-90"
+                            onClick={() => {
+                                void loadMonitoring();
+                            }}
+                            type="button"
+                        >
+                            <span className="material-symbols-outlined text-sm">sync</span>
+                            Refresh Monitoring
+                        </button>
+                    </div>
                 </section>
 
                 {error && (
@@ -319,9 +392,98 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                     )}
                 </section>
 
-                <section className="space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+                <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                    <div className="rounded-xl border border-slate-100 border-l-4 border-l-blue-500 bg-white p-6 shadow-sm">
+                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                            Total ISP
+                        </h4>
+                        <p className="text-2xl font-black text-blue-900">{ispOptions.length}</p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-100 border-l-4 border-l-indigo-500 bg-white p-6 shadow-sm">
+                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                            Total Pelanggan
+                        </h4>
+                        <p className="text-2xl font-black text-blue-900">{billingRows.length}</p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-100 border-l-4 border-l-red-500 bg-white p-6 shadow-sm">
+                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                            Pelanggan Perlu Tindak Lanjut
+                        </h4>
+                        <p className="text-2xl font-black text-blue-900">{uniqueAlertCustomers}</p>
+                    </div>
+                </section>
+
+                {hasIssues && (
+                    <section className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+                        <div className="xl:col-span-3 rounded-xl border border-slate-100 bg-white p-6 shadow-sm overflow-hidden">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-widest text-primary">Action Needed Today</p>
+                                    <h3 className="text-lg font-bold text-on-surface">Prioritas Operasional</h3>
+                                </div>
+                                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                                    {actionNeededToday.length} aksi
+                                </span>
+                            </div>
+
+                            <div className="space-y-3">
+                                {actionNeededToday.length === 0 && (
+                                    <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-on-surface-variant">
+                                        Tidak ada prioritas aksi untuk saat ini.
+                                    </p>
+                                )}
+
+                                {actionNeededToday.map((item, index) => (
+                                    <div
+                                        key={`${item.customerId}-${item.code}-${index}`}
+                                        className="flex flex-col gap-3 rounded-lg border border-slate-100 bg-slate-50/70 px-4 py-3 md:flex-row md:items-center md:justify-between"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-on-surface truncate">{item.customerName ?? `Pelanggan #${item.customerId}`}</p>
+                                            <p className="mt-1 text-xs text-on-surface-variant truncate md:whitespace-normal">{item.message}</p>
+                                        </div>
+
+                                        <button
+                                            className="inline-flex items-center gap-1 self-start rounded-lg bg-primary/10 px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/15 shrink-0"
+                                            onClick={() => onOpenCustomerById(item.customerId, item.targetTab)}
+                                            type="button"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">bolt</span>
+                                            {item.actionLabel}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="xl:col-span-2 rounded-xl border border-slate-100 bg-white p-6 shadow-sm relative overflow-hidden">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-widest text-primary">Ringkasan Cepat</p>
+                                    <h3 className="text-lg font-bold text-on-surface">Ringkasan Alert</h3>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Alert</p>
+                                    <p className="text-2xl font-black text-red-600 leading-none">{totalAlerts}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 relative z-10">
+                                <IssueCountRow label="Surat kontrak belum dibuat" value={issueCounts.missingContract} />
+                                <IssueCountRow label="Surat invoice bulan ini belum dibuat" value={issueCounts.missingInvoice} />
+                                <IssueCountRow label="Kontrak mendekati habis" value={issueCounts.contractExpiring} />
+                                <IssueCountRow label="Biaya aktivasi belum dibayar" value={issueCounts.activationFee} />
+                                <IssueCountRow label="Dokumen terminasi terdeteksi" value={issueCounts.terminationDoc} />
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                <section className="space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm overflow-hidden">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <div>
+                        <div className="min-w-0">
                             <label className="mb-1.5 ml-1 block text-[10px] font-black uppercase tracking-widest text-slate-400">
                                 Pencarian Cepat
                             </label>
@@ -452,172 +614,90 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                     </div>
                 </section>
 
-                {hasIssues && (
-                    <>
-                        <section className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-                            <div className="xl:col-span-3 rounded-xl border border-slate-100 bg-white p-6 shadow-sm">
-                                <div className="mb-4 flex items-center justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs font-black uppercase tracking-widest text-primary">Action Needed Today</p>
-                                        <h3 className="text-lg font-bold text-on-surface">Prioritas Operasional</h3>
-                                    </div>
-                                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                                        {actionNeededToday.length} aksi
-                                    </span>
-                                </div>
-
-                                <div className="space-y-3">
-                                    {actionNeededToday.length === 0 && (
-                                        <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-on-surface-variant">
-                                            Tidak ada prioritas aksi untuk saat ini.
-                                        </p>
-                                    )}
-
-                                    {actionNeededToday.map((item, index) => (
-                                        <div
-                                            key={`${item.customerId}-${item.code}-${index}`}
-                                            className="flex flex-col gap-3 rounded-lg border border-slate-100 bg-slate-50/70 px-4 py-3 md:flex-row md:items-center md:justify-between"
-                                        >
-                                            <div>
-                                                <p className="text-sm font-bold text-on-surface">{item.customerName ?? `Pelanggan #${item.customerId}`}</p>
-                                                <p className="mt-1 text-xs text-on-surface-variant">{item.message}</p>
-                                            </div>
-
-                                            <button
-                                                className="inline-flex items-center gap-1 self-start rounded-lg bg-primary/10 px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/15"
-                                                onClick={() => onOpenCustomerById(item.customerId, item.targetTab)}
-                                                type="button"
-                                            >
-                                                <span className="material-symbols-outlined text-sm">bolt</span>
-                                                {item.actionLabel}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="xl:col-span-2 rounded-xl border border-slate-100 bg-white p-6 shadow-sm">
-                                <div className="mb-4">
-                                    <p className="text-xs font-black uppercase tracking-widest text-primary">Ringkasan Cepat</p>
-                                    <h3 className="text-lg font-bold text-on-surface">Ringkasan Alert</h3>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <IssueCountRow label="Surat kontrak belum dibuat" value={issueCounts.missingContract} />
-                                    <IssueCountRow label="Surat invoice bulan ini belum dibuat" value={issueCounts.missingInvoice} />
-                                    <IssueCountRow label="Kontrak mendekati habis" value={issueCounts.contractExpiring} />
-                                    <IssueCountRow label="Biaya aktivasi belum dibayar" value={issueCounts.activationFee} />
-                                    <IssueCountRow label="Dokumen terminasi terdeteksi" value={issueCounts.terminationDoc} />
-                                </div>
-                            </div>
-                        </section>
-
-                        <section className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                                <h3 className="text-lg font-bold text-on-surface">Recent Activity</h3>
-                                <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                                    Aktivitas lintas pelanggan
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                {recentActivities.length === 0 && (
-                                    <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-on-surface-variant md:col-span-2">
-                                        Aktivitas terbaru belum tersedia.
-                                    </p>
-                                )}
-
-                                {recentActivities.map((activity) => (
-                                    <div
-                                        key={activity.id}
-                                        className="rounded-lg border border-slate-100 bg-slate-50/70 px-4 py-3"
-                                    >
-                                        <div className="mb-1 flex items-center justify-between gap-2">
-                                            <p className="text-sm font-bold text-on-surface">{activity.customerName}</p>
-                                            <p className="text-[11px] font-medium text-on-surface-variant">
-                                                {formatDateTime(activity.date)}
-                                            </p>
-                                        </div>
-                                        <p className="text-sm font-semibold text-primary">{activity.title}</p>
-                                        <p className="text-xs text-on-surface-variant">{activity.description}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    </>
-                )}
-
-                <section className="flex flex-wrap items-center gap-6 rounded-xl border border-slate-100 bg-surface-container-low p-4">
+                <section className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-xl border border-slate-100 bg-surface-container-low p-4">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Keterangan:</span>
                     <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-emerald-500"></div>
-                        <span className="text-xs font-bold text-on-surface-variant">Lunas</span>
+                        <div className="h-3 w-3 rounded bg-emerald-500 shrink-0"></div>
+                        <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">Lunas</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-red-500"></div>
-                        <span className="text-xs font-bold text-on-surface-variant">Belum Bayar</span>
+                        <div className="h-3 w-3 rounded bg-red-500 shrink-0"></div>
+                        <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">Belum Bayar</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-orange-400"></div>
-                        <span className="text-xs font-bold text-on-surface-variant">Terlambat</span>
+                        <div className="h-3 w-3 rounded bg-orange-400 shrink-0"></div>
+                        <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">Terlambat</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-amber-200"></div>
-                        <span className="text-xs font-bold text-on-surface-variant">Belum Ditagih</span>
+                        <div className="h-3 w-3 rounded bg-amber-200 shrink-0"></div>
+                        <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">Belum Ditagih</span>
                     </div>
-                    <span className="text-xs font-medium text-on-surface-variant">
-                        Klik sel bulanan untuk lihat detail invoice pelanggan.
-                    </span>
-                    <span className="text-xs font-medium text-on-surface-variant">
-                        Biaya aktivasi: "Selesai" jika sudah dibayar, nominal jika masih outstanding.
-                    </span>
-                    <span className="text-xs font-medium text-on-surface-variant">
-                        Monitoring hanya menampilkan notifikasi. Edit dilakukan di Detail Pelanggan.
-                    </span>
+                    <div className="text-xs font-medium text-on-surface-variant space-y-1 md:space-y-0 md:flex md:flex-wrap md:gap-x-4">
+                        <p>Klik sel bulanan untuk lihat detail invoice pelanggan.</p>
+                        <p>Biaya aktivasi: "Selesai" jika sudah dibayar, nominal jika masih outstanding.</p>
+                        <p>Monitoring hanya menampilkan notifikasi. Edit dilakukan di Detail Pelanggan.</p>
+                    </div>
                 </section>
 
-                <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-                    <div className="overflow-x-auto no-scrollbar">
-                        <table className="w-full min-w-[1720px] border-collapse text-[13px]">
+                <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm max-w-full">
+                    <div className="overflow-x-auto max-w-full">
+                        <table className="w-full min-w-[2400px] border-collapse text-[13px]">
                             <thead>
-                                <tr className="border-b border-slate-100 bg-slate-50/80">
-                                    <th className="w-[64px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
+                                <tr className="bg-slate-50">
+                                    <th rowSpan="2" className="sticky left-0 top-0 z-30 w-[64px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 bg-slate-50 border-b border-r border-slate-200">
                                         No
                                     </th>
-                                    <th className="w-[160px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
+                                    <th rowSpan="2" className="sticky left-[64px] top-0 z-30 w-[160px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 bg-slate-50 border-b border-r border-slate-200">
                                         Nama ISP
                                     </th>
-                                    <th className="w-[260px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
+                                    <th rowSpan="2" className="sticky left-[224px] top-0 z-30 w-[240px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 bg-slate-50 border-b border-r-2 border-slate-300">
                                         Nama Pelanggan
                                     </th>
-                                    <th className="w-[150px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
-                                        Kode
+                                    <th rowSpan="2" className="w-[200px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        Periode Awal
                                     </th>
-                                    <th className="w-[240px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
+                                    <th colSpan="2" className="px-4 py-3 text-center font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
                                         Periode Berjalan
                                     </th>
-                                    <th className="w-[180px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
-                                        Core / Sharing Core
+                                    <th rowSpan="2" className="w-[150px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        Paket
                                     </th>
-                                    <th className="w-[160px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
-                                        Sisa Masa Sewa
+                                    <th rowSpan="2" className="w-[100px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        Jumlah
                                     </th>
-                                    <th className="w-[120px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
-                                        Status
+                                    <th rowSpan="2" className="w-[180px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        No. Kontrak
                                     </th>
-                                    <th className="w-[170px] px-4 py-5 text-left font-bold uppercase tracking-tighter text-blue-900">
-                                        Biaya Aktivasi
+                                    <th rowSpan="2" className="w-[180px] px-4 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        No. Invoice
                                     </th>
-                                    <th className="border-l border-slate-200/60 px-6 py-5 text-center font-bold uppercase tracking-widest text-blue-900" colSpan="12">
+                                    <th rowSpan="2" className="w-[180px] px-6 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        Sisa Sewa
+                                    </th>
+                                    <th rowSpan="2" className="w-[160px] px-6 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        St. Kontrak
+                                    </th>
+                                    <th rowSpan="2" className="w-[160px] px-6 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        St. Jalur
+                                    </th>
+                                    <th rowSpan="2" className="w-[200px] px-6 py-4 text-left font-bold uppercase tracking-tighter text-blue-900 border-b border-r border-slate-200">
+                                        Aktivasi
+                                    </th>
+                                    <th colSpan="12" className="px-6 py-3 text-center font-bold uppercase tracking-widest text-blue-900 border-b border-r border-slate-200">
                                         Monitoring Billing {appliedFilters.year}
                                     </th>
                                 </tr>
-                                <tr className="border-b border-slate-100 bg-slate-100/30 text-[10px] font-black uppercase text-on-surface-variant">
-                                    <th className="border-r border-slate-200/60 bg-white" colSpan="9"></th>
-                                    {monitoringMonths.map((month, index) => (
+                                <tr className="bg-slate-50">
+                                    <th className="w-[120px] px-4 py-2 text-center font-bold text-[10px] uppercase text-blue-900 border-b border-r border-slate-200">
+                                        Awal
+                                    </th>
+                                    <th className="w-[120px] px-4 py-2 text-center font-bold text-[10px] uppercase text-blue-900 border-b border-r border-slate-200">
+                                        Akhir
+                                    </th>
+                                    {monitoringMonths.map((month) => (
                                         <th
                                             key={month}
-                                            className={`w-12 px-2 py-2 text-center ${index === 0 ? "border-l border-slate-200/60" : ""}`}
+                                            className="w-12 px-2 py-2 text-center font-bold text-[10px] uppercase text-blue-900 border-b border-r border-slate-200"
                                         >
                                             {month}
                                         </th>
@@ -625,10 +705,10 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                 </tr>
                             </thead>
 
-                            <tbody className="divide-y divide-slate-50">
+                            <tbody className="divide-y divide-slate-100">
                                 {isLoading && (
                                     <tr>
-                                        <td className="px-6 py-6 text-center text-sm text-on-surface-variant" colSpan="21">
+                                        <td className="px-6 py-6 text-center text-sm text-on-surface-variant" colSpan="27">
                                             Memuat data monitoring dari backend...
                                         </td>
                                     </tr>
@@ -636,35 +716,53 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
 
                                 {!isLoading && filteredRows.length === 0 && (
                                     <tr>
-                                        <td className="px-6 py-6 text-center text-sm text-on-surface-variant" colSpan="21">
+                                        <td className="px-6 py-6 text-center text-sm text-on-surface-variant" colSpan="27">
                                             Tidak ada data monitoring yang sesuai dengan filter.
                                         </td>
                                     </tr>
                                 )}
 
                                 {!isLoading && filteredRows.map((row, rowIndex) => (
-                                    <tr key={`${row.customerId}-${rowIndex}`} className="bg-white transition-colors hover:bg-blue-50/30">
-                                        <td className="px-4 py-4 font-medium text-slate-400">
+                                    <tr key={`${row.customerId}-${rowIndex}`} className="bg-white transition-colors group">
+                                        <td className="sticky left-0 z-20 w-[64px] px-4 py-4 font-medium text-slate-400 text-center bg-white group-hover:bg-slate-50 transition-colors border-r border-slate-200">
                                             {String(rowIndex + 1).padStart(2, "0")}
                                         </td>
-                                        <td className="px-4 py-4 font-bold text-blue-900">
+                                        <td className="sticky left-[64px] z-20 w-[160px] px-4 py-4 font-bold text-blue-900 bg-white group-hover:bg-slate-50 transition-colors border-r border-slate-200">
                                             {row.ispName}
                                         </td>
-                                        <td className="px-4 py-4">
-                                            <p className="font-semibold text-slate-700">{row.customerName}</p>
+                                        <td className="sticky left-[224px] z-20 w-[240px] px-4 py-4 bg-white group-hover:bg-slate-50 transition-colors border-r-2 border-slate-300">
+                                            <p className="font-semibold text-slate-700 truncate max-w-[200px]">{row.customerName}</p>
                                             <button
                                                 className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
                                                 onClick={() => onOpenCustomerById(row.customerId, "overview")}
                                                 type="button"
                                             >
                                                 <span className="material-symbols-outlined text-sm">open_in_new</span>
-                                                Buka Detail Pelanggan
+                                                Detail
                                             </button>
                                         </td>
-                                        <td className="px-4 py-4 text-on-surface-variant">{row.customerCode}</td>
-                                        <td className="px-4 py-4 text-on-surface-variant">{formatContractPeriod(row.contractStart, row.contractEnd)}</td>
-                                        <td className="px-4 py-4 text-on-surface-variant">{formatCoreAllocation(row.coreType, row.coreTotal, row.sharingRatio)}</td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-4 py-4 text-on-surface-variant group-hover:bg-slate-50 transition-colors border-r border-slate-200">
+                                            {formatDate(row.ispContractStart)}
+                                        </td>
+                                        <td className="px-4 py-4 text-on-surface-variant group-hover:bg-slate-50 transition-colors border-r border-slate-200">
+                                            {formatDate(row.contractStart)}
+                                        </td>
+                                        <td className="px-4 py-4 text-on-surface-variant group-hover:bg-slate-50 transition-colors border-r border-slate-200">
+                                            {formatDate(row.contractEnd)}
+                                        </td>
+                                        <td className="px-4 py-4 text-on-surface-variant transition-colors group-hover:bg-slate-50 border-r border-slate-200">
+                                            {toTitleCase(row.coreType)}
+                                        </td>
+                                        <td className="px-4 py-4 text-on-surface-variant transition-colors group-hover:bg-slate-50 border-r border-slate-200">
+                                            {row.coreTotal ?? "-"}
+                                        </td>
+                                        <td className="px-4 py-4 text-on-surface-variant font-mono text-[11px] transition-colors group-hover:bg-slate-50 border-r border-slate-200">
+                                            {row.contractNumber ?? "-"}
+                                        </td>
+                                        <td className="px-4 py-4 text-on-surface-variant font-mono text-[11px] transition-colors group-hover:bg-slate-50 border-r border-slate-200">
+                                            {row.currentInvoiceNumber ?? "-"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap transition-colors group-hover:bg-slate-50 border-r border-slate-200">
                                             {(() => {
                                                 const remainingDays = getRemainingRentalDays(row.contractEnd);
 
@@ -673,7 +771,7 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                                 }
 
                                                 if (remainingDays < 0) {
-                                                    return <span className="font-semibold text-red-700">Sudah berakhir {Math.abs(remainingDays)} hari</span>;
+                                                    return <span className="font-semibold text-red-700">Expired {Math.abs(remainingDays)} hari</span>;
                                                 }
 
                                                 if (remainingDays === 0) {
@@ -683,21 +781,53 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                                 return <span className="font-semibold text-blue-700">{remainingDays} hari lagi</span>;
                                             })()}
                                         </td>
-                                        <td className="px-4 py-4">
-                                            <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${row.customerStatus === "aktif" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-on-surface-variant"}`}>
-                                                {toTitleCase(row.customerStatus)}
-                                            </span>
+                                        <td className="px-6 py-4 transition-colors group-hover:bg-slate-50 border-r border-slate-200">
+                                            {(() => {
+                                                const remainingDays = getRemainingRentalDays(row.contractEnd);
+                                                let label = "Beroperasi";
+                                                let style = "bg-emerald-100 text-emerald-700";
+
+                                                if (row.customerStatus === "nonaktif") {
+                                                    label = "Berhenti";
+                                                    style = "bg-slate-100 text-on-surface-variant";
+                                                } else if (remainingDays !== null && remainingDays < 0) {
+                                                    label = "Expired";
+                                                    style = "bg-red-100 text-red-700";
+                                                }
+
+                                                return (
+                                                    <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${style}`}>
+                                                        {label}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-6 py-4 transition-colors group-hover:bg-slate-50 border-r border-slate-200">
+                                            {(() => {
+                                                const status = row.routeStatus ?? "aktif";
+                                                const style = {
+                                                    aktif: "bg-blue-100 text-blue-700",
+                                                    nonaktif: "bg-slate-100 text-on-surface-variant",
+                                                    gangguan: "bg-red-100 text-red-700",
+                                                }[status] ?? "bg-slate-100 text-on-surface-variant";
+
+                                                return (
+                                                    <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${style}`}>
+                                                        {toTitleCase(status)}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td className="px-6 py-4 transition-colors group-hover:bg-slate-50 border-r border-slate-200">
                                             {row.activationFeePaidAt ? (
-                                                <div>
+                                                <div className="whitespace-nowrap">
                                                     <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
                                                         Selesai
                                                     </span>
                                                     <p className="mt-1 text-[11px] text-on-surface-variant">{formatDate(row.activationFeePaidAt)}</p>
                                                 </div>
                                             ) : (
-                                                <span className="text-xs font-bold text-amber-700">
+                                                <span className="text-xs font-bold text-amber-700 whitespace-nowrap">
                                                     {formatCurrency(row.activationFeeAmount)}
                                                 </span>
                                             )}
@@ -711,10 +841,10 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                                             return (
                                                 <td
                                                     key={`${row.customerId}-${month}`}
-                                                    className={`p-1 ${monthIndex === 0 ? "border-l border-slate-100" : ""}`}
+                                                    className="p-0 transition-colors group-hover:bg-slate-50 border-r border-slate-200"
                                                 >
                                                     <button
-                                                        className={`h-8 w-full rounded-sm shadow-inner transition hover:scale-[1.02] ${getMonthStatusClass(status)}`}
+                                                        className={`h-10 w-full transition hover:opacity-80 ${getMonthStatusClass(status)}`}
                                                         onClick={() =>
                                                             setSelectedInvoiceCell({
                                                                 customerId: row.customerId,
@@ -758,92 +888,38 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                     </div>
                 </section>
 
-                <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
-                    <div className="rounded-xl border border-slate-100 border-l-4 border-l-emerald-500 bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                            Lunas
-                        </h4>
-                        <p className="text-2xl font-black text-blue-900">{visibleSummary.lunas}</p>
+                <section className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm overflow-hidden">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="text-lg font-bold text-on-surface">Recent Activity</h3>
+                        <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+                            Aktivitas lintas pelanggan
+                        </span>
                     </div>
 
-                    <div className="rounded-xl border border-slate-100 border-l-4 border-l-red-500 bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                            Belum Bayar
-                        </h4>
-                        <p className="text-2xl font-black text-blue-900">{visibleSummary.belum_bayar}</p>
-                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {recentActivities.length === 0 && (
+                            <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-on-surface-variant md:col-span-2">
+                                Aktivitas terbaru belum tersedia.
+                            </p>
+                        )}
 
-                    <div className="rounded-xl border border-slate-100 border-l-4 border-l-orange-500 bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                            Terlambat
-                        </h4>
-                        <p className="text-2xl font-black text-blue-900">{visibleSummary.terlambat}</p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-100 border-l-4 border-l-primary bg-white p-6 shadow-sm">
-                        <h4 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                            Monitoring Alerts
-                        </h4>
-                        <p className="text-2xl font-black text-blue-900">{alerts.length}</p>
+                        {recentActivities.map((activity) => (
+                            <div
+                                key={activity.id}
+                                className="rounded-lg border border-slate-100 bg-slate-50/70 px-4 py-3 min-w-0"
+                            >
+                                <div className="mb-1 flex items-center justify-between gap-2">
+                                    <p className="text-sm font-bold text-on-surface truncate">{activity.customerName}</p>
+                                    <p className="text-[11px] font-medium text-on-surface-variant shrink-0">
+                                        {formatDateTime(activity.date)}
+                                    </p>
+                                </div>
+                                <p className="text-sm font-semibold text-primary truncate">{activity.title}</p>
+                                <p className="text-xs text-on-surface-variant line-clamp-2">{activity.description}</p>
+                            </div>
+                        ))}
                     </div>
                 </section>
-
-                {hasIssues && (
-                    <section className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-on-surface">Alert Monitoring Detail</h3>
-                            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                Endpoint /api/monitoring/alerts
-                            </span>
-                        </div>
-
-                        {alerts.length === 0 ? (
-                            <p className="rounded-lg bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant">
-                                Tidak ada alert untuk tahun {appliedFilters.year}.
-                            </p>
-                        ) : (
-                            <div className="space-y-3">
-                                {alerts.map((alert, index) => (
-                                    <div
-                                        key={`${alert.customerId}-${alert.code}-${index}`}
-                                        className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700"
-                                    >
-                                        <div className="mb-1 flex items-center justify-between gap-3">
-                                            <p className="text-sm font-bold">{alert.customerName}</p>
-                                            <span className="rounded-full border border-current px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
-                                                Butuh tindakan
-                                            </span>
-                                        </div>
-                                        <p className="text-xs">{alert.message}</p>
-                                        <button
-                                            className="mt-3 inline-flex items-center gap-1 rounded-lg bg-white/70 px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-white"
-                                            onClick={() =>
-                                                onOpenCustomerById(
-                                                    alert.customerId,
-                                                    {
-                                                        missing_contract: "contracts",
-                                                        missing_invoice_current_month: "invoices",
-                                                        payment_overdue: "invoices",
-                                                        contract_expiring: "contracts",
-                                                        bak_missing: "documents",
-                                                        missing_required_document: "documents",
-                                                        invoice_not_uploaded: "invoices",
-                                                        has_termination_document: "documents",
-                                                        activation_fee_unpaid: "overview",
-                                                    }[alert.code] ?? "overview",
-                                                )
-                                            }
-                                            type="button"
-                                        >
-                                            <span className="material-symbols-outlined text-sm">open_in_new</span>
-                                            Buka Detail Pelanggan
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-                )}
 
                 <section className="rounded-xl border border-slate-100 bg-surface-container-low p-4 text-xs text-on-surface-variant">
                     Ringkasan backend (tanpa filter pencarian lokal): Lunas {billingSummary.lunas}, Belum Bayar {billingSummary.belum_bayar},
@@ -953,8 +1029,9 @@ function MonitoringSpreadsheetPage({ activeSection, onNavigate, ispOptions, onOp
                     </div>
                 )}
             </div>
-        </AppShell>
-    );
+        </div>
+    </AppShell>
+);
 }
 
 export default MonitoringSpreadsheetPage;

@@ -21,7 +21,7 @@ export default function AppShell({ activeSection, onNavigate, children, hideSide
                 />
             )}
             {!hideSidebar && <Sidebar activeSection={activeSection} onNavigate={onNavigate} />}
-            <main className={`min-h-screen pb-10 ${hideSidebar ? "pt-6 px-6" : "pt-24 px-6 md:ml-64 md:px-12 md:pb-12"}`}>
+            <main className={`min-h-screen pb-10 overflow-x-hidden ${hideSidebar ? "pt-6 px-6" : "pt-24 px-6 md:ml-64 md:px-12 md:pb-12"}`}>
                 {children}
             </main>
         </div>
