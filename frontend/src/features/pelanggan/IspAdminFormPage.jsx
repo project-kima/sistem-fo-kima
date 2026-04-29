@@ -7,6 +7,8 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
     const [form, setForm] = useState({
         name: "",
         status: "aktif",
+        userEmail: "",
+        userPassword: "",
         contractReference: "",
         contractStartDate: "",
         contractPeriodStart: "",
@@ -39,6 +41,16 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
         event.preventDefault();
         if (!form.name.trim()) {
             setSubmitError("Nama ISP wajib diisi.");
+            return;
+        }
+
+        if (!isEditMode && !form.userEmail.trim()) {
+            setSubmitError("Email wajib diisi.");
+            return;
+        }
+
+        if (!isEditMode && !form.userPassword) {
+            setSubmitError("Password wajib diisi.");
             return;
         }
 
@@ -119,6 +131,35 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <FieldInput label="Nama ISP" value={form.name} onChange={(value) => setForm((previous) => ({ ...previous, name: value }))} />
                         <FieldSelect label="Status" value={form.status} onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} options={[{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Non-aktif" }]} />
+
+                        {!isEditMode && (
+                            <>
+                                <FieldInput
+                                    label="Email"
+                                    placeholder="email@contoh.com"
+                                    type="email"
+                                    value={form.userEmail}
+                                    onChange={(value) =>
+                                        setForm((previous) => ({
+                                            ...previous,
+                                            userEmail: value,
+                                        }))
+                                    }
+                                />
+                                <FieldInput
+                                    label="Password"
+                                    placeholder="Minimal 1 karakter"
+                                    type="password"
+                                    value={form.userPassword}
+                                    onChange={(value) =>
+                                        setForm((previous) => ({
+                                            ...previous,
+                                            userPassword: value,
+                                        }))
+                                    }
+                                />
+                            </>
+                        )}
                         
                         <div className="md:col-span-2">
                             <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Logo Perusahaan (Opsional)</label>
