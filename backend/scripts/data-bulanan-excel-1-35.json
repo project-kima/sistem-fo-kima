@@ -1,0 +1,715 @@
+[
+  {
+    "no": 1,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Bank Tabungan Negara (Persero)",
+    "periode_awal_kontrak": "25-Jul-22",
+    "periode_berjalan": {
+      "awal": "08-Jul-25",
+      "akhir": "07-Jul-26"
+    },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": null,
+    "nomor_invoice": "065/INV.FO/XII/2022",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": {
+      "bulanan": 250000,
+      "tahunan": 3000000
+    },
+    "biaya_aktivasi": 2500000,
+    "pembayaran_bulanan": {
+      "2022": { "Jan": 0, "Feb": 0, "Mar": 0, "Apr": 0, "May": 0, "Jun": 0, "Jul": 0, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2023": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 2,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Bank Tabungan Negara (Persero)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-42/DBO/FO/IX/2023",
+    "nomor_invoice": "187/INV.FO/XI/2023",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2023": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 3,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Bank Tabungan Negara (Persero)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-38/DBO/FO/VI/2024",
+    "nomor_invoice": "INV-065/KIMA/FO/VII/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Bank Tabungan Negara (Persero)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA-BAK-32/DBO/FO/VII/2025",
+    "nomor_invoice": "087/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 4,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Karya Teknik Mulia (PT Wastec International)",
+    "periode_awal_kontrak": "15-Aug-22",
+    "periode_berjalan": { "awal": "18-Aug-25", "akhir": "17-Aug-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": null,
+    "nomor_invoice": "067/INV.FO/XII/2022",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": 2500000,
+    "pembayaran_bulanan": {
+      "2022": { "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2023": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 5,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Karya Teknik Mulia (PT Wastec International)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-43/DBO/FO/IX/2023",
+    "nomor_invoice": "188/INV.FO/XI/2023",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2023": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 6,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Karya Teknik Mulia (PT Wastec International)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-54/DBO/FO/IX/2024",
+    "nomor_invoice": "INV-016/KIMA/FO/I/2025",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Karya Teknik Mulia (PT Wastec International)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-46/DBO/FO/X/2025",
+    "nomor_invoice": "090/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 13,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Charoen Pokphand Indonesia",
+    "periode_awal_kontrak": "01-Jan-24",
+    "periode_berjalan": { "awal": "01-Jan-26", "akhir": "31-Dec-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.BAK-54/DBO/FO/XII/2023",
+    "nomor_invoice": "INV-024/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": 2500000,
+    "pembayaran_bulanan": {
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 14,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Charoen Pokphand Indonesia",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-70/DBO/FO/XII/2024",
+    "nomor_invoice": "INV-027/KIMA/FO/I/2025",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Charoen Pokphand Indonesia",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": "1/8",
+    "nomor_kontrak": "KIMA.BAK-60/DBO/FO/XII/2025",
+    "nomor_invoice": "009/FO/1/26",
+    "status": "-",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 1000000, "tahunan": 12000000 },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2026": { "Jan": 1000000, "Feb": 1000000, "Mar": 1000000, "Apr": 1000000, "May": 1000000, "Jun": 1000000, "Jul": 1000000, "Aug": 1000000, "Sep": 1000000, "Oct": 1000000, "Nov": 1000000, "Dec": 1000000 }
+    }
+  },
+  {
+    "no": 15,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Enseval Putra Megatrading Tbk",
+    "periode_awal_kontrak": "15-Mar-23",
+    "periode_berjalan": { "awal": "15-Mar-25", "akhir": "14-Mar-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.BAK-18/DBO/FO/V/2023",
+    "nomor_invoice": "120/INV.FO/VI/2023",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2023": { "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 16,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Enseval Putra Megatrading Tbk",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-21/DBO/FO/VI/2024",
+    "nomor_invoice": "INV-027/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Enseval Putra Megatrading Tbk",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-01/DBO/FO/I/2025",
+    "nomor_invoice": "INV-053/KIMA/FO/VI/2025",
+    "status": "-",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 17,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Indofood CBP Sukses Makmur",
+    "periode_awal_kontrak": "26-Mar-23",
+    "periode_berjalan": { "awal": "26-Mar-25", "akhir": "25-Mar-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.BAK-19/DBO/FO/V/2023",
+    "nomor_invoice": "121/INV.FO/VI/2023",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2023": { "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 18,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Indofood CBP Sukses Makmur",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-22/DBO/FO/VI/2024",
+    "nomor_invoice": "INV-028/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Indofood CBP Sukses Makmur",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-02/DBO/FO/I/2025",
+    "nomor_invoice": "INV-052/KIMA/FO/VI/2025",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 19,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Indomarco Prismatama (Kima 10)",
+    "periode_awal_kontrak": "22-Oct-22",
+    "periode_berjalan": { "awal": "22-Oct-25", "akhir": "21-Oct-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": null,
+    "nomor_invoice": "079/INV.FO/XII/2022",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2022": { "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2023": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 20,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Indomarco Prismatama (Kima 10)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-49/DBO/FO/X/2023",
+    "nomor_invoice": "INV-020/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2023": { "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 21,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Indomarco Prismatama (Kima 10)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-64/DBO/FO/X/2024",
+    "nomor_invoice": "INV-021/KIMA/FO/I/2025",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Indomarco Prismatama (Kima 10)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-52/DBO/FO/XI/2025",
+    "nomor_invoice": "106/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Nov": 250000, "Dec": 250000 },
+      "2026": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 22,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Kemasan Ciptatama Nusantara",
+    "periode_awal_kontrak": "14-Jun-24",
+    "periode_berjalan": { "awal": "14-Jun-25", "akhir": "13-Jun-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.BAK-26/DBO/FO/VI/2024",
+    "nomor_invoice": "INV-032/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": 2500000,
+    "pembayaran_bulanan": {
+      "2024": { "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Kemasan Ciptatama Nusantara",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-33/DBO/FO/VII/2025",
+    "nomor_invoice": "088/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2026": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000 }
+    }
+  },
+  {
+    "no": 23,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Nippon Indosari Corpindo Tbk",
+    "periode_awal_kontrak": "28-Sep-22",
+    "periode_berjalan": { "awal": "28-Sep-25", "akhir": "27-Sep-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": null,
+    "nomor_invoice": "081/INV.FO/XII/2022",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2022": { "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2023": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 24,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Nippon Indosari Corpindo Tbk",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-45/DBO/FO/IX/2023",
+    "nomor_invoice": "189/INV.FO/XI/2023",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2023": { "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 25,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Nippon Indosari Corpindo Tbk",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-55/DBO/FO/IX/2024",
+    "nomor_invoice": "INV-017/KIMA/FO/I/2025",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Nippon Indosari Corpindo Tbk",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-47/DBO/FO/X/2025",
+    "nomor_invoice": "092/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2026": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000 }
+    }
+  },
+  {
+    "no": 26,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Ocean Champ Seafood",
+    "periode_awal_kontrak": "25-Jan-22",
+    "periode_berjalan": { "awal": "25-Jan-25", "akhir": "24-Jan-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.007A/FO-DIR/I/2022",
+    "nomor_invoice": "069/INV.FO/XII/2022",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2022": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 27,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Ocean Champ Seafood",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": null,
+    "nomor_invoice": "082/INV.FO/XII/2022",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2022": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 28,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Ocean Champ Seafood",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-19/DBO/FO/VI/2024",
+    "nomor_invoice": "INV-025/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2023": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 29,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Ocean Champ Seafood",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-71/DBO/FO/XII/2024",
+    "nomor_invoice": "INV-026/KIMA/FO/I/2025",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Dec": 250000 },
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 30,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Wastec International (Kima Raya 1)",
+    "periode_awal_kontrak": "09-Oct-23",
+    "periode_berjalan": { "awal": "09-Oct-25", "akhir": "08-Oct-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.BAK-46/DBO/FO/IX/2023",
+    "nomor_invoice": "190/INV.FO/XI/2023",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": 2500000,
+    "pembayaran_bulanan": {
+      "2023": { "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2024": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": 31,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Wastec International (Kima Raya 1)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-63/DBO/FO/X/2024",
+    "nomor_invoice": "INV-020/KIMA/FO/I/2025",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2024": { "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Wastec International (Kima Raya 1)",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-50/DBO/FO/XI/2025",
+    "nomor_invoice": "104/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2026": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000 }
+    }
+  },
+  {
+    "no": 34,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Maruki International",
+    "periode_awal_kontrak": "14-Jun-24",
+    "periode_berjalan": { "awal": "14-Jun-25", "akhir": "13-Jun-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.BAK-24/DBO/FO/VI/2024",
+    "nomor_invoice": "INV-030/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": 2500000,
+    "pembayaran_bulanan": {
+      "2024": { "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Maruki International",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-34/DBO/FO/VII/2025",
+    "nomor_invoice": "091/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2026": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000 }
+    }
+  },
+  {
+    "no": 35,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Traktor Nusantara",
+    "periode_awal_kontrak": "14-Jun-24",
+    "periode_berjalan": { "awal": "14-Jun-25", "akhir": "13-Jun-26" },
+    "core": "-",
+    "sharing_core": "1/32",
+    "nomor_kontrak": "KIMA.BAK-25/DBO/FO/VI/2024",
+    "nomor_invoice": "INV-031/KIMA/FO/VI/2024",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": 250000, "tahunan": 3000000 },
+    "biaya_aktivasi": 2500000,
+    "pembayaran_bulanan": {
+      "2024": { "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2025": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 }
+    }
+  },
+  {
+    "no": null,
+    "nama_isp": "PT Cendikia Global Solusi",
+    "nama_pelanggan": "PT Traktor Nusantara",
+    "periode_awal_kontrak": null,
+    "periode_berjalan": { "awal": null, "akhir": null },
+    "core": null,
+    "sharing_core": null,
+    "nomor_kontrak": "KIMA.BAK-35/DBO/FO/VII/2025",
+    "nomor_invoice": "089/FO/11/25",
+    "status": "Lunas",
+    "keterangan": null,
+    "nilai_kontrak": { "bulanan": null, "tahunan": null },
+    "biaya_aktivasi": null,
+    "pembayaran_bulanan": {
+      "2025": { "Jun": 250000, "Jul": 250000, "Aug": 250000, "Sep": 250000, "Oct": 250000, "Nov": 250000, "Dec": 250000 },
+      "2026": { "Jan": 250000, "Feb": 250000, "Mar": 250000, "Apr": 250000, "May": 250000, "Jun": 250000 }
+    }
+  }
+]

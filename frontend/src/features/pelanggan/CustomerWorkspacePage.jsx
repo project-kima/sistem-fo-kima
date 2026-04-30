@@ -50,83 +50,124 @@ function CustomerWorkspacePage({
     const effectiveSelectedIspFilter = selectedIspFilter !== "all" && !ispFilterOptions.includes(selectedIspFilter)
         ? "all"
         : selectedIspFilter;
-    const shouldIncludeEmptyIspGroups = !normalizedSearch
-        && listType === "current"
+
+    // Global toggle to show empty ISP groups (only in current list and if no specific filters are active)
+    const shouldIncludeEmptyIspGroups = listType === "current"
         && contractStatusFilter === "all"
         && routeStatusFilter === "all"
         && todoFilter === "all";
 
-    // --- LOGIC: Groups & Tenants ---
-    const allGroups = useMemo(() => filteredIsps
-        .filter((isp) => effectiveSelectedIspFilter === "all" || isp.name === effectiveSelectedIspFilter)
-        .map((isp) => {
-            const tenants = customers
-                .filter((customerRow) => Array.isArray(customerRow.ispList) && customerRow.ispList.includes(isp.name))
-                .filter((tenant) => {
-                    const searchableText = [
-                        tenant.name,
-                        tenant.customerId,
-                        tenant.ispDisplay,
-                        ...(Array.isArray(tenant.ispList) ? tenant.ispList : []),
-                        isp.name,
-                    ].filter(Boolean).join(" ").toLowerCase();
+    // --- LOGIC: Filtered Tenants ---
+    // First, filter all customers based on global filters (search, status, etc.)
+    const filteredTenants = useMemo(() => {
+        return customers.filter((tenant) => {
+            const matchesListType = listType === "riwayat"
+                ? !isTenantActive(tenant)
+                : isTenantActive(tenant);
+            if (!matchesListType) return false;
 
-                    const contractEndDate = typeof tenant.contractPeriodEnd === "string"
-                        ? tenant.contractPeriodEnd.slice(0, 10)
-                        : "";
-                    const contractStatusKey = contractEndDate && contractEndDate < todayIso
-                        ? "expired"
-                        : "beroperasi";
-                    const matchesListType = listType === "riwayat"
-                        ? !isTenantActive(tenant)
-                        : isTenantActive(tenant);
-                    const tenantRouteStatus = typeof tenant.routeStatus === "string" ? tenant.routeStatus : "aktif";
+            const searchableText = [
+                tenant.name,
+                tenant.customerId,
+                tenant.ispDisplay,
+                ...(Array.isArray(tenant.ispList) ? tenant.ispList : []),
+            ].filter(Boolean).join(" ").toLowerCase();
+
+            const contractEndDate = typeof tenant.contractPeriodEnd === "string"
+                ? tenant.contractPeriodEnd.slice(0, 10)
+                : "";
+            const contractStatusKey = contractEndDate && contractEndDate < todayIso
+                ? "expired"
+                : "beroperasi";
+            const tenantRouteStatus = typeof tenant.routeStatus === "string" ? tenant.routeStatus : "aktif";
+            const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
+            const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
+            const todoStatusKey = priorityCount + needActionCount > 0 ? "perlu_tindakan" : "tidak_ada";
+
+            const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+            const matchesContractStatus = contractStatusFilter === "all" ? true : contractStatusKey === contractStatusFilter;
+            const matchesRouteStatus = routeStatusFilter === "all" ? true : tenantRouteStatus === routeStatusFilter;
+            const matchesTodo = todoFilter === "all" ? true : todoStatusKey === todoFilter;
+
+            return matchesSearch && matchesContractStatus && matchesRouteStatus && matchesTodo;
+        });
+    }, [customers, listType, normalizedSearch, contractStatusFilter, routeStatusFilter, todoFilter, todayIso]);
+
+    // --- LOGIC: Groups & Tenants ---
+    const allGroups = useMemo(() => {
+        const knownIspNames = new Set(filteredIsps.map(isp => isp.name));
+
+        const groups = filteredIsps
+            .filter((isp) => effectiveSelectedIspFilter === "all" || isp.name === effectiveSelectedIspFilter)
+            .map((isp) => {
+                const tenants = filteredTenants.filter(t => Array.isArray(t.ispList) && t.ispList.includes(isp.name));
+
+                const actionTenantCount = tenants.filter((tenant) => {
                     const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
                     const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                    const todoStatusKey = priorityCount + needActionCount > 0 ? "perlu_tindakan" : "tidak_ada";
+                    return priorityCount + needActionCount > 0;
+                }).length;
 
-                    const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
-                    const matchesContractStatus = contractStatusFilter === "all" ? true : contractStatusKey === contractStatusFilter;
-                    const matchesRouteStatus = routeStatusFilter === "all" ? true : tenantRouteStatus === routeStatusFilter;
-                    const matchesTodo = todoFilter === "all" ? true : todoStatusKey === todoFilter;
+                const totalActionCount = tenants.reduce((total, tenant) => {
+                    const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
+                    const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
+                    return total + priorityCount + needActionCount;
+                }, 0);
 
-                    return matchesListType && matchesSearch && matchesContractStatus && matchesRouteStatus && matchesTodo;
-                })
-                .sort((a, b) => a.name.localeCompare(b.name));
+                return {
+                    ...isp,
+                    tenants: tenants.sort((a, b) => a.name.localeCompare(b.name)),
+                    activeTenantCount: tenants.filter((tenant) => isTenantActive(tenant)).length,
+                    actionTenantCount,
+                    totalActionCount,
+                };
+            })
+            .filter((group) => {
+                // Keep group if it has matching tenants
+                if (group.tenants.length > 0) return true;
+                // Or if it matches the general "show empty" criteria
+                if (!shouldIncludeEmptyIspGroups) return false;
+                // If search is active, only show empty group if the ISP name itself matches the search
+                if (normalizedSearch) {
+                    return group.name.toLowerCase().includes(normalizedSearch);
+                }
+                return true;
+            });
 
-            const actionTenantCount = tenants.filter((tenant) => {
-                const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                return priorityCount + needActionCount > 0;
-            }).length;
+        // Add "Lainnya" group for tenants whose ISP is not in the master list
+        if (effectiveSelectedIspFilter === "all") {
+            const otherTenants = filteredTenants.filter(t =>
+                !Array.isArray(t.ispList) || t.ispList.every(name => !knownIspNames.has(name))
+            );
 
-            const totalActionCount = tenants.reduce((total, tenant) => {
-                const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                return total + priorityCount + needActionCount;
-            }, 0);
+            if (otherTenants.length > 0) {
+                groups.push({
+                    id: "other",
+                    name: "Tenant Tanpa ISP Terdaftar",
+                    logoUrl: null,
+                    contractReference: "Kumpulan tenant yang belum terhubung ke ISP master",
+                    tenants: otherTenants.sort((a, b) => a.name.localeCompare(b.name)),
+                    activeTenantCount: otherTenants.filter((tenant) => isTenantActive(tenant)).length,
+                    actionTenantCount: otherTenants.filter((tenant) => {
+                        const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
+                        const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
+                        return priorityCount + needActionCount > 0;
+                    }).length,
+                    totalActionCount: otherTenants.reduce((total, tenant) => {
+                        const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
+                        const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
+                        return total + priorityCount + needActionCount;
+                    }, 0),
+                });
+            }
+        }
 
-            return {
-                ...isp,
-                tenants,
-                activeTenantCount: tenants.filter((tenant) => isTenantActive(tenant)).length,
-                actionTenantCount,
-                totalActionCount,
-            };
-        })
-        .filter((group) => group.tenants.length > 0 || shouldIncludeEmptyIspGroups)
-        .sort((a, b) => a.name.localeCompare(b.name)), [
-        customers,
-        filteredIsps,
-        normalizedSearch,
-        effectiveSelectedIspFilter,
-        contractStatusFilter,
-        routeStatusFilter,
-        listType,
-        todayIso,
-        todoFilter,
-        shouldIncludeEmptyIspGroups,
-    ]);
+        return groups.sort((a, b) => {
+            if (a.id === "other") return 1;
+            if (b.id === "other") return -1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [filteredIsps, filteredTenants, effectiveSelectedIspFilter, shouldIncludeEmptyIspGroups, normalizedSearch]);
 
     const totalPages = Math.ceil(allGroups.length / itemsPerPage);
     const paginatedGroups = useMemo(() => {
@@ -335,7 +376,7 @@ function CustomerWorkspacePage({
 
                         <select
                             className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => setSelectedIspFilter(e.target.value)}
+                            onChange={(e) => handleFilterChange(setSelectedIspFilter, e.target.value)}
                             value={effectiveSelectedIspFilter}
                         >
                             <option value="all">Semua ISP</option>
@@ -346,7 +387,7 @@ function CustomerWorkspacePage({
 
                         <select
                             className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => setContractStatusFilter(e.target.value)}
+                            onChange={(e) => handleFilterChange(setContractStatusFilter, e.target.value)}
                             value={contractStatusFilter}
                         >
                             <option value="all">Status Kontrak</option>
@@ -356,7 +397,7 @@ function CustomerWorkspacePage({
 
                         <select
                             className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => setRouteStatusFilter(e.target.value)}
+                            onChange={(e) => handleFilterChange(setRouteStatusFilter, e.target.value)}
                             value={routeStatusFilter}
                         >
                             <option value="all">Status Jalur</option>
@@ -367,7 +408,7 @@ function CustomerWorkspacePage({
 
                         <select
                             className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => setTodoFilter(e.target.value)}
+                            onChange={(e) => handleFilterChange(setTodoFilter, e.target.value)}
                             value={todoFilter}
                         >
                             <option value="all">Status Tindakan</option>
