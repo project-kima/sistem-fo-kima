@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -20,6 +21,10 @@ import { UploadContractVersionRenewalFileDto } from './dto/upload-contract-versi
 import { UpdateCustomerContractDto } from './dto/update-customer-contract.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { UpdateCustomerInvoiceDto } from './dto/update-customer-invoice.dto';
+import {
+  ChangeCustomerRouteDto,
+  EditCustomerRouteDto,
+} from './dto/route-mutations.dto';
 
 const buildUploadedFileDataUrl = (file?: Express.Multer.File): string => {
   const mimeType =
@@ -219,6 +224,22 @@ export class CustomersController {
     return this.customersService.removeCustomerIsps(customerId, payload);
   }
 
+  @Post(':customerId/routes/change')
+  changeRoute(
+    @Param('customerId', ParseIntPipe) customerId: number,
+    @Body() payload: ChangeCustomerRouteDto,
+  ) {
+    return this.customersService.changeRoute(customerId, payload);
+  }
+
+  @Post(':customerId/routes/edit')
+  editRoute(
+    @Param('customerId', ParseIntPipe) customerId: number,
+    @Body() payload: EditCustomerRouteDto,
+  ) {
+    return this.customersService.editRoute(customerId, payload);
+  }
+
   @Get(':customerId/todo-summary')
   getTodoSummary(@Param('customerId', ParseIntPipe) customerId: number) {
     return this.customersService.getTodoSummary(customerId);
@@ -232,5 +253,18 @@ export class CustomersController {
   @Get(':customerId/timeline')
   getTimeline(@Param('customerId', ParseIntPipe) customerId: number) {
     return this.customersService.getTimeline(customerId);
+  }
+
+  @Delete(':customerId/routes/history/:historyId')
+  deleteRouteHistory(
+    @Param('customerId', ParseIntPipe) customerId: number,
+    @Param('historyId', ParseIntPipe) historyId: number,
+  ) {
+    return this.customersService.deleteRouteHistory(customerId, historyId);
+  }
+
+  @Delete(':customerId/routes/history')
+  deleteAllRouteHistory(@Param('customerId', ParseIntPipe) customerId: number) {
+    return this.customersService.deleteAllRouteHistory(customerId);
   }
 }

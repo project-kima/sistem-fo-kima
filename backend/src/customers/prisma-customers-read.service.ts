@@ -208,8 +208,7 @@ export class PrismaCustomersReadService {
         const activeVersionEndDateIso = toIsoDate(activeVersion.endDate);
         if (activeVersionEndDateIso) {
           const daysLeft = Math.ceil(
-            (parseDate(activeVersionEndDateIso).getTime() -
-              nowDate.getTime()) /
+            (parseDate(activeVersionEndDateIso).getTime() - nowDate.getTime()) /
               (24 * 60 * 60 * 1000),
           );
           if (daysLeft <= 90 && daysLeft >= 0) priorityCount++;
@@ -219,7 +218,7 @@ export class PrismaCustomersReadService {
       const overdueInvoices = customer.invoices.filter((invoice) => {
         if (!invoice.invoiceFileUrl) return false;
         if (invoice.status === 'terlambat') return true;
-        
+
         const dueDateIso = invoice.dueDate ? toIsoDate(invoice.dueDate) : null;
         if (
           invoice.status !== 'lunas' &&
@@ -247,7 +246,8 @@ export class PrismaCustomersReadService {
 
       const pendingInvoices = customer.invoices.filter((invoice) => {
         if (!invoice.invoiceFileUrl) return false;
-        if (invoice.status === 'lunas' || invoice.paymentProofFileUrl) return false;
+        if (invoice.status === 'lunas' || invoice.paymentProofFileUrl)
+          return false;
         const dueDateIso = invoice.dueDate ? toIsoDate(invoice.dueDate) : null;
         if (!dueDateIso) return true;
         return dueDateIso >= referenceDate;
