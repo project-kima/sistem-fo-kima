@@ -227,12 +227,6 @@ function TenantDetailPage({
   const [draftRoutePoints, setDraftRoutePoints] = useState([]);
   const [draftRouteStatus, setDraftRouteStatus] = useState("aktif");
 
-  const [routePointForm, setRoutePointForm] = useState({
-    pathName: "",
-    pointType: "transit",
-    note: "",
-  });
-  const [editingRoutePointId, setEditingRoutePointId] = useState(null);
   const emptyStateStorageKey = `tenant-contract-empty-state-${customer.id}`;
   const routeDraftStorageKey = `tenant-route-draft-${customer.id}`;
   const handleSelectTab = useCallback(
@@ -1359,8 +1353,6 @@ function TenantDetailPage({
           : successMessage,
       );
 
-      setEditingRoutePointId(null);
-      setRoutePointForm({ pathName: "", pointType: "transit", note: "" });
       await Promise.all([loadDetail(), onRefreshAll?.()]);
     } catch (requestError) {
       setRouteError(
@@ -1371,84 +1363,6 @@ function TenantDetailPage({
     } finally {
       setRouteBusy(false);
     }
-  };
-
-  const handleSubmitRoutePoint = async (event) => {
-    event.preventDefault();
-    if (!activeRouteId) return;
-
-    const normalizedPathName = routePointForm.pathName.trim();
-    if (!normalizedPathName) {
-      setRouteError("Nama jalan/lintasan wajib diisi.");
-      return;
-    }
-
-    const activePoints = isRouteDrafting ? draftRoutePoints : routePoints;
-    const editingPoint = activePoints.find(
-      (point) => String(point.id) === String(editingRoutePointId),
-    );
-    const normalizedNote = mergeRoutePlannerMetaIntoNote(
-      routePointForm.note,
-      splitRoutePointNote(editingPoint?.note).routeMeta,
-    );
-
-    if (isRouteDrafting) {
-      setRouteError(null);
-      if (editingRoutePointId) {
-        setDraftRoutePoints((prev) =>
-          prev.map((p) =>
-            p.id === editingRoutePointId
-              ? {
-                  ...p,
-                  pathName: normalizedPathName,
-                  pointType: routePointForm.pointType,
-                  note: normalizedNote,
-                }
-              : p,
-          ),
-        );
-        setEditingRoutePointId(null);
-        setRouteFeedback("Titik draft diperbarui.");
-      } else {
-        const newPoint = {
-          id: Date.now(), // Temp ID
-          pathName: normalizedPathName,
-          pointType: routePointForm.pointType,
-          note: routePointForm.note.trim(),
-          orderNumber: draftRoutePoints.length + 1,
-        };
-        setDraftRoutePoints((prev) => [...prev, newPoint]);
-        setRouteFeedback("Titik ditambahkan ke draft.");
-      }
-      setRoutePointForm({ pathName: "", pointType: "transit", note: "" });
-      setTimeout(() => setRouteFeedback(""), 3000);
-      return;
-    }
-
-    // Quick Edit Mode
-    if (editingRoutePointId) {
-      await runRouteMutation(
-        {
-          operation: "update",
-          pointId: editingRoutePointId,
-          pathName: normalizedPathName,
-          pointType: routePointForm.pointType,
-          note: normalizedNote,
-        },
-        "Titik jalur berhasil diperbarui.",
-      );
-      return;
-    }
-
-    await runRouteMutation(
-      {
-        operation: "add",
-        pathName: normalizedPathName,
-        pointType: routePointForm.pointType,
-        note: routePointForm.note.trim(),
-      },
-      "Titik jalur berhasil ditambahkan.",
-    );
   };
 
   const handleCommitDraft = async () => {
@@ -1520,8 +1434,6 @@ function TenantDetailPage({
     setIsRouteDrafting(false);
     setDraftRoutePoints([]);
     setRouteChangeNote("");
-    setEditingRoutePointId(null);
-    setRoutePointForm({ pathName: "", pointType: "transit", note: "" });
     setRouteError("");
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(routeDraftStorageKey);
@@ -1635,21 +1547,6 @@ function TenantDetailPage({
     }
   };
 
-  const handleEditRoutePoint = (point) => {
-    setEditingRoutePointId(point.id);
-    setRouteError("");
-    setRouteFeedback("");
-    setRoutePointForm({
-      pathName: point.pathName ?? "",
-      pointType: point.pointType ?? "transit",
-      note: splitRoutePointNote(point.note).displayNote,
-    });
-
-    // Scroll to form
-    const formEl = document.getElementById("route-point-form");
-    if (formEl) formEl.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
   const handleDeleteRoutePoint = async (pointId) => {
     if (isRouteDrafting) {
       handleDraftDelete(pointId);
@@ -1751,7 +1648,6 @@ function TenantDetailPage({
 
     setIsRouteDrafting(true);
     setRouteEditMode("ubah_jalur");
-    setEditingRoutePointId(null);
     setDraftRoutePoints(
       attachRoutePlannerMetaToDraftPoints(
         plannedPoints.map((point, index) => ({
@@ -3069,15 +2965,6 @@ function TenantDetailPage({
                                   >
                                     <span className="material-symbols-outlined text-base">
                                       expand_more
-                                    </span>
-                                  </button>
-                                  <button
-                                    className="p-1 rounded hover:bg-amber-100 text-amber-600 disabled:opacity-20 ml-2"
-                                    onClick={() => handleEditRoutePoint(point)}
-                                    title="Edit"
-                                  >
-                                    <span className="material-symbols-outlined text-base">
-                                      edit
                                     </span>
                                   </button>
                                   <button

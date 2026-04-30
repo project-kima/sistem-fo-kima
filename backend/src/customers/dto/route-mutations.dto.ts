@@ -8,7 +8,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { RouteFlowStatus, RoutePointType } from '../../shared/types/domain.types';
+import {
+  RouteFlowStatus,
+  RoutePointType,
+} from '../../shared/types/domain.types';
 
 export class RoutePointDto {
   @IsString()

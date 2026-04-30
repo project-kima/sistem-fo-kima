@@ -3077,7 +3077,7 @@ export class PrismaCustomersWriteService {
       }
 
       switch (payload.operation) {
-        case 'add':
+        case 'add': {
           if (!payload.pathName || !payload.pointType) {
             throw new BadRequestException(
               'pathName and pointType are required for add operation.',
@@ -3096,14 +3096,19 @@ export class PrismaCustomersWriteService {
             },
           });
           break;
+        }
 
-        case 'update':
+        case 'update': {
           if (!payload.pointId) {
-            throw new BadRequestException('pointId is required for update operation.');
+            throw new BadRequestException(
+              'pointId is required for update operation.',
+            );
           }
-          const updateData: any = {};
-          if (payload.pathName !== undefined) updateData.pathName = payload.pathName;
-          if (payload.pointType !== undefined) updateData.pointType = payload.pointType;
+          const updateData: Record<string, unknown> = {};
+          if (payload.pathName !== undefined)
+            updateData.pathName = payload.pathName;
+          if (payload.pointType !== undefined)
+            updateData.pointType = payload.pointType;
           if (payload.note !== undefined) updateData.note = payload.note;
 
           await tx.customerRoutePoint.update({
@@ -3111,10 +3116,13 @@ export class PrismaCustomersWriteService {
             data: updateData,
           });
           break;
+        }
 
         case 'delete':
           if (!payload.pointId) {
-            throw new BadRequestException('pointId is required for delete operation.');
+            throw new BadRequestException(
+              'pointId is required for delete operation.',
+            );
           }
           await tx.customerRoutePoint.delete({
             where: { id: payload.pointId },
@@ -3140,7 +3148,9 @@ export class PrismaCustomersWriteService {
 
         case 'status':
           if (!payload.flowStatus) {
-            throw new BadRequestException('flowStatus is required for status operation.');
+            throw new BadRequestException(
+              'flowStatus is required for status operation.',
+            );
           }
           await tx.customerRouteVersion.update({
             where: { id: activeVersion.id },
@@ -3156,7 +3166,10 @@ export class PrismaCustomersWriteService {
     });
   }
 
-  async deleteRouteHistory(customerId: number, historyId: number): Promise<{ deletedId: number }> {
+  async deleteRouteHistory(
+    customerId: number,
+    historyId: number,
+  ): Promise<{ deletedId: number }> {
     const history = await this.prisma.customerRouteHistory.findFirst({
       where: { id: historyId, customerId },
     });
@@ -3172,7 +3185,9 @@ export class PrismaCustomersWriteService {
     return { deletedId: historyId };
   }
 
-  async deleteAllRouteHistory(customerId: number): Promise<{ deletedCount: number }> {
+  async deleteAllRouteHistory(
+    customerId: number,
+  ): Promise<{ deletedCount: number }> {
     const result = await this.prisma.customerRouteHistory.deleteMany({
       where: { customerId },
     });
