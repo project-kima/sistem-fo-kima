@@ -276,8 +276,8 @@ export class PrismaCustomersReadService {
         activationFeePaidAt: customer.activationFeePaidAt
           ? customer.activationFeePaidAt.toISOString()
           : null,
-        contractStartDate: customer.contractStartDate
-          ? customer.contractStartDate.toISOString().slice(0, 10)
+        contractStartDate: primaryContract?.startDate
+          ? toIsoDate(primaryContract.startDate)
           : null,
         isps: isps.map((isp) => ({
           id: isp.id,
@@ -667,7 +667,7 @@ export class PrismaCustomersReadService {
       }),
     );
 
-      const customerRecord = {
+    const customerRecord = {
       id: customer.id,
       customerCode: customer.customerCode,
       ispName: customer.ispName,

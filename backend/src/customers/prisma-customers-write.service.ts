@@ -167,8 +167,8 @@ export class PrismaCustomersWriteService {
           contractStartDate: payload?.contractStartDate
             ? new Date(`${payload.contractStartDate}T00:00:00.000Z`)
             : contractPeriod?.startDate
-            ? new Date(`${contractPeriod.startDate}T00:00:00.000Z`)
-            : null,
+              ? new Date(`${contractPeriod.startDate}T00:00:00.000Z`)
+              : null,
           createdAt: now,
           updatedAt: now,
         },

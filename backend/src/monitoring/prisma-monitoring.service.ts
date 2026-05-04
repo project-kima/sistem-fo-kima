@@ -125,11 +125,11 @@ export class PrismaMonitoringService {
       const customerIsps = [...(customer.ispMemberships ?? [])]
         .map((membership) => membership.isp)
         .sort((left, right) => left.name.localeCompare(right.name));
-      
+
       const primaryIsp = customerIsps[0];
       const primaryIspName = primaryIsp?.name ?? customer.ispName ?? '-';
-      const ispContractStart = primaryIsp?.contractStartDate 
-        ? primaryIsp.contractStartDate.toISOString().slice(0, 10) 
+      const ispContractStart = primaryIsp?.contractStartDate
+        ? primaryIsp.contractStartDate.toISOString().slice(0, 10)
         : null;
 
       const contract = [...(customer.contracts ?? [])].sort(
@@ -141,14 +141,18 @@ export class PrismaMonitoringService {
 
       // Find current month invoice, or fallback to the most recent one issued
       let currentMonthInvoice = customer.invoices.find(
-        (inv) => inv.periodYear === currentYear && inv.periodMonth === currentMonth && inv.scheduleStatus === 'active'
+        (inv) =>
+          inv.periodYear === currentYear &&
+          inv.periodMonth === currentMonth &&
+          inv.scheduleStatus === 'active',
       );
 
       if (!currentMonthInvoice) {
         currentMonthInvoice = [...customer.invoices]
-          .filter(inv => inv.scheduleStatus === 'active')
+          .filter((inv) => inv.scheduleStatus === 'active')
           .sort((a, b) => {
-            if (a.periodYear !== b.periodYear) return b.periodYear - a.periodYear;
+            if (a.periodYear !== b.periodYear)
+              return b.periodYear - a.periodYear;
             return b.periodMonth - a.periodMonth;
           })[0];
       }
@@ -177,7 +181,8 @@ export class PrismaMonitoringService {
         customerStatus: customer.status as CustomerStatus,
         contractNumber: contract?.contractNumber ?? null,
         currentInvoiceNumber: currentMonthInvoice?.invoiceNumber ?? null,
-        routeStatus: (customer.routeVersions[0]?.flowStatus as RouteFlowStatus) ?? null,
+        routeStatus:
+          (customer.routeVersions[0]?.flowStatus as RouteFlowStatus) ?? null,
         activationFeeAmount: Number(customer.activationFeeAmount ?? 0),
         activationFeePaidAt: customer.activationFeePaidAt
           ? customer.activationFeePaidAt.toISOString()
