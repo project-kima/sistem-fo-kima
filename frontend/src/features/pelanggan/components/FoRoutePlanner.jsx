@@ -4,6 +4,7 @@ import {
   GeoJSON,
   MapContainer,
   Marker,
+  Popup,
   TileLayer,
   useMap,
   useMapEvents,
@@ -13,8 +14,9 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./FoRoutePlanner.css";
 
-const DEFAULT_CENTER = [-5.147665, 119.432732];
-const DEFAULT_ZOOM = 13;
+const KIMA_CENTER = [-5.0929568, 119.5018379];
+const DEFAULT_CENTER = KIMA_CENTER;
+const DEFAULT_ZOOM = 14;
 const VALHALLA_LOCAL_HOST =
   typeof import.meta.env.VITE_VALHALLA_HOST === "string" &&
     import.meta.env.VITE_VALHALLA_HOST.trim()
@@ -83,6 +85,13 @@ function createCompanyIcon(logoUrl) {
 
 const CUSTOMER_ICON = createGlowIcon("B", "customer");
 const WAYPOINT_ICON = createGlowIcon("W", "waypoint");
+const KIMA_ICON = L.icon({
+  iconUrl: "/logo-kima.png",
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  popupAnchor: [0, -36],
+  className: "fo-kima-marker",
+});
 
 function haversineDistance(pointA, pointB) {
   const toRadians = (value) => (value * Math.PI) / 180;
@@ -318,7 +327,7 @@ export default function FoRoutePlanner({
 }) {
   const [basemap, setBasemap] = useState("osm");
   const [profile, setProfile] = useState("driving");
-  const [placementMode, setPlacementMode] = useState("a");
+  const [placementMode, setPlacementMode] = useState("none");
   const [pointA, setPointA] = useState(null);
   const [pointB, setPointB] = useState(null);
   const [manualWaypoints, setManualWaypoints] = useState([]);
@@ -334,7 +343,9 @@ export default function FoRoutePlanner({
   const [flyTarget, setFlyTarget] = useState(null);
   const [manualInput, setManualInput] = useState({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isRoadPanelOpen, setIsRoadPanelOpen] = useState(true);
   const skipNextRouteResetRef = useRef(false);
+  const initialPlannerStateRef = useRef(null);
 
   const providerIcon = useMemo(() => createCompanyIcon(providerIconUrl), [providerIconUrl]);
 
@@ -463,6 +474,12 @@ export default function FoRoutePlanner({
   }, [routeData?.geometryCoordinates]);
 
   const plannerRoads = Array.isArray(routeData?.roads) ? routeData.roads : [];
+  const showKimaMarker =
+    !isPreviewMode &&
+    !pointA &&
+    !pointB &&
+    manualWaypoints.length === 0 &&
+    !routeData;
   // Unique named roads only (deduplicate by name and filter placeholders)
   const namedPlannerRoads = plannerRoads.reduce((acc, road) => {
     if (road?.name && road.name.trim() && !acc.some((r) => r.name === road.name)) {
@@ -493,34 +510,32 @@ export default function FoRoutePlanner({
         point?.pointType === "transit",
     );
 
-    setPointA(
-      providerPoint
-        ? {
-            id: providerPoint.id ?? "restored-a",
-            lat: Number(providerPoint.lat),
-            lng: Number(providerPoint.lng),
-            label: providerPoint.label ?? providerPoint.pathName ?? "Provider",
-          }
-        : null,
-    );
-    setPointB(
-      customerPoint
-        ? {
-            id: customerPoint.id ?? "restored-b",
-            lat: Number(customerPoint.lat),
-            lng: Number(customerPoint.lng),
-            label: customerPoint.label ?? customerPoint.pathName ?? "Pelanggan",
-          }
-        : null,
-    );
-    setManualWaypoints(
-      waypointPoints.map((point, index) => ({
-        id: point.id ?? `restored-waypoint-${index}`,
-        lat: Number(point.lat),
-        lng: Number(point.lng),
-        label: point.label ?? point.pathName ?? `Waypoint ${index + 1}`,
-      })),
-    );
+    const restoredPointA = providerPoint
+      ? {
+          id: providerPoint.id ?? "restored-a",
+          lat: Number(providerPoint.lat),
+          lng: Number(providerPoint.lng),
+          label: providerPoint.label ?? providerPoint.pathName ?? "Provider",
+        }
+      : null;
+    const restoredPointB = customerPoint
+      ? {
+          id: customerPoint.id ?? "restored-b",
+          lat: Number(customerPoint.lat),
+          lng: Number(customerPoint.lng),
+          label: customerPoint.label ?? customerPoint.pathName ?? "Pelanggan",
+        }
+      : null;
+    const restoredWaypoints = waypointPoints.map((point, index) => ({
+      id: point.id ?? `restored-waypoint-${index}`,
+      lat: Number(point.lat),
+      lng: Number(point.lng),
+      label: point.label ?? point.pathName ?? `Waypoint ${index + 1}`,
+    }));
+
+    setPointA(restoredPointA);
+    setPointB(restoredPointB);
+    setManualWaypoints(restoredWaypoints);
 
     const geometryCoordinates = Array.isArray(initialRouteMeta?.geometryCoordinates)
       ? initialRouteMeta.geometryCoordinates
@@ -529,9 +544,10 @@ export default function FoRoutePlanner({
       ? initialRouteMeta.roads
       : [];
 
+    let restoredRouteData = null;
+    const restoredCustomRouteMode = initialRouteMeta?.mode === "manual";
     if (geometryCoordinates.length >= 2) {
-      skipNextRouteResetRef.current = true;
-      setRouteData({
+      restoredRouteData = {
         mode: initialRouteMeta?.mode ?? "manual",
         source: initialRouteMeta?.source ?? "planner-restored",
         distance: Number(initialRouteMeta?.distance ?? 0),
@@ -545,10 +561,70 @@ export default function FoRoutePlanner({
           roads,
         }),
         roads,
-      });
-      setCustomRouteMode(initialRouteMeta?.mode === "manual");
+      };
+      skipNextRouteResetRef.current = true;
     }
+    setRouteData(restoredRouteData);
+    setCustomRouteMode(restoredCustomRouteMode);
+    initialPlannerStateRef.current = {
+      pointA: restoredPointA,
+      pointB: restoredPointB,
+      manualWaypoints: restoredWaypoints,
+      routeData: restoredRouteData,
+      customRouteMode: restoredCustomRouteMode,
+    };
   }, [initialPlannerControlPoints, initialRouteMeta, isPreviewMode]);
+
+  const handleUndoToInitial = () => {
+    if (isPreviewMode || !initialPlannerStateRef.current) {
+      return;
+    }
+
+    const initialState = initialPlannerStateRef.current;
+    const restoredPointA = initialState.pointA
+      ? { ...initialState.pointA }
+      : null;
+    const restoredPointB = initialState.pointB
+      ? { ...initialState.pointB }
+      : null;
+    const restoredWaypoints = Array.isArray(initialState.manualWaypoints)
+      ? initialState.manualWaypoints.map((point) => ({ ...point }))
+      : [];
+    const restoredRouteData = initialState.routeData
+      ? {
+          ...initialState.routeData,
+          geometryCoordinates: Array.isArray(initialState.routeData.geometryCoordinates)
+            ? initialState.routeData.geometryCoordinates.map((coordinate) => [...coordinate])
+            : [],
+          roads: Array.isArray(initialState.routeData.roads)
+            ? initialState.routeData.roads.map((road) => ({ ...road }))
+            : [],
+        }
+      : null;
+
+    if (restoredRouteData?.geometryCoordinates?.length >= 2) {
+      skipNextRouteResetRef.current = true;
+      restoredRouteData.geoJson = createRouteGeoJson(restoredRouteData.geometryCoordinates, {
+        source: restoredRouteData.source,
+        mode: restoredRouteData.mode,
+        distance: Number(restoredRouteData.distance ?? 0),
+        duration: Number(restoredRouteData.duration ?? 0),
+        roads: restoredRouteData.roads,
+      });
+    }
+
+    setPointA(restoredPointA);
+    setPointB(restoredPointB);
+    setManualWaypoints(restoredWaypoints);
+    setRouteData(restoredRouteData);
+    setCustomRouteMode(Boolean(initialState.customRouteMode));
+    setRouteError("");
+    pushToast(
+      "Perubahan Dibatalkan",
+      "Planner dikembalikan ke setelan awal.",
+      "info",
+    );
+  };
 
   const handleGenerateManualRoute = () => {
     if (!canGenerateManualRoute) {
@@ -726,11 +802,6 @@ export default function FoRoutePlanner({
     }
 
     setManualWaypoints((previous) => [...previous, nextPoint]);
-    pushToast(
-      "Waypoint Ditambahkan",
-      "Titik manual masuk ke custom route.",
-      "info",
-    );
   };
 
   const handleMapClick = (latlng) => {
@@ -748,7 +819,23 @@ export default function FoRoutePlanner({
       return;
     }
 
+    if (placementMode !== "waypoint") {
+      pushToast(
+        "Pilih Mode Titik",
+        "Pilih Set A, Set B, atau Set W sebelum menempatkan titik di peta.",
+        "info",
+      );
+      return;
+    }
+
     assignPoint("waypoint", latlng.lat, latlng.lng, "");
+  };
+  const handleRecenterToKima = () => {
+    setFlyTarget({
+      lat: KIMA_CENTER[0],
+      lng: KIMA_CENTER[1],
+      zoom: DEFAULT_ZOOM,
+    });
   };
 
   const handleSearch = async (event) => {
@@ -1263,6 +1350,11 @@ export default function FoRoutePlanner({
               position={[pointB.lat, pointB.lng]}
             />
           )}
+          {showKimaMarker && (
+            <Marker icon={KIMA_ICON} position={KIMA_CENTER}>
+              <Popup>Kawasan Industri Makassar (KIMA)</Popup>
+            </Marker>
+          )}
           {manualWaypoints.map((point) => (
             <Marker
               key={point.id}
@@ -1286,6 +1378,43 @@ export default function FoRoutePlanner({
         </MapContainer>
       </div>
 
+      <div className="pointer-events-none absolute right-4 top-20 z-[1001] w-[min(360px,calc(100%-2rem))] md:right-6 md:top-24 md:w-[360px]">
+        <section className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-900/85 p-3 shadow-xl backdrop-blur-md">
+          <form className="flex gap-2" onSubmit={handleSearch}>
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+              <input
+                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-1.5 text-[11px] text-white outline-none focus:border-primary/50 transition"
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari lokasi penarikan..."
+                type="text"
+                value={searchQuery}
+              />
+            </div>
+            <button className="rounded-xl bg-primary px-3 py-1.5 text-[9px] font-bold text-white uppercase" disabled={isSearching}>
+              {isSearching ? "..." : "Cari"}
+            </button>
+          </form>
+          {searchError && (
+            <p className="mt-2 text-[10px] text-rose-400 font-medium px-1">{searchError}</p>
+          )}
+          {searchResults.length > 0 && (
+            <div className="mt-2.5 max-h-[145px] overflow-auto space-y-1.5 pr-1 custom-scrollbar">
+              {searchResults.map((result) => (
+                <div key={result.place_id} className="rounded-lg bg-white/5 p-2 border border-white/5 hover:bg-white/10 transition">
+                  <p className="text-[10px] text-white/90 font-medium leading-tight mb-2">{result.display_name}</p>
+                  <div className="flex gap-1.5">
+                    <button className="flex-1 bg-white/10 py-1 rounded text-[9px] font-bold uppercase text-white/70 hover:text-white" onClick={() => handlePickSearchResult(result, "a")}>Set A</button>
+                    <button className="flex-1 bg-white/10 py-1 rounded text-[9px] font-bold uppercase text-white/70 hover:text-white" onClick={() => handlePickSearchResult(result, "b")}>Set B</button>
+                    {customRouteMode && <button className="flex-1 bg-white/10 py-1 rounded text-[9px] font-bold uppercase text-white/70 hover:text-white" onClick={() => handlePickSearchResult(result, "waypoint")}>+W</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
       {/* Floating Sidebar - Responsive Card Style */}
       <aside
         className={`absolute inset-x-0 bottom-0 sm:inset-auto sm:left-4 sm:top-4 sm:bottom-4 z-[1000] w-full sm:w-[360px] max-h-[82vh] sm:max-h-none flex flex-col pointer-events-none transition-transform duration-500 ease-in-out ${isSidebarOpen ? "translate-y-0 sm:translate-x-0" : "translate-y-[calc(100%+2rem)] sm:translate-y-0 sm:-translate-x-[calc(100%+2rem)]"
@@ -1297,28 +1426,45 @@ export default function FoRoutePlanner({
 
           {/* Header Panel */}
           <header className="rounded-2xl sm:border border-white/10 sm:bg-slate-900/80 sm:p-4 sm:backdrop-blur-md sm:shadow-2xl relative shrink-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Tactical Console</p>
-            <h3 className="text-base font-black text-white leading-tight mt-1">FO Route Planner</h3>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Points Console</p>
+            <h3 className="text-base font-black text-white leading-tight mt-1">Points & Waypoints</h3>
 
-            {/* Action Bar */}
             <div className="mt-3 grid grid-cols-2 gap-1.5">
               <button
                 className={`px-2.5 py-1.5 rounded-lg border text-[9px] font-bold uppercase transition ${placementMode === "a" ? "bg-primary border-primary text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
                 onClick={() => setPlacementMode("a")}
-              >Set A</button>
+                type="button"
+              >
+                Set A
+              </button>
               <button
                 className={`px-2.5 py-1.5 rounded-lg border text-[9px] font-bold uppercase transition ${placementMode === "b" ? "bg-primary border-primary text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
                 onClick={() => setPlacementMode("b")}
-              >Set B</button>
+                type="button"
+              >
+                Set B
+              </button>
               <button
                 className={`px-2.5 py-1.5 rounded-lg border text-[9px] font-bold uppercase transition ${customRouteMode ? "bg-amber-500 border-amber-500 text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
                 onClick={() => setCustomRouteMode(!customRouteMode)}
-              >{customRouteMode ? "Custom ON" : "Custom OFF"}</button>
+                type="button"
+              >
+                {customRouteMode ? "Custom ON" : "Custom OFF"}
+              </button>
               <button
                 className={`px-2.5 py-1.5 rounded-lg border text-[9px] font-bold uppercase transition ${placementMode === "waypoint" ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
                 onClick={() => setPlacementMode("waypoint")}
-                type="button" >
+                type="button"
+              >
                 Set W
+              </button>
+              <button
+                className="col-span-2 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[9px] font-bold uppercase text-white/80 transition hover:bg-white/10"
+                onClick={handleRecenterToKima}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[12px]">my_location</span>
+                Pusatkan KIMA
               </button>
             </div>
 
@@ -1335,44 +1481,64 @@ export default function FoRoutePlanner({
             </button>
           </header>
 
-          {/* Search Panel */}
-          <section className="rounded-2xl sm:border border-white/10 sm:bg-slate-900/80 sm:p-3 sm:backdrop-blur-md sm:shadow-xl sm:block mt-2.5 sm:mt-0 shrink-0">
-            <form className="flex gap-2" onSubmit={handleSearch}>
-              <div className="relative flex-1">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-1.5 text-[11px] text-white outline-none focus:border-primary/50 transition"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari lokasi penarikan..."
-                  type="text"
-                  value={searchQuery}
-                />
-              </div>
-              <button className="rounded-xl bg-primary px-3 py-1.5 text-[9px] font-bold text-white uppercase" disabled={isSearching}>
-                {isSearching ? "..." : "Cari"}
-              </button>
-            </form>
-            {searchError && (
-              <p className="mt-2 text-[10px] text-rose-400 font-medium px-1">{searchError}</p>
-            )}
-            {searchResults.length > 0 && (
-              <div className="mt-2.5 max-h-[145px] overflow-auto space-y-1.5 pr-1 custom-scrollbar">
-                {searchResults.map((result) => (
-                  <div key={result.place_id} className="rounded-lg bg-white/5 p-2 border border-white/5 hover:bg-white/10 transition">
-                    <p className="text-[10px] text-white/90 font-medium leading-tight mb-2">{result.display_name}</p>
-                    <div className="flex gap-1.5">
-                      <button className="flex-1 bg-white/10 py-1 rounded text-[9px] font-bold uppercase text-white/70 hover:text-white" onClick={() => handlePickSearchResult(result, "a")}>Set A</button>
-                      <button className="flex-1 bg-white/10 py-1 rounded text-[9px] font-bold uppercase text-white/70 hover:text-white" onClick={() => handlePickSearchResult(result, "b")}>Set B</button>
-                      {customRouteMode && <button className="flex-1 bg-white/10 py-1 rounded text-[9px] font-bold uppercase text-white/70 hover:text-white" onClick={() => handlePickSearchResult(result, "waypoint")}>+W</button>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
           {/* Scrollable Waypoint List */}
-          <section className="flex-1 min-h-0 rounded-2xl sm:border border-white/10 sm:bg-slate-900/80 sm:p-3 sm:backdrop-blur-md sm:shadow-xl overflow-hidden flex flex-col mt-2.5 sm:mt-0">
+          <section className="relative mt-2.5 flex min-h-0 flex-1 flex-col overflow-visible rounded-2xl border-white/10 sm:mt-0 sm:border sm:bg-slate-900/80 sm:p-3 sm:shadow-xl sm:backdrop-blur-md">
+            {namedPlannerRoads.length > 0 && (
+              <>
+                <div
+                  className={`pointer-events-none absolute left-[calc(100%+0.75rem)] top-0 z-[999] hidden w-[300px] transition-all duration-300 ease-out md:block ${isRoadPanelOpen ? "translate-y-0 scale-100 opacity-100" : "translate-y-2 scale-95 opacity-0"}`}
+                >
+                  <section className={`flex max-h-[45vh] flex-col rounded-2xl border border-white/10 bg-slate-900/85 p-3 shadow-2xl backdrop-blur-md ${isRoadPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-sky-400">Ruas Jalan</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[9px] font-black text-sky-300">
+                          {namedPlannerRoads.length} ruas
+                        </span>
+                        <button
+                          className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/70 transition hover:text-white"
+                          onClick={() => setIsRoadPanelOpen(false)}
+                          title="Tutup panel ruas jalan"
+                          type="button"
+                        >
+                          <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-1 overflow-auto pr-1 custom-scrollbar">
+                      {namedPlannerRoads.map((road, index) => (
+                        <div
+                          key={road.id ?? `named-road-${index}`}
+                          className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2.5 py-1.5"
+                        >
+                          <div className="min-w-0 flex items-center gap-2">
+                            <span className="material-symbols-outlined shrink-0 text-[13px] text-sky-400">route</span>
+                            <p className="truncate text-[10px] font-semibold text-white/90">{road.name}</p>
+                          </div>
+                          <span className="shrink-0 text-[9px] font-mono text-white/40">
+                            {Number.isFinite(Number(road.distance)) && Number(road.distance) > 0
+                              ? `${(Number(road.distance) / 1000).toFixed(2)} km`
+                              : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+                <div
+                  className={`pointer-events-none absolute bottom-0 left-[calc(100%+0.75rem)] z-[999] hidden transition-all duration-300 ease-out md:block ${isRoadPanelOpen ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"}`}
+                >
+                  <button
+                    className={`inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-900/85 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-sky-300 shadow-xl backdrop-blur-md transition hover:text-white ${isRoadPanelOpen ? "pointer-events-none" : "pointer-events-auto"}`}
+                    onClick={() => setIsRoadPanelOpen(true)}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined text-sm">route</span>
+                    Ruas Jalan
+                  </button>
+                </div>
+              </>
+            )}
             <div className="flex items-center justify-between mb-2.5">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Points & Waypoints</h4>
               <select
@@ -1558,46 +1724,16 @@ export default function FoRoutePlanner({
               )}
             </div>
 
-            {/* Named Road Segments (from Valhalla) */}
-            {namedPlannerRoads.length > 0 && (
-              <div className="mt-2.5 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-sky-400">Ruas Jalan</p>
-                  <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[9px] font-black text-sky-300">
-                    {namedPlannerRoads.length} ruas
-                  </span>
-                </div>
-                <div className="space-y-1 max-h-[140px] overflow-auto pr-1 custom-scrollbar">
-                  {namedPlannerRoads.map((road, index) => (
-                    <div
-                      key={road.id ?? `named-road-${index}`}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2.5 py-1.5"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="material-symbols-outlined text-[13px] text-sky-400 shrink-0">route</span>
-                        <p className="text-[10px] font-semibold text-white/90 truncate">{road.name}</p>
-                      </div>
-                      <span className="text-[9px] font-mono text-white/40 shrink-0">
-                        {Number.isFinite(Number(road.distance)) && Number(road.distance) > 0
-                          ? `${(Number(road.distance) / 1000).toFixed(2)} km`
-                          : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Bottom Actions */}
             <div className="mt-3 pt-3 border-t border-white/5 space-y-1.5 shrink-0">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
                 <button
                   className="bg-sky-600 hover:bg-sky-500 text-white text-[9px] font-black uppercase py-2.5 px-2.5 rounded-xl transition shadow-lg shadow-sky-900/20 disabled:opacity-50"
                   disabled={!canGenerateRoute || isCalculating}
                   onClick={() => void handleGenerateValhallaRoute()}
                   type="button"
                 >
-                  {isCalculating ? "Calculating..." : "1. Buat Jalur Valhalla"}
+                  {isCalculating ? "Calculating..." : "Jalur Otomatis"}
                 </button>
                 <button
                   className="bg-amber-500 hover:bg-amber-400 text-white text-[9px] font-black uppercase py-2.5 px-2.5 rounded-xl transition shadow-lg shadow-amber-900/20 disabled:opacity-50"
@@ -1605,7 +1741,15 @@ export default function FoRoutePlanner({
                   onClick={handleGenerateManualRoute}
                   type="button"
                 >
-                  1. Buat Custom Jalur
+                  Custom Jalur
+                </button>
+                <button
+                  className="p-2.5 bg-white/5 border border-white/10 text-white/70 hover:text-white rounded-xl transition"
+                  onClick={handleUndoToInitial}
+                  title="Undo ke setelan awal"
+                  type="button"
+                >
+                  <span className="material-symbols-outlined text-sm">undo</span>
                 </button>
                 <button
                   className="p-2.5 bg-white/5 border border-white/10 text-white/70 hover:text-white rounded-xl transition"
@@ -1622,12 +1766,10 @@ export default function FoRoutePlanner({
                 onClick={handleApplyPlanner}
                 type="button"
               >
-                2. Terapkan ke Draft Tenant
+                Terapkan Draft
               </button>
             </div>
-            <p className="mt-2 text-[10px] text-white/55">
-              Set A, Set B, dan waypoint hanya menaruh titik. Garis baru muncul setelah Anda menekan tombol buat jalur, lalu hasilnya bisa diterapkan ke draft tenant.
-            </p>
+
           </section>
         </div>
       </aside>

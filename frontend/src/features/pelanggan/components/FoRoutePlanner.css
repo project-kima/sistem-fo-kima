@@ -80,6 +80,10 @@
     background: rgba(34, 197, 94, 0.95);
 }
 
+.fo-kima-marker {
+    filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.45));
+}
+
 /* Override Leaflet Controls Position */
 .leaflet-control-attribution {
     background: rgba(15, 23, 42, 0.6) !important;

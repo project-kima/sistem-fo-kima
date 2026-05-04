@@ -2341,7 +2341,7 @@ function TenantDetailPage({
         hideSidebar={true}
         full={true}
       >
-        <div className="relative h-screen w-screen overflow-hidden bg-slate-950 font-manrope antialiased">
+        <div className="relative h-dvh w-full overflow-hidden bg-slate-950 font-manrope antialiased">
           {/* Combined Top Overlay UI - Optimized for Mobile */}
           <div className="absolute inset-x-0 top-0 z-[1000] flex items-start justify-center p-4 pointer-events-none md:p-6">
             {/* Back Button - Positioned to the right */}
