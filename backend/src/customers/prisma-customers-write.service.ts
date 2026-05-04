@@ -127,8 +127,8 @@ export class PrismaCustomersWriteService {
       payload?.contractNumber,
     );
     const contractPeriod = this.parseContractPeriod(
-      payload?.contractStartDate,
-      payload?.contractEndDate,
+      payload?.contractPeriodStart ?? payload?.contractStartDate,
+      payload?.contractPeriodEnd ?? payload?.contractEndDate,
     );
 
     if (!contractPeriod) {
@@ -163,6 +163,11 @@ export class PrismaCustomersWriteService {
           activationFeeAmount,
           activationFeePaidAt: activationFeePaidAt
             ? new Date(`${activationFeePaidAt}T00:00:00.000Z`)
+            : null,
+          contractStartDate: payload?.contractStartDate
+            ? new Date(`${payload.contractStartDate}T00:00:00.000Z`)
+            : contractPeriod?.startDate
+            ? new Date(`${contractPeriod.startDate}T00:00:00.000Z`)
             : null,
           createdAt: now,
           updatedAt: now,

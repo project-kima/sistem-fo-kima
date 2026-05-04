@@ -14,7 +14,9 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
         ratioLeft: "1",
         ratioRight: "8",
         contractStartDate: "",
-        contractEndDate: "",
+        contractPeriodStart: "",
+        contractPeriodEnd: "",
+        
         billingPeriodMode: "bulanan",
         billingCustomEvery: "",
         billingCustomUnit: "bulan",
@@ -86,7 +88,7 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                 setSubmitError("Shared Core ratio tidak valid. Masukkan angka >= 1 di kedua kolom.");
                 return;
             }
-            if (!form.contractStartDate || !form.contractEndDate || form.contractStartDate > form.contractEndDate) {
+            if (!form.contractPeriodStart || !form.contractPeriodEnd || form.contractPeriodStart > form.contractPeriodEnd) {
                 setSubmitError("Periode kontrak tenant tidak valid.");
                 return;
             }
@@ -111,8 +113,10 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                         name: form.name.trim(),
                         status: form.status,
                         ispIds: [selectedIspId],
-                        contractStartDate: form.contractStartDate,
-                        contractEndDate: form.contractEndDate,
+                        contractStartDate: form.contractStartDate || form.contractPeriodStart,
+                        contractPeriodStart: form.contractPeriodStart,
+                        contractPeriodEnd: form.contractPeriodEnd,
+                        
                         paket: form.paket,
                         jumlah: form.paket === "core" ? Math.round(Number(form.jumlah || 0)) : 0,
                         contractSharingRatio: form.paket === "shared" ? `${form.ratioLeft || 1}:${form.ratioRight || 8}` : undefined,
@@ -176,8 +180,9 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                                                 </div>
                                             </div>
                                         )}
-                                        <FieldInput label="Start" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
-                                        <FieldInput label="End" type="date" value={form.contractEndDate} onChange={(value) => setForm((previous) => ({ ...previous, contractEndDate: value }))} />
+                                        <FieldInput label="Awal Kontrak (Opsional)" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
+                                        <FieldInput label="Periode berjalan mulai" type="date" value={form.contractPeriodStart} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodStart: value }))} />
+                                        <FieldInput label="Periode berjalan akhir" type="date" value={form.contractPeriodEnd} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodEnd: value }))} />
                                     </>
                                 )}
                             </div>

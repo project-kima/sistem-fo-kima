@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { SummaryCard } from "../../components/shared/AppShared";
 import { API_BASE_URL, fetchJson } from "../../app/utils";
@@ -440,14 +440,14 @@ function CustomerWorkspacePage({
                         </div>
                     ) : (
                         paginatedGroups.map((group) => {
-                            const isExpanded = normalizedSearch ? true : !collapsedMap[group.id];
+                            const isExpanded = normalizedSearch ? true : !(collapsedMap[group.id] ?? true);
                             return (
                                 <div key={group.id} className="glass-card overflow-hidden rounded-[2.5rem] transition-all hover:translate-y-[-2px] hover:shadow-2xl">
                                     {/* Group Header */}
                                     <div className="flex flex-col gap-6 p-8 lg:flex-row lg:items-center lg:justify-between bg-gradient-to-r from-on-surface/[0.02] to-transparent">
                                         <button
                                             className="flex flex-1 items-center gap-6 text-left"
-                                            onClick={() => setCollapsedMap((prev) => ({ ...prev, [group.id]: !prev[group.id] }))}
+                                            onClick={() => setCollapsedMap((prev) => ({ ...prev, [group.id]: !(prev[group.id] ?? true) }))}
                                             type="button"
                                         >
                                             <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary border border-on-surface/5 overflow-hidden">

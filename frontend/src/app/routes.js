@@ -4,6 +4,7 @@ export const APP_PATHS = {
     customers: "/customers",
     customerCreate: "/customers/new",
     monitoring: "/monitoring",
+    monitoringFullscreen: "/monitoring/fullscreen",
     trash: "/trash",
     ispCreate: "/isps/new",
     customerDetail: (customerId, { tab = "overview", ispId = null } = {}) => {
@@ -64,6 +65,10 @@ export function parseAppRoute(pathname, search) {
 
     if (normalizedPath === APP_PATHS.monitoring) {
         return { type: "section", sectionKey: "monitoring" };
+    }
+
+    if (normalizedPath === APP_PATHS.monitoringFullscreen) {
+        return { type: "monitoring-fullscreen", sectionKey: "monitoring" };
     }
 
     if (normalizedPath === APP_PATHS.trash) {

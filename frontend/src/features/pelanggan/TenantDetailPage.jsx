@@ -194,6 +194,7 @@ function TenantDetailPage({
   const [documentError, setDocumentError] = useState("");
   const [documentFeedback, setDocumentFeedback] = useState("");
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  const [isUploadingContractFile, setIsUploadingContractFile] = useState(false);
   const [versionEditor, setVersionEditor] = useState(null);
   const [versionError, setVersionError] = useState("");
   const [isSubmittingVersion, setIsSubmittingVersion] = useState(false);
@@ -399,6 +400,29 @@ function TenantDetailPage({
     ["penawaran", "tanggapan", "hasil_nego"].includes(item.jenisDokumen),
   );
   const allDocuments = latestDocuments; // Now includes all documents uploaded by user
+  const contractDocumentByContractId = useMemo(() => {
+    const docs = Array.isArray(allDocuments) ? [...allDocuments] : [];
+    docs.sort((a, b) =>
+      String(b?.tanggalDokumen ?? "").localeCompare(
+        String(a?.tanggalDokumen ?? ""),
+      ),
+    );
+
+    const map = new Map();
+    docs.forEach((doc) => {
+      if (String(doc?.jenisDokumen ?? "").toLowerCase() !== "kontrak") {
+        return;
+      }
+      const key = Number(doc?.contractId);
+      if (!Number.isFinite(key)) {
+        return;
+      }
+      if (!map.has(key)) {
+        map.set(key, doc);
+      }
+    });
+    return map;
+  }, [allDocuments]);
   const todayIso = new Date().toISOString().slice(0, 10);
   const activationFeePaidAt =
     detail?.activationFeePaidAt ?? customer?.activationFeePaidAt ?? null;
@@ -507,8 +531,9 @@ function TenantDetailPage({
     const hasPaymentProof =
       typeof invoice?.paymentProofFileUrl === "string" &&
       invoice.paymentProofFileUrl.trim().length > 0;
+    const hasPaidAt = typeof invoice?.paidAt === "string" && invoice.paidAt.trim().length > 0;
 
-    if (hasPaymentProof) {
+    if (hasPaymentProof || hasPaidAt) {
       return {
         key: "paid",
         label: "Paid",
@@ -1211,6 +1236,46 @@ function TenantDetailPage({
     }
   };
 
+  const handleUploadContractFile = async ({ contractId, file }) => {
+    if (!contractId) {
+      setError("Kontrak beroperasi tidak ditemukan untuk upload berkas kontrak.");
+      return;
+    }
+    if (!(file instanceof File)) {
+      setError("File kontrak wajib dipilih terlebih dahulu.");
+      return;
+    }
+
+    setIsUploadingContractFile(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("jenisDokumen", "kontrak");
+      if (String(contract?.contractNumber ?? "").trim()) {
+        formData.append("nomorDokumen", String(contract.contractNumber).trim());
+      }
+      formData.append("tanggalDokumen", todayIso);
+      formData.append("contractId", String(contractId));
+      formData.append("file", file);
+
+      await fetchJson(`${API_BASE_URL}/api/customers/${customer.id}/documents`, {
+        method: "POST",
+        body: formData,
+      });
+
+      setDocumentFeedback("Berkas kontrak berhasil diunggah.");
+      await Promise.all([loadDetail(), onRefreshAll?.()]);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Terjadi kesalahan saat mengunggah berkas kontrak.",
+      );
+    } finally {
+      setIsUploadingContractFile(false);
+    }
+  };
+
   const handleRemoveTenantLinks = async () => {
     setIsDeletingLink(true);
     setDeleteError("");
@@ -1901,6 +1966,51 @@ function TenantDetailPage({
     }
   };
 
+  const handleMarkInvoiceAsPaid = async (invoice) => {
+    if (!invoice) {
+      return;
+    }
+
+    const alreadyPaid =
+      typeof invoice?.paidAt === "string" && invoice.paidAt.trim().length > 0;
+    if (alreadyPaid) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Tandai invoice pembayaran ke-${invoice.paymentOrder ?? ""} sebagai SUDAH BAYAR?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsSavingInvoice(true);
+    setError("");
+    setInvoiceFeedback("");
+    try {
+      await fetchJson(
+        `${API_BASE_URL}/api/customers/${customer.id}/invoices/${invoice.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paidAt: todayIso,
+          }),
+        },
+      );
+      setInvoiceFeedback(`Invoice #${invoice.id} ditandai sudah bayar.`);
+      await Promise.all([loadDetail(), onRefreshAll?.()]);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Gagal menandai invoice sebagai sudah bayar.",
+      );
+    } finally {
+      setIsSavingInvoice(false);
+    }
+  };
+
   const handleApplyGlobalSetDate = async () => {
     const requestedDay = Number(invoiceFixedDueDay);
     if (
@@ -2437,6 +2547,11 @@ function TenantDetailPage({
                 label="Butuh Action"
                 value={totalActionItems}
                 icon="pending_actions"
+              />
+              <SummaryCard
+                label="Awal Kontrak"
+                value={detail?.contractStartDate ? formatDate(detail.contractStartDate) : "-"}
+                icon="event"
               />
               <SummaryCard
                 label="Status Aktivasi"
@@ -3298,6 +3413,7 @@ function TenantDetailPage({
                   <tr className="border-b border-slate-200 bg-slate-50/50">
                     <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">No</th>
                     <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Nomor Kontrak</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Berkas Kontrak</th>
                     <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Keterangan</th>
                     <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Awal</th>
                     <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Akhir</th>
@@ -3313,6 +3429,11 @@ function TenantDetailPage({
                   {contractRowsForTable.map((row) => {
                     const isContractNumberMarkedEmpty = Boolean(emptyContractNumberRows[row.id]);
                     const isBakMarkedEmpty = Boolean(emptyBakRows[row.id]);
+                    const contractDoc = row.contractId
+                      ? contractDocumentByContractId.get(Number(row.contractId))
+                      : null;
+                    const contractFileUrl = String(contractDoc?.fileUrl ?? "");
+                    const hasContractFile = isOpenableFileUrl(contractFileUrl);
 
                     return (
                       <tr key={row.id} className="hover:bg-slate-50/30 transition-colors">
@@ -3355,6 +3476,42 @@ function TenantDetailPage({
                               </div>
                             </div>
                           )}
+                        </td>
+                        <td className="px-4 py-4 text-sm">
+                          <div className="flex flex-col items-start gap-1">
+                            <input
+                              className="w-44 text-[10px] text-on-surface-variant file:mr-2 file:rounded-md file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:text-primary disabled:opacity-60"
+                              disabled={!row.contractId || isUploadingContractFile}
+                              onChange={(event) => {
+                                const file = event.target.files?.[0] ?? null;
+                                if (!file) return;
+                                void handleUploadContractFile({
+                                  contractId: row.contractId,
+                                  file,
+                                });
+                              }}
+                              type="file"
+                            />
+                            <p
+                              className={`text-[10px] font-semibold ${hasContractFile ? "text-emerald-600" : "text-amber-600"}`}
+                            >
+                              {isUploadingContractFile
+                                ? "Mengunggah..."
+                                : hasContractFile
+                                  ? "Kontrak terupload"
+                                  : "Belum ada berkas kontrak"}
+                            </p>
+                            {hasContractFile && (
+                              <a
+                                className="text-[10px] font-bold text-primary hover:underline"
+                                href={contractFileUrl}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                Buka kontrak
+                              </a>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-4 text-sm">
                           <span className="inline-block rounded-md bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700 uppercase tracking-tight">
@@ -3428,7 +3585,7 @@ function TenantDetailPage({
                   })}
                   {contractRowsForTable.length === 0 && (
                     <tr>
-                      <td className="px-4 py-12 text-center text-sm text-on-surface-variant italic" colSpan="11">Belum ada data kontrak.</td>
+                      <td className="px-4 py-12 text-center text-sm text-on-surface-variant italic" colSpan="12">Belum ada data kontrak.</td>
                     </tr>
                   )}
                 </tbody>
@@ -3440,6 +3597,11 @@ function TenantDetailPage({
               {contractRowsForTable.map((row) => {
                 const isContractNumberMarkedEmpty = Boolean(emptyContractNumberRows[row.id]);
                 const isBakMarkedEmpty = Boolean(emptyBakRows[row.id]);
+                const contractDoc = row.contractId
+                  ? contractDocumentByContractId.get(Number(row.contractId))
+                  : null;
+                const contractFileUrl = String(contractDoc?.fileUrl ?? "");
+                const hasContractFile = isOpenableFileUrl(contractFileUrl);
 
                 return (
                   <div key={row.id} className="rounded-xl border border-slate-100 bg-slate-50/30 p-4 space-y-4 shadow-sm">
@@ -3493,6 +3655,42 @@ function TenantDetailPage({
                             </div>
                           </div>
                         )}
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Berkas Kontrak</label>
+                        <div className="flex flex-col items-start gap-1">
+                          <input
+                            className="text-[10px] w-full text-on-surface-variant file:mr-2 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-[10px] file:text-primary disabled:opacity-60"
+                            disabled={!row.contractId || isUploadingContractFile}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0] ?? null;
+                              if (!file) return;
+                              void handleUploadContractFile({
+                                contractId: row.contractId,
+                                file,
+                              });
+                            }}
+                            type="file"
+                          />
+                          <p className={`text-[10px] font-semibold ${hasContractFile ? "text-emerald-600" : "text-amber-600"}`}>
+                            {isUploadingContractFile
+                              ? "Mengunggah..."
+                              : hasContractFile
+                                ? "Kontrak terupload"
+                                : "Belum ada berkas kontrak"}
+                          </p>
+                          {hasContractFile && (
+                            <a
+                              className="text-[10px] font-bold text-primary hover:underline"
+                              href={contractFileUrl}
+                              rel="noreferrer"
+                              target="_blank"
+                            >
+                              Buka kontrak
+                            </a>
+                          )}
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -3925,7 +4123,9 @@ function TenantDetailPage({
                             <p className="text-[10px] font-semibold text-emerald-600">
                               {invoice.paymentProofFileUrl
                                 ? `Bukti bayar: ${formatDate(invoice.paidAt)}`
-                                : "Belum ada bukti bayar"}
+                                : invoice.paidAt
+                                  ? `Sudah ditandai bayar: ${formatDate(invoice.paidAt)}`
+                                  : "Belum ada bukti bayar"}
                             </p>
                             {isOpenableFileUrl(invoice.paymentProofFileUrl) && (
                               <a
@@ -3965,15 +4165,27 @@ function TenantDetailPage({
                               </button>
                             </div>
                           ) : (
-                            <button
-                              className="rounded border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100"
-                              onClick={() => {
-                                setInvoiceEditingId(invoice.id);
-                              }}
-                              type="button"
-                            >
-                              Edit
-                            </button>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                className="rounded border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={statusMeta.key === "paid" || isSavingInvoice}
+                                onClick={() => {
+                                  void handleMarkInvoiceAsPaid(invoice);
+                                }}
+                                type="button"
+                              >
+                                {statusMeta.key === "paid" ? "Sudah Bayar" : "Tandai Sudah Bayar"}
+                              </button>
+                              <button
+                                className="rounded border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100"
+                                onClick={() => {
+                                  setInvoiceEditingId(invoice.id);
+                                }}
+                                type="button"
+                              >
+                                Edit
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>

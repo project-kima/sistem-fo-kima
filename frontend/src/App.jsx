@@ -344,6 +344,19 @@ function App() {
                 ispOptions={ispOptions}
                 onNavigate={handleNavigate}
                 onOpenCustomerById={handleOpenCustomerById}
+                onOpenTableOnly={() => navigateTo(APP_PATHS.monitoringFullscreen)}
+            />
+        );
+    }
+
+    if (route.type === "monitoring-fullscreen") {
+        return (
+            <MonitoringSpreadsheetPage
+                ispOptions={ispOptions}
+                layout="plain"
+                onOpenCustomerById={handleOpenCustomerById}
+                tableOnly
+                onCloseTableOnly={() => navigateTo(APP_PATHS.monitoring)}
             />
         );
     }

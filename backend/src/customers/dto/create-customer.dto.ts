@@ -10,25 +10,21 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { BillingUnit, CustomerStatus } from '../../shared/types/domain.types';
+import { BillingUnit, CustomerStatus } from '../shared/types/domain.types';
 
 export class CreateInvoiceDraftDto {
-  @IsDateString()
-  periodStartDate!: string;
-
-  @IsDateString()
-  periodEndDate!: string;
-
   @IsOptional()
   @IsString()
-  invoiceNumber?: string;
+  invoiceNumber?: string | null;
+
+  @IsDateString()
+  periodStartDate: string;
+
+  @IsDateString()
+  periodEndDate: string;
 
   @IsNumber()
-  amount!: number;
-
-  @IsOptional()
-  @IsDateString()
-  paidAt?: string | null;
+  amount: number;
 
   @IsOptional()
   @IsString()
@@ -37,18 +33,19 @@ export class CreateInvoiceDraftDto {
   @IsOptional()
   @IsString()
   paymentProofFileUrl?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  paidAt?: string | null;
 }
 
 export class CreateCustomerDto {
+  @IsOptional()
   @IsString()
-  name!: string;
-
-  @IsString()
-  ispName!: string;
+  ispName?: string;
 
   @IsOptional()
   @IsArray()
-  @IsInt({ each: true })
   ispIds?: number[];
 
   @IsOptional()
@@ -56,9 +53,11 @@ export class CreateCustomerDto {
   @IsString({ each: true })
   newIspNames?: string[];
 
-  @IsOptional()
+  @IsString()
+  name: string;
+
   @IsEnum(CustomerStatus)
-  status?: CustomerStatus;
+  status: CustomerStatus;
 
   @IsOptional()
   @IsNumber()
@@ -78,6 +77,14 @@ export class CreateCustomerDto {
 
   @IsOptional()
   @IsDateString()
+  contractPeriodStart?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  contractPeriodEnd?: string | null;
+
+  @IsOptional()
+  @IsDateString()
   contractEndDate?: string | null;
 
   @IsOptional()
@@ -85,16 +92,16 @@ export class CreateCustomerDto {
   paket?: 'core' | 'shared';
 
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   jumlah?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   contractCoreTotal?: number;
 
   @IsOptional()
   @IsString()
-  contractSharingRatio?: string;
+  contractSharingRatio?: string | null;
 
   @IsOptional()
   @IsIn(['bulanan', '3bulanan', 'custom'])

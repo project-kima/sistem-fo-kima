@@ -468,10 +468,9 @@ export class PrismaIspsService {
 
   async createIsp(payload: CreateIspDto) {
     const name = this.normalizeRequiredString(payload.name, 'name');
-    const contractReference = this.normalizeRequiredString(
-      payload.contractReference,
-      'contractReference',
-    );
+    const contractReference =
+      this.normalizeOptionalString(payload.contractReference) ?? null;
+    const contractReferenceRowValue = contractReference ?? '';
     const contractPeriodStart = this.parseOptionalIsoDate(
       payload.contractPeriodStart,
       'contractPeriodStart',
@@ -534,7 +533,7 @@ export class PrismaIspsService {
       const row = await tx.ispContractRow.create({
         data: {
           ispId: isp.id,
-          contractReference,
+          contractReference: contractReferenceRowValue,
           periodStart: contractPeriodStart
             ? parseDate(contractPeriodStart)
             : null,

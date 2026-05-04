@@ -54,11 +54,6 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
             return;
         }
 
-        if (!isEditMode && !form.contractReference.trim()) {
-            setSubmitError("Nomor kontrak induk wajib diisi.");
-            return;
-        }
-
         if (
             !isEditMode &&
             form.contractPeriodStart &&
@@ -85,7 +80,7 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
                 : {
                     name: form.name.trim(),
                     status: form.status,
-                    contractReference: form.contractReference.trim(),
+                    contractReference: form.contractReference.trim() || undefined,
                     contractStartDate: form.contractStartDate || null,
                     contractPeriodStart: form.contractPeriodStart || null,
                     contractPeriodEnd: form.contractPeriodEnd || null,
@@ -208,7 +203,7 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
 
                         {!isEditMode && (
                             <>
-                                <FieldInput label="Nomor kontrak induk" value={form.contractReference} onChange={(value) => setForm((previous) => ({ ...previous, contractReference: value }))} />
+                                <FieldInput label="Nomor kontrak induk (Opsional)" value={form.contractReference} onChange={(value) => setForm((previous) => ({ ...previous, contractReference: value }))} />
                                 <FieldInput label="Awal kontrak" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
                                 <FieldInput label="Periode berjalan mulai" type="date" value={form.contractPeriodStart} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodStart: value }))} />
                                 <FieldInput label="Periode berjalan akhir" type="date" value={form.contractPeriodEnd} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodEnd: value }))} />

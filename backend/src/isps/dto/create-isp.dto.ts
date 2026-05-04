@@ -15,8 +15,9 @@ export class CreateIspDto {
   @IsEnum(IspStatus)
   status?: IspStatus;
 
+  @IsOptional()
   @IsString()
-  contractReference!: string;
+  contractReference?: string | null;
 
   @IsOptional()
   @IsDateString()

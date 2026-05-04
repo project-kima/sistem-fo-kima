@@ -7,6 +7,7 @@ import {
   InvoiceStatus,
   MonitoringAlert,
   MonitoringBillingRow,
+  RouteFlowStatus,
 } from '../shared/types/domain.types';
 
 const toIsoDate = (value: Date | null | undefined): string | null =>
@@ -87,6 +88,10 @@ export class PrismaMonitoringService {
       status?: InvoiceStatus;
     },
   ): Promise<MonitoringBillingRow[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    const currentMonth = new Date(today).getUTCMonth() + 1;
+    const currentYear = new Date(today).getUTCFullYear();
+
     const customers = await this.prisma.customer.findMany({
       where: { status: CustomerStatus.Aktif },
       orderBy: { name: 'asc' },
@@ -109,6 +114,10 @@ export class PrismaMonitoringService {
           },
           orderBy: [{ periodMonth: 'asc' }, { id: 'asc' }],
         },
+        routeVersions: {
+          orderBy: { versionNumber: 'desc' },
+          take: 1,
+        },
       },
     });
 
@@ -116,7 +125,12 @@ export class PrismaMonitoringService {
       const customerIsps = [...(customer.ispMemberships ?? [])]
         .map((membership) => membership.isp)
         .sort((left, right) => left.name.localeCompare(right.name));
-      const primaryIspName = customerIsps[0]?.name ?? customer.ispName ?? '-';
+      
+      const primaryIsp = customerIsps[0];
+      const primaryIspName = primaryIsp?.name ?? customer.ispName ?? '-';
+      const ispContractStart = primaryIsp?.contractStartDate 
+        ? primaryIsp.contractStartDate.toISOString().slice(0, 10) 
+        : null;
 
       const contract = [...(customer.contracts ?? [])].sort(
         (left, right) => right.id - left.id,
@@ -124,6 +138,20 @@ export class PrismaMonitoringService {
       const latestVersion = [...(contract?.versions ?? [])].sort(
         (left, right) => right.versionNumber - left.versionNumber,
       )[0];
+
+      // Find current month invoice, or fallback to the most recent one issued
+      let currentMonthInvoice = customer.invoices.find(
+        (inv) => inv.periodYear === currentYear && inv.periodMonth === currentMonth && inv.scheduleStatus === 'active'
+      );
+
+      if (!currentMonthInvoice) {
+        currentMonthInvoice = [...customer.invoices]
+          .filter(inv => inv.scheduleStatus === 'active')
+          .sort((a, b) => {
+            if (a.periodYear !== b.periodYear) return b.periodYear - a.periodYear;
+            return b.periodMonth - a.periodMonth;
+          })[0];
+      }
 
       const months = Array.from({ length: 12 }, (_, monthIndex) => {
         const month = monthIndex + 1;
@@ -144,8 +172,12 @@ export class PrismaMonitoringService {
         customerCode: customer.customerCode,
         ispName: primaryIspName,
         ispNames: customerIsps.map((isp) => isp.name),
+        ispContractStart,
         customerName: customer.name,
         customerStatus: customer.status as CustomerStatus,
+        contractNumber: contract?.contractNumber ?? null,
+        currentInvoiceNumber: currentMonthInvoice?.invoiceNumber ?? null,
+        routeStatus: (customer.routeVersions[0]?.flowStatus as RouteFlowStatus) ?? null,
         activationFeeAmount: Number(customer.activationFeeAmount ?? 0),
         activationFeePaidAt: customer.activationFeePaidAt
           ? customer.activationFeePaidAt.toISOString()

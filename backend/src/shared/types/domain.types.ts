@@ -369,8 +369,12 @@ export interface MonitoringBillingRow {
   customerCode: string;
   ispName: string;
   ispNames?: string[];
+  ispContractStart: string | null;
   customerName: string;
   customerStatus: CustomerStatus;
+  contractNumber: string | null;
+  currentInvoiceNumber: string | null;
+  routeStatus: RouteFlowStatus | null;
   activationFeeAmount: number;
   activationFeePaidAt: string | null;
   contractStart: string | null;

@@ -276,6 +276,9 @@ export class PrismaCustomersReadService {
         activationFeePaidAt: customer.activationFeePaidAt
           ? customer.activationFeePaidAt.toISOString()
           : null,
+        contractStartDate: customer.contractStartDate
+          ? customer.contractStartDate.toISOString().slice(0, 10)
+          : null,
         isps: isps.map((isp) => ({
           id: isp.id,
           name: isp.name,
@@ -664,7 +667,7 @@ export class PrismaCustomersReadService {
       }),
     );
 
-    const customerRecord = {
+      const customerRecord = {
       id: customer.id,
       customerCode: customer.customerCode,
       ispName: customer.ispName,
@@ -673,6 +676,9 @@ export class PrismaCustomersReadService {
       activationFeeAmount: toNumber(customer.activationFeeAmount),
       activationFeePaidAt: customer.activationFeePaidAt
         ? toIsoTimestamp(customer.activationFeePaidAt)
+        : null,
+      contractStartDate: customer.contractStartDate
+        ? toIsoDate(customer.contractStartDate)
         : null,
       createdAt: toIsoTimestamp(customer.createdAt),
       updatedAt: toIsoTimestamp(customer.updatedAt),

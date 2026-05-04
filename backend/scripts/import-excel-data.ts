@@ -4,10 +4,18 @@ import * as path from 'path';
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 import { PrismaClient, CustomerStatus, CoreAllocationType, IspStatus, IspPackageType, InvoiceStatus } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'fs';
 
 async function main() {
-  const prisma = new PrismaClient();
+  const connectionString = process.env.DATABASE_URL?.trim();
+  if (!connectionString) {
+    throw new Error('DATABASE_URL environment variable is not set');
+  }
+
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
 
   const dataPath = path.join(__dirname, 'import-data.json');
   const rawData = fs.readFileSync(dataPath, 'utf-8');
