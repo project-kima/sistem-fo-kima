@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { SummaryCard } from "../../components/shared/AppShared";
 import { API_BASE_URL, fetchJson } from "../../app/utils";
@@ -19,7 +19,7 @@ function CustomerWorkspacePage({
 }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [listType, setListType] = useState("current");
-    const [selectedIspFilter, setSelectedIspFilter] = useState("all");
+    const [ispSortMethod, setIspSortMethod] = useState("newest");
     const [contractStatusFilter, setContractStatusFilter] = useState("all");
     const [routeStatusFilter, setRouteStatusFilter] = useState("all");
     const [todoFilter, setTodoFilter] = useState("all");
@@ -41,15 +41,6 @@ function CustomerWorkspacePage({
 
     // --- LOGIC: Filter ISP ---
     const filteredIsps = useMemo(() => isps, [isps]);
-
-    const ispFilterOptions = useMemo(
-        () => filteredIsps.map((isp) => isp.name).sort((a, b) => a.localeCompare(b)),
-        [filteredIsps],
-    );
-
-    const effectiveSelectedIspFilter = selectedIspFilter !== "all" && !ispFilterOptions.includes(selectedIspFilter)
-        ? "all"
-        : selectedIspFilter;
 
     // Global toggle to show empty ISP groups (only in current list and if no specific filters are active)
     const shouldIncludeEmptyIspGroups = listType === "current"
@@ -96,9 +87,8 @@ function CustomerWorkspacePage({
     // --- LOGIC: Groups & Tenants ---
     const allGroups = useMemo(() => {
         const knownIspNames = new Set(filteredIsps.map(isp => isp.name));
-
+        
         const groups = filteredIsps
-            .filter((isp) => effectiveSelectedIspFilter === "all" || isp.name === effectiveSelectedIspFilter)
             .map((isp) => {
                 const tenants = filteredTenants.filter(t => Array.isArray(t.ispList) && t.ispList.includes(isp.name));
 
@@ -135,39 +125,43 @@ function CustomerWorkspacePage({
             });
 
         // Add "Lainnya" group for tenants whose ISP is not in the master list
-        if (effectiveSelectedIspFilter === "all") {
-            const otherTenants = filteredTenants.filter(t =>
-                !Array.isArray(t.ispList) || t.ispList.every(name => !knownIspNames.has(name))
-            );
+        const otherTenants = filteredTenants.filter(t =>
+            !Array.isArray(t.ispList) || t.ispList.every(name => !knownIspNames.has(name))
+        );
 
-            if (otherTenants.length > 0) {
-                groups.push({
-                    id: "other",
-                    name: "Tenant Tanpa ISP Terdaftar",
-                    logoUrl: null,
-                    contractReference: "Kumpulan tenant yang belum terhubung ke ISP master",
-                    tenants: otherTenants.sort((a, b) => a.name.localeCompare(b.name)),
-                    activeTenantCount: otherTenants.filter((tenant) => isTenantActive(tenant)).length,
-                    actionTenantCount: otherTenants.filter((tenant) => {
-                        const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                        const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                        return priorityCount + needActionCount > 0;
-                    }).length,
-                    totalActionCount: otherTenants.reduce((total, tenant) => {
-                        const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                        const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                        return total + priorityCount + needActionCount;
-                    }, 0),
-                });
-            }
+        if (otherTenants.length > 0) {
+            groups.push({
+                id: "other",
+                name: "Tenant Tanpa ISP Terdaftar",
+                logoUrl: null,
+                contractReference: "Kumpulan tenant yang belum terhubung ke ISP master",
+                tenants: otherTenants.sort((a, b) => a.name.localeCompare(b.name)),
+                activeTenantCount: otherTenants.filter((tenant) => isTenantActive(tenant)).length,
+                actionTenantCount: otherTenants.filter((tenant) => {
+                    const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
+                    const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
+                    return priorityCount + needActionCount > 0;
+                }).length,
+                totalActionCount: otherTenants.reduce((total, tenant) => {
+                    const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
+                    const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
+                    return total + priorityCount + needActionCount;
+                }, 0),
+            });
         }
 
         return groups.sort((a, b) => {
             if (a.id === "other") return 1;
             if (b.id === "other") return -1;
-            return a.name.localeCompare(b.name);
+
+            if (ispSortMethod === "oldest") return a.id - b.id;
+            if (ispSortMethod === "name_asc") return a.name.localeCompare(b.name);
+            if (ispSortMethod === "name_desc") return b.name.localeCompare(a.name);
+
+            // Default: newest first
+            return b.id - a.id;
         });
-    }, [filteredIsps, filteredTenants, effectiveSelectedIspFilter, shouldIncludeEmptyIspGroups, normalizedSearch]);
+    }, [filteredIsps, filteredTenants, shouldIncludeEmptyIspGroups, normalizedSearch, ispSortMethod]);
 
     const totalPages = Math.ceil(allGroups.length / itemsPerPage);
     const paginatedGroups = useMemo(() => {
@@ -181,14 +175,14 @@ function CustomerWorkspacePage({
     const filteredTenantCount = allGroups.reduce((total, group) => total + group.tenants.length, 0);
     const filteredActionTenantCount = allGroups.reduce((total, group) => total + group.actionTenantCount, 0);
     const isAnyFilterActive = Boolean(normalizedSearch)
-        || effectiveSelectedIspFilter !== "all"
         || contractStatusFilter !== "all"
         || routeStatusFilter !== "all"
-        || todoFilter !== "all";
+        || todoFilter !== "all"
+        || ispSortMethod !== "newest";
 
     const handleResetFilters = () => {
         setSearchTerm("");
-        setSelectedIspFilter("all");
+        setIspSortMethod("newest");
         setContractStatusFilter("all");
         setRouteStatusFilter("all");
         setTodoFilter("all");
@@ -286,17 +280,17 @@ function CustomerWorkspacePage({
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={onOpenCreateIsp}
-                            className="glass-card inline-flex items-center gap-2 rounded-2xl px-6 py-4 text-sm font-bold text-on-surface hover:bg-white transition-all active:scale-95"
+                            className="glass-card h-[56px] inline-flex items-center gap-2 rounded-2xl px-6 text-sm font-bold text-on-surface hover:bg-white transition-all active:scale-95"
                         >
                             <span className="material-symbols-outlined text-primary">add_link</span>
                             ISP Baru
                         </button>
                         <button
                             onClick={onOpenCreateTenant}
-                            className="btn-gradient inline-flex items-center gap-2 rounded-2xl px-6 py-4 text-sm font-bold active:scale-95"
+                            className="btn-gradient h-[56px] inline-flex items-center gap-2 rounded-2xl px-6 text-sm font-bold active:scale-95"
                         >
                             <span className="material-symbols-outlined">person_add</span>
                             Tenant Baru
@@ -362,59 +356,79 @@ function CustomerWorkspacePage({
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-                        <div className="relative xl:col-span-2 group">
-                            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface/30 group-focus-within:text-primary transition-colors">search</span>
-                            <input
-                                className="glass-input w-full rounded-2xl py-4 pl-12 pr-4 text-sm font-medium outline-none"
-                                onChange={(e) => handleFilterChange(setSearchTerm, e.target.value)}
-                                placeholder="Cari ID, ISP, atau nama tenant..."
-                                type="text"
-                                value={searchTerm}
-                            />
+                    <div className="relative group">
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface/30 group-focus-within:text-primary transition-colors">search</span>
+                        <input
+                            className="glass-input w-full rounded-2xl py-4 pl-12 pr-4 text-sm font-medium outline-none"
+                            onChange={(e) => handleFilterChange(setSearchTerm, e.target.value)}
+                            placeholder="Cari ID, ISP, atau nama tenant..."
+                            type="text"
+                            value={searchTerm}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <div className="relative">
+                            <select
+                                className="glass-input w-full rounded-2xl pl-4 pr-10 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
+                                onChange={(e) => handleFilterChange(setContractStatusFilter, e.target.value)}
+                                value={contractStatusFilter}
+                            >
+                                <option value="all">Status Kontrak</option>
+                                <option value="beroperasi">Beroperasi</option>
+                                <option value="expired">Expired</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface/40 text-lg">
+                                expand_more
+                            </span>
                         </div>
 
-                        <select
-                            className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => handleFilterChange(setSelectedIspFilter, e.target.value)}
-                            value={effectiveSelectedIspFilter}
-                        >
-                            <option value="all">Semua ISP</option>
-                            {ispFilterOptions.map((name) => (
-                                <option key={name} value={name}>{name}</option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                className="glass-input w-full rounded-2xl pl-4 pr-10 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
+                                onChange={(e) => handleFilterChange(setRouteStatusFilter, e.target.value)}
+                                value={routeStatusFilter}
+                            >
+                                <option value="all">Status Jalur</option>
+                                <option value="aktif">Aktif</option>
+                                <option value="nonaktif">Nonaktif</option>
+                                <option value="gangguan">Gangguan</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface/40 text-lg">
+                                expand_more
+                            </span>
+                        </div>
 
-                        <select
-                            className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => handleFilterChange(setContractStatusFilter, e.target.value)}
-                            value={contractStatusFilter}
-                        >
-                            <option value="all">Status Kontrak</option>
-                            <option value="beroperasi">Beroperasi</option>
-                            <option value="expired">Expired</option>
-                        </select>
+                        <div className="relative">
+                            <select
+                                className="glass-input w-full rounded-2xl pl-4 pr-10 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
+                                onChange={(e) => handleFilterChange(setTodoFilter, e.target.value)}
+                                value={todoFilter}
+                            >
+                                <option value="all">Status Tindakan</option>
+                                <option value="perlu_tindakan">⚠️ Perlu Tindakan</option>
+                                <option value="tidak_ada">✅ Selesai</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface/40 text-lg">
+                                expand_more
+                            </span>
+                        </div>
 
-                        <select
-                            className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => handleFilterChange(setRouteStatusFilter, e.target.value)}
-                            value={routeStatusFilter}
-                        >
-                            <option value="all">Status Jalur</option>
-                            <option value="aktif">Aktif</option>
-                            <option value="nonaktif">Nonaktif</option>
-                            <option value="gangguan">Gangguan</option>
-                        </select>
-
-                        <select
-                            className="glass-input rounded-2xl px-4 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
-                            onChange={(e) => handleFilterChange(setTodoFilter, e.target.value)}
-                            value={todoFilter}
-                        >
-                            <option value="all">Status Tindakan</option>
-                            <option value="perlu_tindakan">⚠️ Perlu Tindakan</option>
-                            <option value="tidak_ada">✅ Selesai</option>
-                        </select>
+                        <div className="relative">
+                            <select
+                                className="glass-input w-full rounded-2xl pl-4 pr-10 py-4 text-sm font-bold outline-none cursor-pointer appearance-none"
+                                onChange={(e) => handleFilterChange(setIspSortMethod, e.target.value)}
+                                value={ispSortMethod}
+                            >
+                                <option value="newest">Urutan: Terbaru</option>
+                                <option value="oldest">Urutan: Terlama</option>
+                                <option value="name_asc">Urutan: Nama A-Z</option>
+                                <option value="name_desc">Urutan: Nama Z-A</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface/40 text-lg">
+                                expand_more
+                            </span>
+                        </div>
                     </div>
 
                     {/* Filter Indicators */}
