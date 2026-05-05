@@ -647,10 +647,13 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                         <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
                             <div>
                                 <h2 className="text-lg font-bold text-on-surface">Tenant di Bawah ISP Ini</h2>
-                                <div className="mt-2 flex items-center gap-3">
+                                <div className="mt-2 flex flex-wrap items-center gap-3">
                                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">Total: {tenants.length}</span>
-                                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Aktif: {tenants.filter(t => t.status === "aktif").length}</span>
-                                    <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">Non-aktif: {tenants.filter(t => t.status !== "aktif").length}</span>
+                                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Beroperasi: {tenants.filter(t => t.status === "aktif" || t.status === "expired").length}</span>
+                                    <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">Berhenti: {tenants.filter(t => t.status === "berhenti" || (!["aktif", "expired"].includes(t.status))).length}</span>
+                                    <span className="h-4 w-[1px] bg-slate-300"></span>
+                                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">Jalur Aktif: {tenants.filter(t => (t.route?.activeFlowStatus ?? t.status_jalur) === "aktif").length}</span>
+                                    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">Jalur Tidak Aktif/Gangguan: {tenants.filter(t => ["nonaktif", "gangguan"].includes(t.route?.activeFlowStatus ?? t.status_jalur)).length}</span>
                                 </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -673,7 +676,8 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                                         <tr className="border-b border-slate-100 bg-slate-50">
                                             <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">No</th>
                                             <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Tenant</th>
-                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Status</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Status Kontrak</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Status Jalur</th>
                                             <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Paket</th>
                                             <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Jumlah</th>
                                             <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-on-surface-variant">To Do</th>
@@ -686,7 +690,16 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                                                 <td className="px-4 py-3 text-sm font-medium text-on-surface-variant">{idx + 1}</td>
                                                 <td className="px-4 py-3 text-sm font-bold text-on-surface">{tenant.name}</td>
                                                 <td className="px-4 py-3 text-sm text-on-surface-variant">
-                                                    <span className={`rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${tenant.status === 'aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{tenant.status === "aktif" ? "Aktif" : "Non-aktif"}</span>
+                                                    <span className={`rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${['aktif', 'expired'].includes(tenant.status) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{['aktif', 'expired'].includes(tenant.status) ? "Beroperasi" : "Berhenti"}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-on-surface-variant">
+                                                    {(() => {
+                                                        const routeStatus = tenant.route?.activeFlowStatus ?? tenant.status_jalur;
+                                                        if (routeStatus === 'aktif') return <span className="rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest bg-emerald-100 text-emerald-800">Aktif</span>;
+                                                        if (routeStatus === 'gangguan') return <span className="rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest bg-rose-100 text-rose-800">Gangguan</span>;
+                                                        if (routeStatus === 'nonaktif') return <span className="rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-800">Non-aktif</span>;
+                                                        return <span className="text-xs text-slate-400 font-bold">-</span>;
+                                                    })()}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-on-surface-variant">{(tenant.paket || "-").toUpperCase()}</td>
                                                 <td className="px-4 py-3 text-sm font-medium text-slate-700">{tenant.contractSharingRatio ?? tenant.jumlah ?? "-"}</td>
