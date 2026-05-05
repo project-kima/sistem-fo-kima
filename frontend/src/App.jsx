@@ -8,6 +8,7 @@ import TenantDetailPage from "./features/pelanggan/TenantDetailPage";
 import TenantAdminFormPage from "./features/pelanggan/TenantAdminFormPage";
 import IspAdminFormPage from "./features/pelanggan/IspAdminFormPage";
 import LoginPage from "./features/login/LoginPage";
+import TrashPage from "./features/trash/TrashPage";
 import { sectionMeta } from "./app/constants";
 import { API_BASE_URL, fetchJson, mapCustomerToRow } from "./app/utils";
 import {
@@ -363,7 +364,7 @@ function App() {
 
     if (route.type === "section" && route.sectionKey === "trash") {
         return (
-            <SectionPlaceholderPage
+            <TrashPage
                 activeSection={activeSection}
                 onNavigate={handleNavigate}
             />

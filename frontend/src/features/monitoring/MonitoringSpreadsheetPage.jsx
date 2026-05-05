@@ -463,13 +463,13 @@ function MonitoringSpreadsheetPage({
                         </tr>
                         <tr className="bg-slate-50">
                             <th
-                                className="sticky z-40 w-[120px] px-4 py-2 text-center font-bold text-[10px] uppercase text-blue-900 bg-slate-50 border-b border-r border-slate-200"
+                                className="sticky z-30 w-[120px] px-4 py-2 text-center font-bold text-[10px] uppercase text-blue-900 bg-slate-50 border-b border-r border-slate-200"
                                 style={{ top: headerRow1Height }}
                             >
                                 Awal
                             </th>
                             <th
-                                className="sticky z-40 w-[120px] px-4 py-2 text-center font-bold text-[10px] uppercase text-blue-900 bg-slate-50 border-b border-r border-slate-200"
+                                className="sticky z-30 w-[120px] px-4 py-2 text-center font-bold text-[10px] uppercase text-blue-900 bg-slate-50 border-b border-r border-slate-200"
                                 style={{ top: headerRow1Height }}
                             >
                                 Akhir
@@ -477,7 +477,7 @@ function MonitoringSpreadsheetPage({
                             {monitoringMonths.map((month) => (
                                 <th
                                     key={month}
-                                    className="sticky z-40 w-12 px-2 py-2 text-center font-bold text-[10px] uppercase text-blue-900 bg-slate-50 border-b border-r border-slate-200"
+                                    className="sticky z-30 w-12 px-2 py-2 text-center font-bold text-[10px] uppercase text-blue-900 bg-slate-50 border-b border-r border-slate-200"
                                     style={{ top: headerRow1Height }}
                                 >
                                     {month}
