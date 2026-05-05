@@ -1,11 +1,28 @@
 import { useMemo, useState } from "react";
-import { FieldInput, FieldSelect } from "../../components/shared/AppShared";
-import { APP_ROLES } from "../../roles";
+import { FieldInput } from "../../components/shared/AppShared";
 
-const roleOptions = [
-    { value: APP_ROLES.admin, label: "Administrator" },
-    { value: APP_ROLES.teknisi, label: "Teknisi" },
-    { value: APP_ROLES.isp, label: "ISP" },
+const devQuickAccounts = [
+    {
+        key: "admin",
+        label: "Admin",
+        description: "Akses penuh",
+        identifier: "admin",
+        password: "Admin123!",
+    },
+    {
+        key: "teknisi",
+        label: "Teknisi",
+        description: "Operasional lapangan",
+        identifier: "teknisi",
+        password: "Teknisi123!",
+    },
+    {
+        key: "isp",
+        label: "ISP",
+        description: "Mitra ISP",
+        identifier: "isp",
+        password: "Isp12345!",
+    },
 ];
 
 /**
@@ -28,9 +45,9 @@ export default function LoginPage({ onLoginSuccess }) {
     const [form, setForm] = useState({
         identifier: "",
         password: "",
-        role: APP_ROLES.admin,
     });
     const [error, setError] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const adminWhatsAppNumber = import.meta.env.VITE_ADMIN_WHATSAPP_NUMBER ?? "";
     const adminWhatsAppLink = useMemo(
@@ -38,8 +55,29 @@ export default function LoginPage({ onLoginSuccess }) {
         [adminWhatsAppNumber],
     );
     const canOpenWhatsApp = Boolean(adminWhatsAppLink);
+    const isDevelopment = Boolean(import.meta.env.DEV);
 
-    const handleSubmit = (event) => {
+    const submitLogin = async (credentials) => {
+        if (!onLoginSuccess) {
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            await onLoginSuccess(credentials);
+        } catch (submitError) {
+            setError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : "Login gagal. Silakan coba lagi.",
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSubmit = async (event) => {
         event.preventDefault();
         setError("");
 
@@ -52,13 +90,10 @@ export default function LoginPage({ onLoginSuccess }) {
             return;
         }
 
-        if (onLoginSuccess) {
-            onLoginSuccess({
-                identifier: form.identifier.trim(),
-                password: form.password,
-                role: form.role,
-            });
-        }
+        await submitLogin({
+            identifier: form.identifier.trim(),
+            password: form.password,
+        });
     };
 
     return (
@@ -126,12 +161,6 @@ export default function LoginPage({ onLoginSuccess }) {
                                 value={form.identifier}
                                 onChange={(val) => setForm(f => ({ ...f, identifier: val }))}
                             />
-                            <FieldSelect
-                                label="Role Akses"
-                                options={roleOptions}
-                                value={form.role}
-                                onChange={(val) => setForm((f) => ({ ...f, role: val }))}
-                            />
                             <div className="space-y-1">
                                 <FieldInput
                                     label="Password"
@@ -143,8 +172,9 @@ export default function LoginPage({ onLoginSuccess }) {
                                 <div className="flex justify-end pt-3"> {/* Jarak Lupa Pass ditambah */}
                                     <button
                                         type="button"
+                                        disabled={isSubmitting}
                                         onClick={() => setActivePanel("forgot")}
-                                        className="text-[10px] font-bold text-primary hover:text-primary/80 transition-all uppercase tracking-tighter"
+                                        className="text-[10px] font-bold text-primary hover:text-primary/80 transition-all uppercase tracking-tighter disabled:opacity-50"
                                     >
                                         Lupa Password?
                                     </button>
@@ -152,14 +182,60 @@ export default function LoginPage({ onLoginSuccess }) {
                             </div>
                             <button
                                 type="submit"
-                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] text-sm"
+                                disabled={isSubmitting}
+                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] text-sm disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                Masuk ke Sistem
+                                {isSubmitting ? "Memverifikasi..." : "Masuk ke Sistem"}
                             </button>
-                            <p className="text-[10px] font-medium leading-relaxed text-slate-400">
-                                Selector role ini sementara untuk validasi arsitektur admin, teknisi, dan ISP.
-                            </p>
                         </form>
+
+                        {isDevelopment && (
+                            <div className="mt-8 rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
+                                <div className="mb-4 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary">
+                                            Dev Access
+                                        </p>
+                                        <p className="mt-1 text-xs font-medium text-slate-500">
+                                            Quick login lokal untuk uji role.
+                                        </p>
+                                    </div>
+                                    <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
+                                        Development
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    {devQuickAccounts.map((account) => (
+                                        <button
+                                            key={account.key}
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={() => {
+                                                setForm({
+                                                    identifier: account.identifier,
+                                                    password: account.password,
+                                                });
+                                                setError("");
+                                                void submitLogin({
+                                                    identifier: account.identifier,
+                                                    password: account.password,
+                                                });
+                                            }}
+                                            className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <p className="text-sm font-black text-slate-900">{account.label}</p>
+                                            <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                                {account.description}
+                                            </p>
+                                            <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-primary">
+                                                {account.identifier}
+                                            </p>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Social Connect (6 Icons - Connect Kiri - Icons Rata Kanan) */}
                         <div className="mt-16 flex items-center justify-between gap-4">

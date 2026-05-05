@@ -20,8 +20,10 @@ import {
   RouteFlowStatus,
   RouteHistoryOperation,
   RoutePointType,
+  UserRole,
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { hashPassword } from '../src/auth/password.util';
 
 const connectionString = process.env.DATABASE_URL?.trim();
 
@@ -82,21 +84,78 @@ async function ensureSafeBootstrap() {
     customerCount + ispCount + contractCount + documentCount + invoiceCount;
 
   if (existingRows === 0) {
-    return;
+    return true;
   }
 
   if (!forceReset) {
     console.log(
-      'Seed skipped because database already contains data. Re-run with SEED_FORCE_RESET=true to replace bootstrap data.',
+      'Bootstrap sample data skipped because database already contains data. Continuing with user seed.',
     );
-    process.exit(0);
+    return false;
   }
 
   await clearTables();
+  return true;
+}
+
+async function ensureDefaultUsers() {
+  const accounts = [
+    {
+      username: (process.env.SEED_ADMIN_USERNAME ?? 'admin').trim().toLowerCase(),
+      email: (process.env.SEED_ADMIN_EMAIL ?? 'admin@kima.local')
+        .trim()
+        .toLowerCase(),
+      password: process.env.SEED_ADMIN_PASSWORD ?? 'Admin123!',
+      displayName: (process.env.SEED_ADMIN_DISPLAY_NAME ?? 'Administrator').trim(),
+      role: UserRole.admin,
+    },
+    {
+      username: (process.env.SEED_TEKNISI_USERNAME ?? 'teknisi').trim().toLowerCase(),
+      email: (process.env.SEED_TEKNISI_EMAIL ?? 'teknisi@kima.local')
+        .trim()
+        .toLowerCase(),
+      password: process.env.SEED_TEKNISI_PASSWORD ?? 'Teknisi123!',
+      displayName: (process.env.SEED_TEKNISI_DISPLAY_NAME ?? 'Teknisi').trim(),
+      role: UserRole.teknisi,
+    },
+    {
+      username: (process.env.SEED_ISP_USERNAME ?? 'isp').trim().toLowerCase(),
+      email: (process.env.SEED_ISP_EMAIL ?? 'isp@kima.local').trim().toLowerCase(),
+      password: process.env.SEED_ISP_PASSWORD ?? 'Isp12345!',
+      displayName: (process.env.SEED_ISP_DISPLAY_NAME ?? 'User ISP').trim(),
+      role: UserRole.isp,
+    },
+  ];
+
+  for (const account of accounts) {
+    await prisma.user.upsert({
+      where: { username: account.username },
+      update: {
+        email: account.email,
+        displayName: account.displayName,
+        role: account.role,
+        isActive: true,
+        passwordHash: hashPassword(account.password),
+      },
+      create: {
+        username: account.username,
+        email: account.email,
+        displayName: account.displayName,
+        role: account.role,
+        isActive: true,
+        passwordHash: hashPassword(account.password),
+      },
+    });
+  }
 }
 
 async function seed() {
-  await ensureSafeBootstrap();
+  const shouldSeedBootstrap = await ensureSafeBootstrap();
+  await ensureDefaultUsers();
+
+  if (!shouldSeedBootstrap) {
+    return;
+  }
 
   const primaryIsp = await prisma.isp.create({
     data: {

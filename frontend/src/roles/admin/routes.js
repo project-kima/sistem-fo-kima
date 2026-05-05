@@ -48,7 +48,7 @@ export function parseAdminRoute(pathname, search) {
     const searchParams = new URLSearchParams(search);
 
     if (normalizedPath === "/") {
-        return { type: "redirect", to: ADMIN_PATHS.customers };
+        return { type: "redirect", to: ADMIN_PATHS.login };
     }
 
     if (normalizedPath === ADMIN_PATHS.login) {

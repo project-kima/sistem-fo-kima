@@ -28,9 +28,9 @@ function App() {
     const [locationState, setLocationState] = useState(() => ({
         pathname: typeof window !== "undefined"
             ? normalizePathname(window.location.pathname) === "/"
-                ? getAppPaths(getStoredRole()).customers
+                ? getAppPaths(getStoredRole()).login
                 : window.location.pathname
-            : getAppPaths(getStoredRole()).customers,
+            : getAppPaths(getStoredRole()).login,
         search: typeof window !== "undefined" ? window.location.search : "",
     }));
     const [customers, setCustomers] = useState([]);
@@ -139,13 +139,13 @@ function App() {
         window.addEventListener("popstate", handlePopState);
 
         if (normalizePathname(window.location.pathname) === "/") {
-            navigateTo(appPaths.customers, { replace: true });
+            navigateTo(appPaths.login, { replace: true });
         }
 
         return () => {
             window.removeEventListener("popstate", handlePopState);
         };
-    }, [appPaths.customers, navigateTo]);
+    }, [appPaths.login, navigateTo]);
 
     useEffect(() => {
         if (route.type === "redirect") {
@@ -349,8 +349,16 @@ function App() {
     if (route.type === "login") {
         return (
             <LoginPage
-                onLoginSuccess={({ role }) => {
-                    const nextRole = role ?? APP_ROLES.admin;
+                onLoginSuccess={async ({ identifier, password }) => {
+                    const result = await fetchJson(`${API_BASE_URL}/api/auth/login`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ identifier, password }),
+                    });
+
+                    const nextRole = result?.user?.role ?? APP_ROLES.admin;
                     const nextRoleConfig = getRoleConfig(nextRole);
                     const nextRolePaths = getAppPaths(nextRole);
                     const landingPath = nextRolePaths[nextRoleConfig.defaultSection] ?? nextRolePaths.customers;
