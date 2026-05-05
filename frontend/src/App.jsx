@@ -143,6 +143,11 @@ function App() {
         }
     }, [navigateTo, route]);
 
+    // Reset scroll to top on route change
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [locationState.pathname, locationState.search]);
+
     const ispOptions = useMemo(() => {
         const uniqueIsp = new Set();
         customers.forEach((item) => {
