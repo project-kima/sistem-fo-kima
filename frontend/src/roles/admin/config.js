@@ -1,0 +1,40 @@
+export const adminMenuItems = [
+    { key: "dashboard", label: "Dashboard", icon: "dashboard" },
+    { key: "customers", label: "Pelanggan", icon: "groups" },
+    { key: "monitoring", label: "Monitoring", icon: "monitor_heart" },
+    { key: "trash", label: "Tempat Sampah", icon: "delete", separated: true },
+];
+
+export const adminRoleConfig = {
+    key: "admin",
+    label: "Administrator",
+    profileTitle: "Administrator",
+    profileSubtitle: "Super Admin",
+    defaultSection: "customers",
+    menuItems: adminMenuItems,
+    capabilities: {
+        canCreateIsp: true,
+        canCreateTenant: true,
+        canEditIsp: true,
+        canDeleteIsp: true,
+        canEditTenant: true,
+        canDeleteTenant: true,
+    },
+    allowedSections: ["dashboard", "customers", "monitoring", "trash"],
+    allowedRouteTypes: [
+        "redirect",
+        "login",
+        "section",
+        "monitoring-fullscreen",
+        "customer-create",
+        "isp-create",
+        "customer-edit",
+        "customer-jalur-planner",
+        "customer-jalur-fullscreen",
+        "customer-jalur",
+        "customer-detail",
+        "isp-edit",
+        "isp-detail",
+        "not-found",
+    ],
+};

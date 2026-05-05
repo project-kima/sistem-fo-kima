@@ -12,7 +12,20 @@ import {
     readFileAsDataUrl,
 } from "../../app/utils";
 
-function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant, onOpenTenant, onRefreshAll }) {
+function IspDetailPage({
+    isp,
+    onBack,
+    onEditIsp,
+    onNavigate,
+    onOpenCreateTenant,
+    onOpenTenant,
+    onRefreshAll,
+    canEditIsp = true,
+    canDeleteIsp = true,
+    canCreateTenant = true,
+    canEditTenant = true,
+    canDeleteTenant = true,
+}) {
     const [detail, setDetail] = useState(null);
     const [activeTab, setActiveTab] = useState("overview");
     const [error, setError] = useState("");
@@ -408,12 +421,16 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                             <button className="rounded-xl border border-blue-200 bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50" onClick={() => void loadDetail()} type="button">
                                 Refresh Data
                             </button>
-                            <button className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-100" onClick={() => onEditIsp?.(detail ?? isp)} type="button">
-                                Edit Data ISP
-                            </button>
-                            <button className="rounded-xl bg-red-50 px-5 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-100" onClick={handleDeleteIsp} type="button">
-                                Hapus ISP
-                            </button>
+                            {canEditIsp && (
+                                <button className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-100" onClick={() => onEditIsp?.(detail ?? isp)} type="button">
+                                    Edit Data ISP
+                                </button>
+                            )}
+                            {canDeleteIsp && (
+                                <button className="rounded-xl bg-red-50 px-5 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-100" onClick={handleDeleteIsp} type="button">
+                                    Hapus ISP
+                                </button>
+                            )}
                         </div>
                     </div>
                 </section>
@@ -667,7 +684,9 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                                     <span className="material-symbols-outlined text-base">table_view</span>
                                     Konversi ke Excel
                                 </button>
-                                <button className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90" onClick={() => onOpenCreateTenant?.(detail ?? isp)} type="button">Tambah Tenant</button>
+                                {canCreateTenant && (
+                                    <button className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90" onClick={() => onOpenCreateTenant?.(detail ?? isp)} type="button">Tambah Tenant</button>
+                                )}
                             </div>
                         </div>
                         {tenants.length === 0 ? renderEmptyState("Belum ada tenant pada ISP ini.") : (
@@ -710,8 +729,12 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                                                 <td className="px-4 py-3 flex justify-end gap-2">
                                                     <button className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100" onClick={() => onOpenTenant(tenant, "invoices")} type="button">Invoice</button>
                                                     <button className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100" onClick={() => onOpenTenant(tenant, "overview")} type="button">Detail</button>
-                                                    <button className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100" type="button">Edit</button>
-                                                    <button className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100" type="button">Hapus</button>
+                                                    {canEditTenant && (
+                                                        <button className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100" type="button">Edit</button>
+                                                    )}
+                                                    {canDeleteTenant && (
+                                                        <button className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100" type="button">Hapus</button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

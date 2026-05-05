@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { sidebarItems } from "../../app/constants";
 import { getSectionPath } from "../../app/routes";
+import { getRoleConfig } from "../../roles";
 
-export default function AppShell({ activeSection, onNavigate, children, hideSidebar = false, full = false }) {
+export default function AppShell({
+    activeSection,
+    onNavigate,
+    children,
+    hideSidebar = false,
+    full = false,
+    currentRole = "admin",
+}) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const roleConfig = getRoleConfig(currentRole);
 
     const handleMobileNavigate = (sectionKey) => {
         onNavigate(sectionKey);
@@ -22,15 +30,27 @@ export default function AppShell({ activeSection, onNavigate, children, hideSide
 
     return (
         <div className="text-on-surface">
-            {!hideSidebar && <TopNav onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)} />}
+            {!hideSidebar && (
+                <TopNav
+                    onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+                    roleConfig={roleConfig}
+                />
+            )}
             {isMobileMenuOpen && !hideSidebar && (
                 <MobileDropdownMenu
                     activeSection={activeSection}
                     onClose={() => setIsMobileMenuOpen(false)}
                     onNavigate={handleMobileNavigate}
+                    roleConfig={roleConfig}
                 />
             )}
-            {!hideSidebar && <Sidebar activeSection={activeSection} onNavigate={onNavigate} />}
+            {!hideSidebar && (
+                <Sidebar
+                    activeSection={activeSection}
+                    onNavigate={onNavigate}
+                    roleConfig={roleConfig}
+                />
+            )}
             <main className={`min-h-screen pb-10 overflow-x-hidden ${hideSidebar ? "pt-6 px-6" : "pt-24 px-6 md:ml-64 md:px-12 md:pb-12"}`}>
                 {children}
             </main>
@@ -38,7 +58,7 @@ export default function AppShell({ activeSection, onNavigate, children, hideSide
     );
 }
 
-function TopNav({ onToggleMenu }) {
+function TopNav({ onToggleMenu, roleConfig }) {
     return (
         <nav className="fixed top-0 z-40 flex h-16 w-full items-center justify-between px-6 font-manrope antialiased glass-navbar md:ml-64 md:w-[calc(100%-16rem)] md:px-8">
             <div className="flex items-center gap-3">
@@ -61,9 +81,9 @@ function TopNav({ onToggleMenu }) {
                 </button>
                 <div className="hidden items-center gap-3 pl-4 md:flex">
                     <div className="text-right">
-                        <p className="text-sm font-semibold text-on-surface">Administrator</p>
+                        <p className="text-sm font-semibold text-on-surface">{roleConfig.profileTitle}</p>
                         <p className="text-[10px] uppercase tracking-wider text-on-surface-variant">
-                            Super Admin
+                            {roleConfig.profileSubtitle}
                         </p>
                     </div>
                     <img
@@ -77,7 +97,7 @@ function TopNav({ onToggleMenu }) {
     );
 }
 
-function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
+function MobileDropdownMenu({ activeSection, onNavigate, onClose, roleConfig }) {
     const handleSectionClick = (event, sectionKey) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
             return;
@@ -105,9 +125,9 @@ function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
                 </div>
 
                 <div className="space-y-1">
-                    {sidebarItems.map((item) => {
+                    {roleConfig.menuItems.map((item) => {
                         const isActive = activeSection === item.key;
-                        const href = getSectionPath(item.key);
+                        const href = getSectionPath(item.key, roleConfig.key);
                         return (
                             <div key={item.key} className={item.separated ? "mt-2 pt-2" : ""}>
                                 <a
@@ -135,7 +155,7 @@ function MobileDropdownMenu({ activeSection, onNavigate, onClose }) {
     );
 }
 
-function Sidebar({ activeSection, onNavigate }) {
+function Sidebar({ activeSection, onNavigate, roleConfig }) {
     const handleSectionClick = (event, sectionKey) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
             return;
@@ -163,9 +183,9 @@ function Sidebar({ activeSection, onNavigate }) {
             </div>
 
             <nav className="flex-grow space-y-1">
-                {sidebarItems.map((item) => {
+                {roleConfig.menuItems.map((item) => {
                     const isActive = activeSection === item.key;
-                    const href = getSectionPath(item.key);
+                    const href = getSectionPath(item.key, roleConfig.key);
                     return (
                         <a
                             key={item.key}

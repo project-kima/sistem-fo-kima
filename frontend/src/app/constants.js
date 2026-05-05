@@ -1,10 +1,3 @@
-export const sidebarItems = [
-    { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-    { key: "customers", label: "Pelanggan", icon: "groups" },
-    { key: "monitoring", label: "Monitoring", icon: "monitor_heart" },
-    { key: "trash", label: "Tempat Sampah", icon: "delete", separated: true },
-];
-
 export const sectionMeta = {
     dashboard: {
         title: "Dashboard",

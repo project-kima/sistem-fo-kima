@@ -175,6 +175,8 @@ function TenantDetailPage({
   routeViewMode = "embedded",
   backLabel = "Kembali ke Customer Page",
   hideSidebar = false,
+  canEditTenant = true,
+  canDeleteTenant = true,
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [detail, setDetail] = useState(null);
@@ -2471,20 +2473,24 @@ function TenantDetailPage({
               >
                 Refresh
               </button>
-              <button
-                className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100"
-                onClick={() => onEditTenant?.(detail ?? customer)}
-                type="button"
-              >
-                Edit Tenant
-              </button>
-              <button
-                className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
-                onClick={handleOpenDeleteModal}
-                type="button"
-              >
-                Hapus Tenant
-              </button>
+              {canEditTenant && (
+                <button
+                  className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100"
+                  onClick={() => onEditTenant?.(detail ?? customer)}
+                  type="button"
+                >
+                  Edit Tenant
+                </button>
+              )}
+              {canDeleteTenant && (
+                <button
+                  className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
+                  onClick={handleOpenDeleteModal}
+                  type="button"
+                >
+                  Hapus Tenant
+                </button>
+              )}
             </div>
           </div>
         </section>

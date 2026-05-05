@@ -16,6 +16,8 @@ function CustomerWorkspacePage({
     onOpenCreateTenant,
     onOpenCreateIsp,
     onRefresh,
+    canCreateTenant = true,
+    canCreateIsp = true,
 }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [listType, setListType] = useState("current");
@@ -281,20 +283,24 @@ function CustomerWorkspacePage({
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={onOpenCreateIsp}
-                            className="glass-card h-[56px] inline-flex items-center gap-2 rounded-2xl px-6 text-sm font-bold text-on-surface hover:bg-white transition-all active:scale-95"
-                        >
-                            <span className="material-symbols-outlined text-primary">add_link</span>
-                            ISP Baru
-                        </button>
-                        <button
-                            onClick={onOpenCreateTenant}
-                            className="btn-gradient h-[56px] inline-flex items-center gap-2 rounded-2xl px-6 text-sm font-bold active:scale-95"
-                        >
-                            <span className="material-symbols-outlined">person_add</span>
-                            Tenant Baru
-                        </button>
+                        {canCreateIsp && (
+                            <button
+                                onClick={onOpenCreateIsp}
+                                className="glass-card h-[56px] inline-flex items-center gap-2 rounded-2xl px-6 text-sm font-bold text-on-surface hover:bg-white transition-all active:scale-95"
+                            >
+                                <span className="material-symbols-outlined text-primary">add_link</span>
+                                ISP Baru
+                            </button>
+                        )}
+                        {canCreateTenant && (
+                            <button
+                                onClick={onOpenCreateTenant}
+                                className="btn-gradient h-[56px] inline-flex items-center gap-2 rounded-2xl px-6 text-sm font-bold active:scale-95"
+                            >
+                                <span className="material-symbols-outlined">person_add</span>
+                                Tenant Baru
+                            </button>
+                        )}
                         <button
                             onClick={() => void onRefresh()}
                             className="glass-card inline-flex items-center justify-center rounded-2xl w-[56px] h-[56px] text-on-surface hover:text-primary transition-all group active:rotate-180"

@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import { FieldInput } from "../../components/shared/AppShared";
+import { FieldInput, FieldSelect } from "../../components/shared/AppShared";
+import { APP_ROLES } from "../../roles";
+
+const roleOptions = [
+    { value: APP_ROLES.admin, label: "Administrator" },
+    { value: APP_ROLES.teknisi, label: "Teknisi" },
+    { value: APP_ROLES.isp, label: "ISP" },
+];
 
 /**
  * Utility untuk membersihkan nomor WhatsApp
@@ -21,6 +28,7 @@ export default function LoginPage({ onLoginSuccess }) {
     const [form, setForm] = useState({
         identifier: "",
         password: "",
+        role: APP_ROLES.admin,
     });
     const [error, setError] = useState("");
 
@@ -48,6 +56,7 @@ export default function LoginPage({ onLoginSuccess }) {
             onLoginSuccess({
                 identifier: form.identifier.trim(),
                 password: form.password,
+                role: form.role,
             });
         }
     };
@@ -117,6 +126,12 @@ export default function LoginPage({ onLoginSuccess }) {
                                 value={form.identifier}
                                 onChange={(val) => setForm(f => ({ ...f, identifier: val }))}
                             />
+                            <FieldSelect
+                                label="Role Akses"
+                                options={roleOptions}
+                                value={form.role}
+                                onChange={(val) => setForm((f) => ({ ...f, role: val }))}
+                            />
                             <div className="space-y-1">
                                 <FieldInput
                                     label="Password"
@@ -141,6 +156,9 @@ export default function LoginPage({ onLoginSuccess }) {
                             >
                                 Masuk ke Sistem
                             </button>
+                            <p className="text-[10px] font-medium leading-relaxed text-slate-400">
+                                Selector role ini sementara untuk validasi arsitektur admin, teknisi, dan ISP.
+                            </p>
                         </form>
 
                         {/* Social Connect (6 Icons - Connect Kiri - Icons Rata Kanan) */}

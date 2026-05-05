@@ -12,21 +12,25 @@ import TrashPage from "./features/trash/TrashPage";
 import { sectionMeta } from "./app/constants";
 import { API_BASE_URL, fetchJson, mapCustomerToRow } from "./app/utils";
 import {
-    APP_PATHS,
+    getAppPaths,
     normalizePathname,
     parseAppRoute,
     resolveCustomerByIdentifier,
     resolveIspByIdentifier,
 } from "./app/routes";
+import { APP_ROLES, canAccessRoute, getRoleConfig } from "./roles";
+import { getStoredRole, persistRole } from "./app/session/role-session";
 import "./App.css";
 
 function App() {
+    const [currentRole, setCurrentRole] = useState(() => getStoredRole());
+    const appPaths = useMemo(() => getAppPaths(currentRole), [currentRole]);
     const [locationState, setLocationState] = useState(() => ({
         pathname: typeof window !== "undefined"
             ? normalizePathname(window.location.pathname) === "/"
-                ? APP_PATHS.customers
+                ? getAppPaths(getStoredRole()).customers
                 : window.location.pathname
-            : APP_PATHS.customers,
+            : getAppPaths(getStoredRole()).customers,
         search: typeof window !== "undefined" ? window.location.search : "",
     }));
     const [customers, setCustomers] = useState([]);
@@ -36,8 +40,14 @@ function App() {
     const [isLoadingIsps, setIsLoadingIsps] = useState(false);
     const [ispsError, setIspsError] = useState("");
     const route = useMemo(
-        () => parseAppRoute(locationState.pathname, locationState.search),
-        [locationState.pathname, locationState.search],
+        () => parseAppRoute(locationState.pathname, locationState.search, currentRole),
+        [currentRole, locationState.pathname, locationState.search],
+    );
+    const roleConfig = useMemo(() => getRoleConfig(currentRole), [currentRole]);
+    const roleCapabilities = roleConfig.capabilities;
+    const isRouteAllowed = useMemo(
+        () => canAccessRoute(currentRole, route),
+        [currentRole, route],
     );
 
     const loadCustomers = useCallback(async () => {
@@ -129,13 +139,13 @@ function App() {
         window.addEventListener("popstate", handlePopState);
 
         if (normalizePathname(window.location.pathname) === "/") {
-            navigateTo(APP_PATHS.customers, { replace: true });
+            navigateTo(appPaths.customers, { replace: true });
         }
 
         return () => {
             window.removeEventListener("popstate", handlePopState);
         };
-    }, [navigateTo]);
+    }, [appPaths.customers, navigateTo]);
 
     useEffect(() => {
         if (route.type === "redirect") {
@@ -165,6 +175,7 @@ function App() {
     }, [customers]);
 
     const activeSection = route.sectionKey ?? "customers";
+    const fallbackSection = roleConfig.defaultSection;
     const selectedCustomer = route.type === "customer-detail"
         || route.type === "customer-edit"
         || route.type === "customer-jalur"
@@ -196,16 +207,16 @@ function App() {
 
     const handleNavigate = useCallback((sectionKey) => {
         const targetPath = {
-            dashboard: APP_PATHS.dashboard,
-            customers: APP_PATHS.customers,
-            monitoring: APP_PATHS.monitoring,
-            trash: APP_PATHS.trash,
+            dashboard: appPaths.dashboard,
+            customers: appPaths.customers,
+            monitoring: appPaths.monitoring,
+            trash: appPaths.trash,
         }[sectionKey];
 
         if (targetPath) {
             navigateTo(targetPath);
         }
-    }, [navigateTo]);
+    }, [appPaths, navigateTo]);
 
     const handleOpenTenantDetail = useCallback((customer, initialTab = "overview", contextIsp = null) => {
         const resolvedCustomerId = Number(customer?.id);
@@ -215,11 +226,11 @@ function App() {
         }
 
         setCustomersError("");
-        navigateTo(APP_PATHS.customerDetail(resolvedCustomerId, {
+        navigateTo(appPaths.customerDetail(resolvedCustomerId, {
             tab: initialTab,
             ispId: contextIsp?.id ?? null,
         }));
-    }, [navigateTo]);
+    }, [appPaths, navigateTo]);
 
     const handleOpenIspDetail = useCallback((isp) => {
         const resolvedIspId = Number(isp?.id);
@@ -228,39 +239,39 @@ function App() {
             return;
         }
 
-        navigateTo(APP_PATHS.ispDetail(resolvedIspId));
-    }, [navigateTo]);
+        navigateTo(appPaths.ispDetail(resolvedIspId));
+    }, [appPaths, navigateTo]);
 
     const handleOpenCreateTenant = useCallback(() => {
-        navigateTo(APP_PATHS.customerCreate);
-    }, [navigateTo]);
+        navigateTo(appPaths.customerCreate);
+    }, [appPaths, navigateTo]);
 
     const handleOpenCreateTenantFromIsp = useCallback((isp) => {
         const resolvedIspId = Number(isp?.id);
         const nextPath = Number.isFinite(resolvedIspId) && resolvedIspId > 0
-            ? `${APP_PATHS.customerCreate}?isp=${resolvedIspId}`
-            : APP_PATHS.customerCreate;
+            ? `${appPaths.customerCreate}?isp=${resolvedIspId}`
+            : appPaths.customerCreate;
 
         navigateTo(nextPath);
-    }, [navigateTo]);
+    }, [appPaths, navigateTo]);
 
     const handleOpenCreateIsp = useCallback(() => {
-        navigateTo(APP_PATHS.ispCreate);
-    }, [navigateTo]);
+        navigateTo(appPaths.ispCreate);
+    }, [appPaths, navigateTo]);
 
     const handleCancelCreate = useCallback(() => {
         if (route.type === "customer-edit" && selectedCustomer) {
-            navigateTo(APP_PATHS.customerDetail(selectedCustomer.id), { replace: true });
+            navigateTo(appPaths.customerDetail(selectedCustomer.id), { replace: true });
             return;
         }
 
         if (route.type === "isp-edit" && selectedIsp) {
-            navigateTo(APP_PATHS.ispDetail(selectedIsp.id), { replace: true });
+            navigateTo(appPaths.ispDetail(selectedIsp.id), { replace: true });
             return;
         }
 
-        navigateTo(APP_PATHS.customers, { replace: true });
-    }, [navigateTo, route.type, selectedCustomer, selectedIsp]);
+        navigateTo(appPaths.customers, { replace: true });
+    }, [appPaths, navigateTo, route.type, selectedCustomer, selectedIsp]);
 
     const handleOpenEditIsp = useCallback((isp) => {
         const resolvedIspId = Number(isp?.id);
@@ -269,8 +280,8 @@ function App() {
             return;
         }
 
-        navigateTo(APP_PATHS.ispEdit(resolvedIspId));
-    }, [navigateTo]);
+        navigateTo(appPaths.ispEdit(resolvedIspId));
+    }, [appPaths, navigateTo]);
 
     const handleOpenEditTenant = useCallback((customer) => {
         const resolvedCustomerId = Number(customer?.id);
@@ -279,8 +290,8 @@ function App() {
             return;
         }
 
-        navigateTo(APP_PATHS.customerEdit(resolvedCustomerId));
-    }, [navigateTo]);
+        navigateTo(appPaths.customerEdit(resolvedCustomerId));
+    }, [appPaths, navigateTo]);
 
     const handleEntitySaved = useCallback(async (savedEntity, type) => {
         await Promise.all([loadCustomers(), loadIsps()]);
@@ -288,19 +299,19 @@ function App() {
         if (type === "isp") {
             const savedIspId = Number(savedEntity?.id);
             if (Number.isFinite(savedIspId) && savedIspId > 0) {
-                navigateTo(APP_PATHS.ispDetail(savedIspId), { replace: true });
+                navigateTo(appPaths.ispDetail(savedIspId), { replace: true });
                 return;
             }
         } else {
             const savedCustomerId = Number(savedEntity?.id);
             if (Number.isFinite(savedCustomerId) && savedCustomerId > 0) {
-                navigateTo(APP_PATHS.customerDetail(savedCustomerId), { replace: true });
+                navigateTo(appPaths.customerDetail(savedCustomerId), { replace: true });
                 return;
             }
         }
 
-        navigateTo(APP_PATHS.customers, { replace: true });
-    }, [loadCustomers, loadIsps, navigateTo]);
+        navigateTo(appPaths.customers, { replace: true });
+    }, [appPaths, loadCustomers, loadIsps, navigateTo]);
 
     const handleOpenCustomerById = useCallback((customerId, initialTab = "overview") => {
         const normalizedCustomerId = Number(customerId);
@@ -316,8 +327,21 @@ function App() {
         return (
             <RouteLoadingPage
                 activeSection={activeSection}
+                currentRole={currentRole}
                 onNavigate={handleNavigate}
                 message="Mengarahkan ke halaman pelanggan..."
+            />
+        );
+    }
+
+    if (!isRouteAllowed) {
+        return (
+            <RouteForbiddenPage
+                activeSection={fallbackSection}
+                currentRole={currentRole}
+                onNavigate={handleNavigate}
+                defaultSection={fallbackSection}
+                roleLabel={roleConfig.label}
             />
         );
     }
@@ -325,8 +349,15 @@ function App() {
     if (route.type === "login") {
         return (
             <LoginPage
-                onLoginSuccess={() => {
-                    navigateTo(APP_PATHS.customers, { replace: true });
+                onLoginSuccess={({ role }) => {
+                    const nextRole = role ?? APP_ROLES.admin;
+                    const nextRoleConfig = getRoleConfig(nextRole);
+                    const nextRolePaths = getAppPaths(nextRole);
+                    const landingPath = nextRolePaths[nextRoleConfig.defaultSection] ?? nextRolePaths.customers;
+
+                    setCurrentRole(nextRole);
+                    persistRole(nextRole);
+                    navigateTo(landingPath, { replace: true });
                 }}
             />
         );
@@ -350,7 +381,7 @@ function App() {
                 ispOptions={ispOptions}
                 onNavigate={handleNavigate}
                 onOpenCustomerById={handleOpenCustomerById}
-                onOpenTableOnly={() => navigateTo(APP_PATHS.monitoringFullscreen)}
+                onOpenTableOnly={() => navigateTo(appPaths.monitoringFullscreen)}
             />
         );
     }
@@ -362,7 +393,7 @@ function App() {
                 layout="plain"
                 onOpenCustomerById={handleOpenCustomerById}
                 tableOnly
-                onCloseTableOnly={() => navigateTo(APP_PATHS.monitoring)}
+                onCloseTableOnly={() => navigateTo(appPaths.monitoring)}
             />
         );
     }
@@ -403,6 +434,7 @@ function App() {
             return (
                 <RouteLoadingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     message="Memuat data tenant untuk halaman edit..."
                 />
@@ -413,6 +445,7 @@ function App() {
             return (
                 <RouteMissingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     title="Tenant tidak ditemukan"
                     description="Tenant yang diminta tidak tersedia atau belum dimuat."
@@ -429,7 +462,7 @@ function App() {
                 onNavigate={handleNavigate}
                 onSaved={async () => {
                     await Promise.all([loadCustomers(), loadIsps()]);
-                    navigateTo(APP_PATHS.customerDetail(editingCustomer.id), { replace: true });
+                    navigateTo(appPaths.customerDetail(editingCustomer.id), { replace: true });
                 }}
             />
         );
@@ -440,6 +473,7 @@ function App() {
             return (
                 <RouteLoadingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     message="Memuat data ISP untuk halaman edit..."
                 />
@@ -450,6 +484,7 @@ function App() {
             return (
                 <RouteMissingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     title="ISP tidak ditemukan"
                     description="ISP yang diminta tidak tersedia atau belum dimuat."
@@ -465,7 +500,7 @@ function App() {
                 onNavigate={handleNavigate}
                 onSaved={async () => {
                     await Promise.all([loadCustomers(), loadIsps()]);
-                    navigateTo(APP_PATHS.ispDetail(editingIsp.id), { replace: true });
+                    navigateTo(appPaths.ispDetail(editingIsp.id), { replace: true });
                 }}
             />
         );
@@ -476,6 +511,7 @@ function App() {
             return (
                 <RouteLoadingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     message="Memuat detail ISP..."
                 />
@@ -486,6 +522,7 @@ function App() {
             return (
                 <RouteMissingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     title="ISP tidak ditemukan"
                     description="Data ISP yang Anda buka belum tersedia."
@@ -496,7 +533,7 @@ function App() {
         return (
             <IspDetailPage
                 isp={selectedIsp}
-                onBack={() => navigateTo(APP_PATHS.customers, { replace: true })}
+                onBack={() => navigateTo(appPaths.customers, { replace: true })}
                 onEditIsp={handleOpenEditIsp}
                 onNavigate={handleNavigate}
                 onOpenCreateTenant={handleOpenCreateTenantFromIsp}
@@ -505,6 +542,11 @@ function App() {
                 onRefreshAll={async () => {
                     await Promise.all([loadCustomers(), loadIsps()]);
                 }}
+                canCreateTenant={roleCapabilities.canCreateTenant}
+                canDeleteIsp={roleCapabilities.canDeleteIsp}
+                canDeleteTenant={roleCapabilities.canDeleteTenant}
+                canEditIsp={roleCapabilities.canEditIsp}
+                canEditTenant={roleCapabilities.canEditTenant}
             />
         );
     }
@@ -514,6 +556,7 @@ function App() {
             return (
                 <RouteLoadingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     message="Memuat detail tenant..."
                 />
@@ -524,6 +567,7 @@ function App() {
             return (
                 <RouteMissingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     title="Tenant tidak ditemukan"
                     description="Data tenant yang Anda buka belum tersedia."
@@ -537,7 +581,7 @@ function App() {
                 contextIsp={selectedCustomerContextIsp}
                 initialTab={route.initialTab}
                 onBack={() => {
-                    navigateTo(APP_PATHS.customers, { replace: true });
+                    navigateTo(appPaths.customers, { replace: true });
                 }}
                 onEditTenant={handleOpenEditTenant}
                 onCreateIsp={handleOpenCreateIsp}
@@ -547,11 +591,11 @@ function App() {
                 }}
                 onTabChange={(nextTab) => {
                     if (nextTab === "jalur") {
-                        navigateTo(APP_PATHS.customerJalur(selectedCustomer.id), { replace: true });
+                        navigateTo(appPaths.customerJalur(selectedCustomer.id), { replace: true });
                         return;
                     }
 
-                    navigateTo(APP_PATHS.customerDetail(selectedCustomer.id, {
+                    navigateTo(appPaths.customerDetail(selectedCustomer.id, {
                         tab: nextTab,
                         ispId: selectedCustomerContextIsp?.id ?? null,
                     }), { replace: true });
@@ -563,8 +607,10 @@ function App() {
                         return;
                     }
 
-                    navigateTo(APP_PATHS.customerJalurFullscreen(resolvedCustomerId));
+                    navigateTo(appPaths.customerJalurFullscreen(resolvedCustomerId));
                 }}
+                canDeleteTenant={roleCapabilities.canDeleteTenant}
+                canEditTenant={roleCapabilities.canEditTenant}
             />
         );
     }
@@ -574,6 +620,7 @@ function App() {
             return (
                 <RouteLoadingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     message="Memuat tampilan jalur..."
                 />
@@ -584,6 +631,7 @@ function App() {
             return (
                 <RouteMissingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     title="Tenant tidak ditemukan"
                     description="Data tenant yang Anda buka belum tersedia."
@@ -597,7 +645,7 @@ function App() {
                 initialTab="jalur"
                 backLabel="Kembali ke Detail Tenant"
                 onBack={() => {
-                    navigateTo(APP_PATHS.customerDetail(selectedCustomer.id), { replace: true });
+                    navigateTo(appPaths.customerDetail(selectedCustomer.id), { replace: true });
                 }}
                 onEditTenant={handleOpenEditTenant}
                 onNavigate={handleNavigate}
@@ -606,6 +654,8 @@ function App() {
                 }}
                 routeViewMode="standalone"
                 hideSidebar={true}
+                canDeleteTenant={roleCapabilities.canDeleteTenant}
+                canEditTenant={roleCapabilities.canEditTenant}
             />
         );
     }
@@ -615,6 +665,7 @@ function App() {
             return (
                 <RouteLoadingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     message="Memuat pengaturan jalur tenant..."
                 />
@@ -625,6 +676,7 @@ function App() {
             return (
                 <RouteMissingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     title="Tenant tidak ditemukan"
                     description="Data tenant yang Anda buka belum tersedia."
@@ -638,7 +690,7 @@ function App() {
                 initialTab="jalur"
                 backLabel="Kembali ke Detail Tenant"
                 onBack={() => {
-                    navigateTo(APP_PATHS.customerDetail(selectedCustomer.id), { replace: true });
+                    navigateTo(appPaths.customerDetail(selectedCustomer.id), { replace: true });
                 }}
                 onEditTenant={handleOpenEditTenant}
                 onNavigate={handleNavigate}
@@ -652,9 +704,11 @@ function App() {
                         return;
                     }
 
-                    navigateTo(APP_PATHS.customerJalurPlanner(resolvedCustomerId));
+                    navigateTo(appPaths.customerJalurPlanner(resolvedCustomerId));
                 }}
                 routeViewMode="standalone"
+                canDeleteTenant={roleCapabilities.canDeleteTenant}
+                canEditTenant={roleCapabilities.canEditTenant}
             />
         );
     }
@@ -664,6 +718,7 @@ function App() {
             return (
                 <RouteLoadingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     message="Memuat FO route planner tenant..."
                 />
@@ -674,6 +729,7 @@ function App() {
             return (
                 <RouteMissingPage
                     activeSection={activeSection}
+                    currentRole={currentRole}
                     onNavigate={handleNavigate}
                     title="Tenant tidak ditemukan"
                     description="Data tenant yang Anda buka belum tersedia."
@@ -687,7 +743,7 @@ function App() {
                 initialTab="jalur"
                 backLabel="Kembali ke Halaman Jalur"
                 onBack={() => {
-                    navigateTo(APP_PATHS.customerJalur(selectedCustomer.id), { replace: true });
+                    navigateTo(appPaths.customerJalur(selectedCustomer.id), { replace: true });
                 }}
                 onEditTenant={handleOpenEditTenant}
                 onNavigate={handleNavigate}
@@ -695,6 +751,8 @@ function App() {
                     await Promise.all([loadCustomers(), loadIsps()]);
                 }}
                 routeViewMode="planner"
+                canDeleteTenant={roleCapabilities.canDeleteTenant}
+                canEditTenant={roleCapabilities.canEditTenant}
             />
         );
     }
@@ -703,6 +761,7 @@ function App() {
         return (
             <RouteMissingPage
                 activeSection={activeSection}
+                currentRole={currentRole}
                 onNavigate={handleNavigate}
                 title="Halaman tidak ditemukan"
                 description="Path yang Anda buka belum terdaftar di aplikasi ini."
@@ -726,13 +785,15 @@ function App() {
             onRefresh={async () => {
                 await Promise.all([loadCustomers(), loadIsps()]);
             }}
+            canCreateIsp={roleCapabilities.canCreateIsp}
+            canCreateTenant={roleCapabilities.canCreateTenant}
         />
     );
 }
 
-function RouteLoadingPage({ activeSection, onNavigate, message }) {
+function RouteLoadingPage({ activeSection, currentRole, onNavigate, message }) {
     return (
-        <AppShell activeSection={activeSection} onNavigate={onNavigate}>
+        <AppShell activeSection={activeSection} currentRole={currentRole} onNavigate={onNavigate}>
             <div className="mx-auto flex min-h-[50vh] max-w-4xl items-center justify-center">
                 <div className="rounded-2xl border border-slate-100 bg-surface-container-lowest px-6 py-5 text-sm text-on-surface-variant shadow-sm">
                     {message}
@@ -742,9 +803,9 @@ function RouteLoadingPage({ activeSection, onNavigate, message }) {
     );
 }
 
-function RouteMissingPage({ activeSection, onNavigate, title, description }) {
+function RouteMissingPage({ activeSection, currentRole, onNavigate, title, description }) {
     return (
-        <AppShell activeSection={activeSection} onNavigate={onNavigate}>
+        <AppShell activeSection={activeSection} currentRole={currentRole} onNavigate={onNavigate}>
             <div className="mx-auto max-w-4xl">
                 <section className="rounded-2xl border border-slate-100 bg-surface-container-lowest p-8 shadow-sm">
                     <div className="mb-6 flex items-center gap-3">
@@ -775,12 +836,45 @@ function RouteMissingPage({ activeSection, onNavigate, title, description }) {
     );
 }
 
-function SectionPlaceholderPage({ activeSection, onNavigate }) {
+function RouteForbiddenPage({ activeSection, currentRole, onNavigate, defaultSection, roleLabel }) {
+    return (
+        <AppShell activeSection={activeSection} currentRole={currentRole} onNavigate={onNavigate}>
+            <div className="mx-auto max-w-4xl">
+                <section className="rounded-2xl border border-amber-100 bg-surface-container-lowest p-8 shadow-sm">
+                    <div className="mb-6 flex items-center gap-3">
+                        <span className="material-symbols-outlined rounded-lg bg-amber-50 p-2 text-amber-700">
+                            lock
+                        </span>
+                        <div>
+                            <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">
+                                Akses dibatasi
+                            </h1>
+                            <p className="mt-2 text-sm text-on-surface-variant">
+                                Halaman ini belum tersedia untuk role {roleLabel}.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-primary to-primary-container px-5 py-3 text-sm font-bold text-white"
+                        onClick={() => onNavigate(defaultSection)}
+                        type="button"
+                    >
+                        <span className="material-symbols-outlined text-sm">arrow_back</span>
+                        Kembali ke modul utama
+                    </button>
+                </section>
+            </div>
+        </AppShell>
+    );
+}
+
+function SectionPlaceholderPage({ activeSection, currentRole, onNavigate }) {
     const section = sectionMeta[activeSection] ?? sectionMeta.dashboard;
     const isTrashSection = activeSection === "trash";
 
     return (
-        <AppShell activeSection={activeSection} onNavigate={onNavigate}>
+        <AppShell activeSection={activeSection} currentRole={currentRole} onNavigate={onNavigate}>
             <div className="mx-auto max-w-5xl">
                 <header className="mb-10">
                     <h1 className="text-4xl font-extrabold tracking-tight text-primary">{section.title}</h1>
