@@ -2432,9 +2432,9 @@ function TenantDetailPage({
                   {tenantName}
                 </h1>
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold ${detail?.status === "aktif" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${['aktif', 'expired'].includes(detail?.status) ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
                 >
-                  {detail?.status === "aktif" ? "Beroperasi" : "Berhenti"}
+                  {['aktif', 'expired'].includes(detail?.status) ? "Beroperasi" : "Berhenti"}
                 </span>
                 <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
                   Paket:{" "}

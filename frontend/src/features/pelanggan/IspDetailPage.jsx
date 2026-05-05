@@ -388,7 +388,7 @@ function IspDetailPage({ isp, onBack, onEditIsp, onNavigate, onOpenCreateTenant,
                                         ISP
                                     </span>
                                     <span className="rounded-md bg-white/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                                        {((detail?.status ?? isp.status) === "aktif") ? "Aktif" : "Non-aktif"}
+                                        {['aktif', 'expired'].includes(detail?.status ?? isp.status) ? "Beroperasi" : "Berhenti"}
                                     </span>
                                 </div>
                                 <h1 className="text-4xl font-extrabold tracking-tight text-on-surface">{ispName}</h1>

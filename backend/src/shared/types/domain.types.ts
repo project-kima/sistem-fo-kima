@@ -14,6 +14,8 @@ export enum DocumentType {
 export enum CustomerStatus {
   Aktif = 'aktif',
   Nonaktif = 'nonaktif',
+  Expired = 'expired',
+  Berhenti = 'berhenti',
   Arsip = 'arsip',
 }
 
@@ -68,6 +70,8 @@ export enum BillingUnit {
 export enum IspStatus {
   Aktif = 'aktif',
   Nonaktif = 'nonaktif',
+  Expired = 'expired',
+  Berhenti = 'berhenti',
 }
 
 export enum IspPackageType {

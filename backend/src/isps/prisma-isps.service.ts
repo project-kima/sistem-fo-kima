@@ -1545,8 +1545,13 @@ export class PrismaIspsService {
       return IspStatus.Aktif;
     }
 
-    if (value !== IspStatus.Aktif && value !== IspStatus.Nonaktif) {
-      throw new BadRequestException('status must be aktif or nonaktif.');
+    if (
+      value !== IspStatus.Aktif && 
+      value !== IspStatus.Nonaktif &&
+      value !== IspStatus.Expired &&
+      value !== IspStatus.Berhenti
+    ) {
+      throw new BadRequestException('status must be aktif, nonaktif, expired, or berhenti.');
     }
 
     return value;

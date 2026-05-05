@@ -2652,10 +2652,12 @@ export class PrismaCustomersWriteService {
     if (
       value !== CustomerStatus.Aktif &&
       value !== CustomerStatus.Nonaktif &&
+      value !== CustomerStatus.Expired &&
+      value !== CustomerStatus.Berhenti &&
       value !== CustomerStatus.Arsip
     ) {
       throw new BadRequestException(
-        'status must be aktif, nonaktif, or arsip.',
+        'status must be aktif, nonaktif, expired, berhenti, or arsip.',
       );
     }
 
