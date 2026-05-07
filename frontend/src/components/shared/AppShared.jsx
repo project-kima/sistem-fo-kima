@@ -1,18 +1,18 @@
 export function MetricCard({ title, value, helper, accentClass }) {
     return (
-        <div className={`rounded-lg border-l-4 bg-surface-container-lowest p-6 shadow-sm ${accentClass}`}>
-            <p className="mb-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">{title}</p>
-            <h3 className="text-3xl font-extrabold text-on-surface">{value}</h3>
-            {helper && <p className="mt-2 text-xs text-on-surface-variant">{helper}</p>}
+        <div className={`glass-card rounded-premium p-6 group hover:border-gold-accent/30 transition-all ${accentClass}`}>
+            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant group-hover:text-gold-accent transition-colors">{title}</p>
+            <h3 className="text-3xl font-black text-on-surface tracking-tighter">{value}</h3>
+            {helper && <p className="mt-3 text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest">{helper}</p>}
         </div>
     );
 }
 
 export function IssueCountRow({ label, value }) {
     return (
-        <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-            <p className="text-sm font-semibold text-on-surface">{label}</p>
-            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
+        <div className="flex items-center justify-between rounded-2xl border border-white/40 bg-white/30 backdrop-blur-md px-5 py-4 transition-all hover:bg-white/50">
+            <p className="text-xs font-black uppercase tracking-widest text-on-surface/80">{label}</p>
+            <span className="rounded-xl bg-gold-accent text-white px-3 py-1 text-[10px] font-black shadow-gold-glow">
                 {value}
             </span>
         </div>
@@ -21,16 +21,16 @@ export function IssueCountRow({ label, value }) {
 
 export function SummaryCard({ label, value, icon }) {
     return (
-        <div className="rounded-2xl bg-surface-container-lowest p-5 shadow-card">
-            <div className="flex items-center justify-between gap-4">
+        <div className="glass-card rounded-premium p-6 group">
+            <div className="flex items-center justify-between gap-6">
                 <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant/60">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant/60 group-hover:text-gold-accent transition-colors">
                         {label}
                     </p>
-                    <p className="mt-3 text-3xl font-extrabold text-on-surface">{value}</p>
+                    <p className="mt-3 text-3xl font-black text-on-surface tracking-tighter">{value}</p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-container/15 text-primary">
-                    <span className="material-symbols-outlined">{icon}</span>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-accent/10 text-gold-accent shadow-sm group-hover:shadow-gold-glow transition-all">
+                    <span className="material-symbols-outlined text-2xl">{icon}</span>
                 </div>
             </div>
         </div>
@@ -39,16 +39,19 @@ export function SummaryCard({ label, value, icon }) {
 
 export function TodoColumn({ title, items }) {
     return (
-        <div className="rounded-xl bg-surface-container-low p-4">
-            <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant">{title}</p>
-            <div className="mt-3 space-y-3">
+        <div className="rounded-3xl bg-black/5 p-6 border border-black/5">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-on-surface-variant mb-6">{title}</p>
+            <div className="space-y-4">
                 {items.length > 0 ? items.map((item) => (
-                    <div key={item.id} className="rounded-xl bg-surface-container-lowest p-3 shadow-soft">
-                        <p className="text-sm font-semibold text-on-surface">{item.title}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">{item.message}</p>
+                    <div key={item.id} className="glass-card rounded-2xl p-5 hover:bg-white/80 transition-all">
+                        <p className="text-sm font-black text-on-surface tracking-tight">{item.title}</p>
+                        <p className="mt-2 text-xs font-medium leading-relaxed text-on-surface-variant">{item.message}</p>
                     </div>
                 )) : (
-                    <p className="text-sm text-on-surface-variant">Tidak ada item.</p>
+                    <div className="py-10 text-center opacity-30 italic font-bold">
+                        <span className="material-symbols-outlined text-3xl mb-2">inbox</span>
+                        <p className="text-[10px] uppercase tracking-widest">Kosong</p>
+                    </div>
                 )}
             </div>
         </div>
@@ -57,12 +60,12 @@ export function TodoColumn({ title, items }) {
 
 export function FieldInput({ label, type = "text", value, onChange, placeholder = "" }) {
     return (
-        <div>
-            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+        <div className="space-y-2">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant ml-1">
                 {label}
             </label>
             <input
-                className="w-full rounded-xl bg-surface-container-low p-3 text-sm outline-none transition-all glass-input"
+                className="w-full rounded-2xl bg-black/5 border border-black/5 p-4 text-sm font-bold text-on-surface placeholder:text-on-surface-variant/40 outline-none transition-all focus:bg-white focus:shadow-lg focus:ring-4 focus:ring-gold-accent/5 focus:border-gold-accent/20"
                 onChange={(event) => onChange(event.target.value)}
                 placeholder={placeholder}
                 type={type}
@@ -74,17 +77,17 @@ export function FieldInput({ label, type = "text", value, onChange, placeholder 
 
 export function FieldSelect({ label, value, onChange, options }) {
     return (
-        <div>
-            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+        <div className="space-y-2">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant ml-1">
                 {label}
             </label>
             <select
-                className="w-full rounded-xl bg-surface-container-low p-3 text-sm outline-none transition-all glass-input"
+                className="w-full rounded-2xl bg-black/5 border border-black/5 p-4 text-sm font-bold text-on-surface outline-none transition-all focus:bg-white focus:shadow-lg focus:ring-4 focus:ring-gold-accent/5 focus:border-gold-accent/20 appearance-none cursor-pointer"
                 onChange={(event) => onChange(event.target.value)}
                 value={value}
             >
                 {options.map((option) => (
-                    <option key={`${label}-${option.value}`} value={option.value}>
+                    <option key={`${label}-${option.value}`} value={option.value} className="bg-white text-on-surface">
                         {option.label}
                     </option>
                 ))}
@@ -95,16 +98,16 @@ export function FieldSelect({ label, value, onChange, options }) {
 
 export function ComplianceItem({ active, label }) {
     return (
-        <div className="flex items-center justify-between rounded-lg bg-surface-container-low px-4 py-3">
-            <span className="text-sm font-medium text-on-surface">{label}</span>
+        <div className="flex items-center justify-between rounded-2xl bg-white/40 border border-white/60 px-5 py-4 backdrop-blur-sm">
+            <span className="text-xs font-black uppercase tracking-wider text-on-surface/70">{label}</span>
             <span
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${active ? "bg-secondary/10 text-secondary" : "bg-primary-container/20 text-primary"
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-1.5 text-[10px] font-black uppercase tracking-widest ${active ? "bg-emerald-100 text-emerald-700 shadow-sm" : "bg-rose-100 text-rose-700 shadow-sm"
                     }`}
             >
-                <span className="material-symbols-outlined text-sm">
-                    {active ? "check_circle" : "cancel"}
+                <span className="material-symbols-outlined text-[14px]">
+                    {active ? "verified" : "error"}
                 </span>
-                {active ? "OK" : "Perlu Tindak Lanjut"}
+                {active ? "VALID" : "PENDING"}
             </span>
         </div>
     );

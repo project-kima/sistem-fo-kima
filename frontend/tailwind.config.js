@@ -8,82 +8,34 @@ export default {
     theme: {
         extend: {
             colors: {
-                /* ── Primary ── */
-                "primary": "#745b00",
-                "primary-container": "#F5C300",
-                "on-primary": "#ffffff",
-                "on-primary-container": "#5a4600",
-
-                /* ── Secondary ── */
-                "secondary": "#00687b",
-                "on-secondary": "#ffffff",
-                "secondary-container": "#b3ebf9",
-                "on-secondary-container": "#004e5d",
-
-                /* ── Surfaces ── */
-                "surface": "#fbf9f9",
-                "surface-container": "#f0eeee",
-                "surface-container-low": "#f5f3f3",
-                "surface-container-lowest": "#ffffff",
-                "surface-container-high": "#eae8e8",
-                "surface-container-highest": "#e4e2e2",
-                "surface-dim": "#dcdada",
-                "surface-bright": "#fbf9f9",
-                "surface-variant": "#e8e1d5",
-
-                /* ── On-Surface ── */
-                "on-surface": "#1b1c1c",
-                "on-surface-variant": "#5f5e5c",
-                "on-background": "#1b1c1c",
-                "background": "#fbf9f9",
-
-                /* ── Outline ── */
-                "outline": "#918f8d",
-                "outline-variant": "#c9c6c3",
-
-                /* ── Error ── */
-                "error": "#ba1a1a",
-                "error-container": "#ffdad6",
-                "on-error": "#ffffff",
-                "on-error-container": "#93000a",
-
-                /* ── Success ── */
-                "success": "#16a34a",
-
-                /* ── Inverse ── */
-                "inverse-surface": "#313030",
-                "inverse-on-surface": "#f3f0f0",
-                "inverse-primary": "#e8c43a",
-
-                /* ── Misc legacy tokens kept for compatibility ── */
-                "surface-tint": "#745b00",
-                "primary-fixed": "#ffe07d",
-                "primary-fixed-dim": "#ccaa00",
-                "tertiary": "#6e5d00",
-                "tertiary-container": "#fff0b3",
-                "on-tertiary": "#ffffff",
-                "on-tertiary-container": "#534600",
+                "premium-dark": "#0a0c10",
+                "on-surface": "rgba(255, 255, 255, 0.95)",
+                "on-surface-variant": "rgba(255, 255, 255, 0.6)",
+                "gold-accent": "#d4a937",
+                "teal-accent": "#00687b",
+                "glass-white": "rgba(255, 255, 255, 0.6)",
+                "glass-border": "rgba(255, 255, 255, 0.8)",
+                
+                /* Mapping for components */
+                "primary": "#d4a937",
+                "surface-container-low": "rgba(255, 255, 255, 0.3)",
             },
             borderRadius: {
-                "DEFAULT": "0.25rem",
-                "lg": "0.5rem",
-                "xl": "0.75rem",
-                "2xl": "1rem",
-                "3xl": "1.5rem",
-                "full": "9999px"
+                "premium": "24px",
+                "3xl": "32px",
             },
             fontFamily: {
-                "headline": ["Manrope"],
-                "body": ["Inter"],
-                "label": ["Inter"],
-                "manrope": ["Manrope"]
+                "manrope": ["Manrope", "sans-serif"],
+                "inter": ["Inter", "sans-serif"],
             },
             boxShadow: {
-                "glass": "0 8px 32px 0 rgba(116, 91, 0, 0.04)",
-                "glass-hover": "0 12px 40px 0 rgba(116, 91, 0, 0.08)",
-                "glass-lg": "0 16px 48px 0 rgba(116, 91, 0, 0.06)",
-                "soft": "0 2px 8px 0 rgba(27, 28, 28, 0.04)",
-                "card": "0 1px 3px 0 rgba(27, 28, 28, 0.06), 0 1px 2px -1px rgba(27, 28, 28, 0.06)",
+                "premium-glow": "0 10px 40px rgba(212, 169, 55, 0.1)",
+                "gold-glow": "0 0 15px rgba(212, 169, 55, 0.2)",
+                "teal-glow": "0 0 15px rgba(0, 104, 123, 0.1)",
+                "glass-depth": "0 20px 50px rgba(0, 0, 0, 0.15)",
+            },
+            backgroundImage: {
+                "gold-gradient": "linear-gradient(135deg, #d4a937 0%, #f1d279 100%)",
             }
         },
     },

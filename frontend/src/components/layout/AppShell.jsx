@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getSectionPath } from "../../app/routes";
 import { getRoleConfig } from "../../roles";
 
@@ -12,6 +12,14 @@ export default function AppShell({
     currentRole = "admin",
 }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+    // Initialize state from localStorage to ensure persistence
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+        const saved = localStorage.getItem("sidebar_collapsed");
+        return saved === "true";
+    });
+
     const roleConfig = getRoleConfig(currentRole);
 
     const handleMobileNavigate = (sectionKey) => {
@@ -19,10 +27,18 @@ export default function AppShell({
         setIsMobileMenuOpen(false);
     };
 
+    // Effect to save state to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem("sidebar_collapsed", String(isSidebarCollapsed));
+    }, [isSidebarCollapsed]);
+
     if (full) {
         return (
-            <div className="h-screen w-screen overflow-hidden text-on-surface">
-                <main className="h-full w-full">
+            <div className="relative min-h-screen w-screen overflow-hidden">
+                <div id="bg-image-layer"></div>
+                <div id="bg-glass-overlay"></div>
+                <div className="mesh-glow"></div>
+                <main className="relative h-full w-full z-10">
                     {children}
                 </main>
             </div>
@@ -30,14 +46,22 @@ export default function AppShell({
     }
 
     return (
-        <div className="text-on-surface">
+        <div className="relative min-h-screen font-inter antialiased selection:bg-gold-accent/20 selection:text-gold-accent">
+            {/* Background Layers */}
+            <div id="bg-image-layer"></div>
+            <div id="bg-glass-overlay"></div>
+            <div className="mesh-glow"></div>
+
             {!hideSidebar && (
                 <TopNav
+                    isSidebarCollapsed={isSidebarCollapsed}
                     onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)}
                     onLogout={onLogout}
                     roleConfig={roleConfig}
+                    onEditProfile={() => setIsEditModalOpen(true)}
                 />
             )}
+
             {isMobileMenuOpen && !hideSidebar && (
                 <MobileDropdownMenu
                     activeSection={activeSection}
@@ -47,28 +71,106 @@ export default function AppShell({
                     roleConfig={roleConfig}
                 />
             )}
+
             {!hideSidebar && (
                 <Sidebar
+                    isCollapsed={isSidebarCollapsed}
+                    onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                     activeSection={activeSection}
                     onNavigate={onNavigate}
                     roleConfig={roleConfig}
                 />
             )}
-            <main className={`min-h-screen pb-10 overflow-x-hidden ${hideSidebar ? "pt-6 px-6" : "pt-24 px-6 md:ml-64 md:px-12 md:pb-12"}`}>
-                {children}
+
+            <main
+                className={`relative z-10 min-h-screen transition-all duration-700 ease-in-out px-4 sm:px-6 md:px-8 lg:px-12 pb-12 pt-20 lg:pt-24 ${hideSidebar ? "" : (isSidebarCollapsed ? "lg:ml-32" : "lg:ml-80")
+                    }`}
+            >
+                <div className="mx-auto max-w-[1600px]">
+                    {children}
+                </div>
             </main>
+
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)}></div>
+                    <div className="relative w-full max-w-md rounded-3xl glass-premium p-8 shadow-2xl animate-in fade-in zoom-in duration-300 border border-white/20">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-xl font-black text-on-surface">Edit Profile</h2>
+                            <button onClick={() => setIsEditModalOpen(false)} className="h-8 w-8 flex items-center justify-center rounded-xl bg-black/5 hover:bg-black/10 transition-all">
+                                <span className="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+
+                        <div className="flex flex-col items-center mb-8">
+                            <div className="relative group cursor-pointer">
+                                <img
+                                    alt="Profile"
+                                    className="h-24 w-24 rounded-3xl object-cover ring-4 ring-black/5 shadow-xl bg-white transition-all group-hover:opacity-70"
+                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roleConfig.profileTitle)}&background=f1f5f9&color=94a3b8&bold=true&size=128`}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="h-10 w-10 bg-black/50 backdrop-blur-md rounded-xl flex items-center justify-center text-white">
+                                        <span className="material-symbols-outlined">photo_camera</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-[10px] font-bold text-gold-accent uppercase tracking-widest mt-4 cursor-pointer hover:underline">Ubah Foto Profil</p>
+                        </div>
+
+                        <div className="space-y-5">
+                            <div>
+                                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Username</label>
+                                <input type="text" defaultValue={roleConfig.profileTitle} className="w-full bg-black/5 border border-black/10 rounded-2xl px-4 py-3 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-gold-accent/50 transition-all" />
+                            </div>
+                            
+                            <div className="pt-2 border-t border-black/5">
+                                <p className="text-[10px] font-black text-on-surface uppercase tracking-widest mb-3">Ubah Password</p>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Password Lama</label>
+                                        <input type="password" placeholder="Masukkan password saat ini" className="w-full bg-black/5 border border-black/10 rounded-2xl px-4 py-2.5 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-gold-accent/50 transition-all placeholder:text-black/30" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Password Baru</label>
+                                        <input type="password" placeholder="Masukkan password baru" className="w-full bg-black/5 border border-black/10 rounded-2xl px-4 py-2.5 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-gold-accent/50 transition-all placeholder:text-black/30" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Konfirmasi Password Baru</label>
+                                        <input type="password" placeholder="Ulangi password baru" className="w-full bg-black/5 border border-black/10 rounded-2xl px-4 py-2.5 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-gold-accent/50 transition-all placeholder:text-black/30" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex gap-3">
+                            <button onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3 rounded-2xl font-bold text-xs bg-black/5 text-on-surface hover:bg-black/10 transition-all">
+                                Batal
+                            </button>
+                            <button onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3 rounded-2xl font-bold text-xs bg-gold-gradient text-white shadow-gold-glow hover:opacity-90 transition-all">
+                                Simpan Perubahan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-function TopNav({ onToggleMenu, onLogout, roleConfig }) {
+function TopNav({ isSidebarCollapsed, onToggleMenu, onLogout, roleConfig, onEditProfile }) {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     return (
-        <nav className="fixed top-0 z-40 flex h-16 w-full items-center justify-between px-6 font-manrope antialiased glass-navbar md:ml-64 md:w-[calc(100%-16rem)] md:px-8">
-            <div className="flex items-center gap-3">
+        <nav
+            className={`fixed top-4 md:top-6 right-4 md:right-6 z-40 flex items-center justify-between transition-all duration-700 ease-in-out pointer-events-none ${isSidebarCollapsed
+                    ? "left-4 lg:left-32"
+                    : "left-4 lg:left-80"
+                }`}
+        >
+            <div className="pointer-events-auto">
                 <button
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-on-surface-variant transition-colors hover:bg-surface-container-low md:hidden"
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm text-on-surface transition-all hover:bg-white/20 hover:-translate-y-0.5 lg:hidden"
                     onClick={onToggleMenu}
                     type="button"
                 >
@@ -76,46 +178,56 @@ function TopNav({ onToggleMenu, onLogout, roleConfig }) {
                 </button>
             </div>
 
-            <div className="flex items-center gap-6">
-                <button
-                    className="relative rounded-xl p-2 text-on-surface-variant transition-all hover:bg-surface-container-low"
-                    type="button"
-                >
-                    <span className="material-symbols-outlined">notifications</span>
-                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary-container"></span>
-                </button>
+            <div className="flex items-center gap-3 md:gap-4 pointer-events-auto ml-auto">
+                <div className="hidden sm:block">
+                    <button className="relative group flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm transition-all hover:bg-white/20 hover:-translate-y-0.5">
+                        <span className="material-symbols-outlined text-on-surface-variant group-hover:text-gold-accent transition-colors">notifications</span>
+                        <span className="absolute top-3 right-3 h-2 w-2 rounded-full bg-gold-accent shadow-gold-glow border border-white"></span>
+                    </button>
+                </div>
+
                 <div className="relative">
                     <button
-                        className="flex items-center gap-3 rounded-2xl p-1.5 transition-all hover:bg-surface-container-low"
+                        className="flex items-center gap-3 rounded-full bg-white/10 backdrop-blur-md border border-white/15 shadow-sm p-1.5 pr-5 transition-all hover:bg-white/20 hover:-translate-y-0.5"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                         type="button"
                     >
-                        <div className="hidden text-right md:block">
-                            <p className="text-sm font-semibold text-on-surface">{roleConfig.profileTitle}</p>
-                            <p className="text-[10px] uppercase tracking-wider text-on-surface-variant">
+                        <div className="relative shrink-0">
+                            <img
+                                alt="Profile"
+                                className="h-9 w-9 md:h-10 md:w-10 rounded-full object-cover ring-2 ring-white/50 shadow-sm bg-white"
+                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roleConfig.profileTitle)}&background=f1f5f9&color=94a3b8&bold=true`}
+                            />
+                        </div>
+                        <div className="hidden text-left md:block">
+                            <p className="text-xs font-black text-on-surface tracking-tight leading-none">{roleConfig.profileTitle}</p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-gold-accent mt-0.5">
                                 {roleConfig.profileSubtitle}
                             </p>
                         </div>
-                        <img
-                            alt="Profile"
-                            className="h-9 w-9 rounded-full object-cover shadow-soft ring-2 ring-white"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAFhnZ3sLh08K-pb9OHZ3RVbGsMO5bKg2zux3NkoQNNOv96Mff-nuHjRBNqlG8PKMPx0E-6VsMGTfB_Jn7lpTk0cWXlblrf-mzL1KZ3O724-QrQBwXPmLINGHLBuxACZGsByzSGBD6Yt9GVvuswzU7_IhGniplwUFCUhvp7w5cU0m_k8DzEjXtMaYsXa-5x15vort0mEzRr9ygaZgu9n6dL3xd-XNV_AxamcvQyVEuceozL2mSLxCaP6gqaGvVKvIN6DZvZzpMQh8"
-                        />
                     </button>
 
                     {isProfileOpen && (
                         <>
-                            <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setIsProfileOpen(false)}
-                            ></div>
-                            <div className="absolute right-0 mt-2 z-20 w-56 origin-top-right rounded-2xl bg-white p-2 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in duration-200">
-                                <div className="px-3 py-2 border-b border-slate-50 md:hidden">
-                                    <p className="text-sm font-bold text-on-surface">{roleConfig.profileTitle}</p>
-                                    <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{roleConfig.profileSubtitle}</p>
+                            <div className="fixed inset-0 z-10" onClick={() => setIsProfileOpen(false)}></div>
+                            <div className="absolute right-0 top-full mt-4 md:mt-6 z-20 w-64 md:w-72 origin-top-right rounded-3xl glass-premium p-3 shadow-glass-depth animate-in fade-in zoom-in duration-300">
+                                <div className="px-5 py-4 border-b border-black/5 mb-2">
+                                    <p className="text-sm font-black text-on-surface">{roleConfig.profileTitle}</p>
+                                    <p className="text-[10px] font-bold text-on-surface-variant uppercase mt-0.5">{roleConfig.profileSubtitle}</p>
                                 </div>
+                                
+                                <div className="px-2 mb-2 pb-2 border-b border-black/5">
+                                    <button 
+                                        onClick={() => { setIsProfileOpen(false); onEditProfile(); }}
+                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-on-surface hover:bg-black/5 transition-all"
+                                    >
+                                        <span className="material-symbols-outlined text-lg opacity-80">manage_accounts</span>
+                                        <span>Edit Profile</span>
+                                    </button>
+                                </div>
+
                                 <button
-                                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                                    className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all"
                                     onClick={() => {
                                         setIsProfileOpen(false);
                                         onLogout?.();
@@ -123,7 +235,7 @@ function TopNav({ onToggleMenu, onLogout, roleConfig }) {
                                     type="button"
                                 >
                                     <span className="material-symbols-outlined text-lg">logout</span>
-                                    <span>Keluar / Logout</span>
+                                    <span>Keluar Sesi</span>
                                 </button>
                             </div>
                         </>
@@ -134,106 +246,36 @@ function TopNav({ onToggleMenu, onLogout, roleConfig }) {
     );
 }
 
-function MobileDropdownMenu({ activeSection, onNavigate, onClose, onLogout, roleConfig }) {
+function Sidebar({ isCollapsed, onToggle, activeSection, onNavigate, roleConfig }) {
     const handleSectionClick = (event, sectionKey) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
-            return;
-        }
-
-        event.preventDefault();
-        onNavigate(sectionKey);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-x-0 top-16 z-40 px-4 md:hidden">
-            <div className="rounded-2xl glass-panel p-2">
-                <div className="mb-1 flex items-center justify-between px-2 py-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                        Menu Navigasi
-                    </p>
-                    <button
-                        className="rounded-md p-1 text-on-surface-variant transition-colors hover:bg-slate-100"
-                        onClick={onClose}
-                        type="button"
-                    >
-                        <span className="material-symbols-outlined text-lg">close</span>
-                    </button>
-                </div>
-
-                <div className="space-y-1">
-                    {roleConfig.menuItems.map((item) => {
-                        const isActive = activeSection === item.key;
-                        const href = getSectionPath(item.key, roleConfig.key);
-                        return (
-                            <div key={item.key} className={item.separated ? "mt-2 pt-2" : ""}>
-                                <a
-                                    href={href}
-                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all ${isActive
-                                        ? "bg-primary-container/60 font-bold text-on-surface"
-                                        : "text-on-surface-variant hover:bg-surface-container-low"
-                                        }`}
-                                    onClick={(event) => handleSectionClick(event, item.key)}
-                                >
-                                    <span
-                                        className={`material-symbols-outlined ${isActive ? "text-primary" : ""}`}
-                                        style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
-                                    >
-                                        {item.icon}
-                                    </span>
-                                    <span>{item.label}</span>
-                                </a>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                <div className="mt-2 border-t border-slate-100 pt-2">
-                    <button
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
-                        onClick={() => {
-                            onClose();
-                            onLogout?.();
-                        }}
-                        type="button"
-                    >
-                        <span className="material-symbols-outlined text-lg">logout</span>
-                        <span>Keluar / Logout</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function Sidebar({ activeSection, onNavigate, roleConfig }) {
-    const handleSectionClick = (event, sectionKey) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
-            return;
-        }
-
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         event.preventDefault();
         onNavigate(sectionKey);
     };
 
     return (
-        <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col glass-sidebar px-4 py-8 font-manrope text-sm font-medium md:flex">
-            <div className="mb-10 px-2">
-                <div className="flex items-center gap-3">
-                    <img
-                        alt=""
-                        aria-hidden="true"
-                        className="h-10 w-10 object-contain"
-                        src="/logo-kima.png"
-                    />
-                    <div>
-                        <p className="text-lg font-extrabold tracking-tight text-primary">KIMA</p>
-                        <p className="text-xs font-medium text-on-surface-variant">Dokumen Arsip</p>
+        <aside
+            className={`fixed left-4 lg:left-6 top-4 md:top-6 bottom-4 md:bottom-6 z-50 hidden lg:flex flex-col rounded-3xl glass-sidebar shadow-glass-depth transition-all duration-700 ease-in-out ${isCollapsed ? "w-24" : "w-72"
+                }`}
+        >
+            <button
+                onClick={onToggle}
+                className={`w-full py-8 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] group focus:outline-none flex items-center ${isCollapsed ? "justify-center px-0" : "px-8 lg:px-10"}`}
+            >
+                <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 flex items-center justify-center rounded-2xl bg-gold-gradient shadow-gold-glow shrink-0">
+                        <img alt="" className="h-7 w-7 object-contain" src="/logo-kima.png" />
                     </div>
+                    {!isCollapsed && (
+                        <div className="overflow-hidden whitespace-nowrap text-left animate-in fade-in slide-in-from-left-4 duration-500">
+                            <p className="text-xl font-black text-on-surface tracking-tighter leading-none">KIMA</p>
+                            <p className="text-[9px] font-bold text-gold-accent uppercase tracking-[0.2em] mt-1">ARCHIVE</p>
+                        </div>
+                    )}
                 </div>
-            </div>
+            </button>
 
-            <nav className="flex-grow space-y-1">
+            <nav className="flex-grow px-4 lg:px-6 space-y-2 mt-2 overflow-y-auto no-scrollbar">
                 {roleConfig.menuItems.map((item) => {
                     const isActive = activeSection === item.key;
                     const href = getSectionPath(item.key, roleConfig.key);
@@ -241,20 +283,58 @@ function Sidebar({ activeSection, onNavigate, roleConfig }) {
                         <a
                             key={item.key}
                             href={href}
-                            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all ${isActive ? "bg-primary-container/50 text-on-surface font-bold shadow-soft" : "text-on-surface-variant hover:bg-white/60 hover:text-on-surface"}`}
+                            title={isCollapsed ? item.label : ""}
+                            className={`flex items-center rounded-2xl transition-all duration-300 group ${isCollapsed ? "justify-center h-12 w-12 mx-auto" : "gap-4 px-5 py-3.5"
+                                } ${isActive
+                                    ? "active-glow-gold text-on-surface font-black"
+                                    : "text-on-surface-variant hover:text-on-surface hover:bg-black/5"
+                                }`}
                             onClick={(event) => handleSectionClick(event, item.key)}
                         >
-                            <span
-                                className={`material-symbols-outlined ${isActive ? "text-primary" : ""}`}
-                                style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
-                            >
-                                {item.icon}
-                            </span>
-                            <span>{item.label}</span>
+                            <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${isActive ? "text-gold-accent" : "group-hover:scale-110"}`}>{item.icon}</span>
+                            {!isCollapsed && <span className="text-[11px] font-bold uppercase tracking-widest whitespace-nowrap animate-in fade-in duration-500">{item.label}</span>}
                         </a>
                     );
                 })}
             </nav>
         </aside>
+    );
+}
+
+function MobileDropdownMenu({ activeSection, onNavigate, onClose, onLogout, roleConfig }) {
+    return (
+        <div className="fixed inset-0 z-50 p-4 lg:hidden">
+            <div className="fixed inset-0 bg-black/20 backdrop-blur-md" onClick={onClose}></div>
+            <div className="relative h-fit w-full rounded-3xl glass-premium p-6 shadow-glass-depth">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-gold-gradient">
+                            <img alt="" className="h-6 w-6 object-contain" src="/logo-kima.png" />
+                        </div>
+                        <p className="text-lg font-black text-on-surface">KIMA</p>
+                    </div>
+                    <button onClick={onClose} className="h-10 w-10 flex items-center justify-center rounded-xl bg-black/[0.03]">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <nav className="space-y-2">
+                    {roleConfig.menuItems.map((item) => {
+                        const isActive = activeSection === item.key;
+                        return (
+                            <button
+                                key={item.key}
+                                className={`flex w-full items-center gap-4 rounded-xl px-6 py-4 transition-all ${isActive ? "bg-white/60 font-black" : "text-on-surface-variant hover:bg-white/40"
+                                    }`}
+                                onClick={() => { onNavigate(item.key); onClose(); }}
+                            >
+                                <span className={`material-symbols-outlined ${isActive ? "text-gold-accent" : ""}`}>{item.icon}</span>
+                                <span className="text-xs font-bold uppercase tracking-widest">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+            </div>
+        </div>
     );
 }
