@@ -62,12 +62,12 @@ function decodeRoutePlannerMeta(encodedValue) {
 function sanitizeRoutePlannerMeta(routeMeta) {
   const geometryCoordinates = Array.isArray(routeMeta?.geometryCoordinates)
     ? routeMeta.geometryCoordinates.filter(
-        (coordinate) =>
-          Array.isArray(coordinate) &&
-          coordinate.length >= 2 &&
-          Number.isFinite(Number(coordinate[0])) &&
-          Number.isFinite(Number(coordinate[1])),
-      )
+      (coordinate) =>
+        Array.isArray(coordinate) &&
+        coordinate.length >= 2 &&
+        Number.isFinite(Number(coordinate[0])) &&
+        Number.isFinite(Number(coordinate[1])),
+    )
     : [];
 
   return {
@@ -149,8 +149,8 @@ function normalizeDraftRoutePoints(points) {
         : `Titik ${index + 1}`,
     pointType:
       point?.pointType === "awal" ||
-      point?.pointType === "transit" ||
-      point?.pointType === "tujuan"
+        point?.pointType === "transit" ||
+        point?.pointType === "tujuan"
         ? point.pointType
         : index === 0
           ? "awal"
@@ -668,8 +668,8 @@ function TenantDetailPage({
           nextFollowUpDrafts[draftKey] = {
             invoiceNumber: String(
               previousFollowUpDrafts[draftKey]?.invoiceNumber ??
-                followUp?.invoiceNumber ??
-                "",
+              followUp?.invoiceNumber ??
+              "",
             ),
           };
         });
@@ -795,19 +795,19 @@ function TenantDetailPage({
 
   const backendPriorityTodos = Array.isArray(todoSummary.priority)
     ? todoSummary.priority.filter(
-        (item) => item.code !== "required_document_missing",
-      )
+      (item) => item.code !== "required_document_missing",
+    )
     : [];
   const backendNeedActionTodos = Array.isArray(todoSummary.needAction)
     ? todoSummary.needAction.filter(
-        (item) =>
-          ![
-            "required_document_missing",
-            "invoice_not_uploaded",
-            "payment_pending",
-            "invoice_amount_missing",
-          ].includes(item.code),
-      )
+      (item) =>
+        ![
+          "required_document_missing",
+          "invoice_not_uploaded",
+          "payment_pending",
+          "invoice_amount_missing",
+        ].includes(item.code),
+    )
     : [];
 
   const derivedPriorityTodos = [];
@@ -955,49 +955,49 @@ function TenantDetailPage({
   const contractRowsForTable =
     versions.length > 0
       ? versions.map((version, index) => {
-          const normalizedCoreType = String(
-            version?.coreType ?? "",
-          ).toLowerCase();
-          const paketLabel = normalizedCoreType
-            ? normalizedCoreType.replace(/_/g, " ").toUpperCase()
-            : String(detail?.paket || customer?.paket || "CORE").toUpperCase();
+        const normalizedCoreType = String(
+          version?.coreType ?? "",
+        ).toLowerCase();
+        const paketLabel = normalizedCoreType
+          ? normalizedCoreType.replace(/_/g, " ").toUpperCase()
+          : String(detail?.paket || customer?.paket || "CORE").toUpperCase();
 
-          return {
-            id: `version-${version.id ?? index}`,
-            contractId: contract?.id ?? null,
-            versionId: version?.id ?? null,
-            number: index + 1,
-            contractNumber: contract?.contractNumber ?? "",
-            note: index === 0 ? "Kontrak Beroperasi" : "Riwayat Perubahan",
-            periodStart: version?.startDate ?? contract?.startDate ?? "",
-            periodEnd: version?.endDate ?? contract?.endDate ?? "",
-            paket: paketLabel,
-            jumlahPaket: resolveContractActualValue(version),
-            hasBak: Boolean(version?.bakDocumentId),
-            renewalFollowUps: Array.isArray(version?.renewalFollowUps)
-              ? version.renewalFollowUps
-              : [],
-          };
-        })
+        return {
+          id: `version-${version.id ?? index}`,
+          contractId: contract?.id ?? null,
+          versionId: version?.id ?? null,
+          number: index + 1,
+          contractNumber: contract?.contractNumber ?? "",
+          note: index === 0 ? "Kontrak Beroperasi" : "Riwayat Perubahan",
+          periodStart: version?.startDate ?? contract?.startDate ?? "",
+          periodEnd: version?.endDate ?? contract?.endDate ?? "",
+          paket: paketLabel,
+          jumlahPaket: resolveContractActualValue(version),
+          hasBak: Boolean(version?.bakDocumentId),
+          renewalFollowUps: Array.isArray(version?.renewalFollowUps)
+            ? version.renewalFollowUps
+            : [],
+        };
+      })
       : contract
         ? [
-            {
-              id: `contract-${contract.id}`,
-              contractId: contract.id,
-              versionId: null,
-              number: 1,
-              contractNumber: contract.contractNumber ?? "",
-              note: "Kontrak Awal",
-              periodStart: contract.startDate ?? "",
-              periodEnd: contract.endDate ?? "",
-              paket: String(
-                detail?.paket || customer?.paket || "CORE",
-              ).toUpperCase(),
-              jumlahPaket: resolveContractActualValue(null),
-              hasBak: false,
-              renewalFollowUps: [],
-            },
-          ]
+          {
+            id: `contract-${contract.id}`,
+            contractId: contract.id,
+            versionId: null,
+            number: 1,
+            contractNumber: contract.contractNumber ?? "",
+            note: "Kontrak Awal",
+            periodStart: contract.startDate ?? "",
+            periodEnd: contract.endDate ?? "",
+            paket: String(
+              detail?.paket || customer?.paket || "CORE",
+            ).toUpperCase(),
+            jumlahPaket: resolveContractActualValue(null),
+            hasBak: false,
+            renewalFollowUps: [],
+          },
+        ]
         : [];
 
   const toggleContractNumberEmptyMark = (rowId) => {
@@ -1405,10 +1405,10 @@ function TenantDetailPage({
         ...body,
         ...(routeEditMode === "ubah_jalur"
           ? {
-              changeNote:
-                routeChangeNote.trim() ||
-                "Perubahan struktur jalur dari halaman tenant.",
-            }
+            changeNote:
+              routeChangeNote.trim() ||
+              "Perubahan struktur jalur dari halaman tenant.",
+          }
           : {}),
       };
 
@@ -1756,9 +1756,9 @@ function TenantDetailPage({
       dueDate: String(existingDraft.dueDate ?? invoice?.dueDate ?? ""),
       amount: String(
         existingDraft.amount ??
-          (Number.isFinite(Number(invoice.amount))
-            ? Math.max(0, Math.round(Number(invoice.amount)))
-            : 0),
+        (Number.isFinite(Number(invoice.amount))
+          ? Math.max(0, Math.round(Number(invoice.amount)))
+          : 0),
       ),
       followUps: existingDraft.followUps ?? {},
     };
@@ -1770,8 +1770,8 @@ function TenantDetailPage({
     return {
       invoiceNumber: String(
         draft.followUps?.[followUpKey]?.invoiceNumber ??
-          followUp?.invoiceNumber ??
-          "",
+        followUp?.invoiceNumber ??
+        "",
       ),
     };
   };
@@ -2747,7 +2747,7 @@ function TenantDetailPage({
                         <p className="text-lg font-black text-amber-800">
                           {formatCurrency(
                             detail?.activationFeeAmount ??
-                              customer.activationFeeAmount,
+                            customer.activationFeeAmount,
                           )}
                         </p>
                       </div>
@@ -2969,9 +2969,9 @@ function TenantDetailPage({
               )}
             </section>
 
-              <div className="flex flex-col gap-8">
-                <div className="space-y-8">
-                  {(routeError || routeFeedback) && (
+            <div className="flex flex-col gap-8">
+              <div className="space-y-8">
+                {(routeError || routeFeedback) && (
                   <div
                     className={`rounded-lg border px-4 py-3 text-sm font-semibold animate-in slide-in-from-top-2 duration-300 shadow-sm ${routeError ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}
                   >
@@ -3044,13 +3044,12 @@ function TenantDetailPage({
                               </td>
                               <td className="px-4 py-4">
                                 <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border ${
-                                    point.pointType === "awal"
+                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border ${point.pointType === "awal"
                                       ? "bg-indigo-50 text-indigo-700 border-indigo-100"
                                       : point.pointType === "tujuan"
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                                         : "bg-slate-50 text-slate-600 border-slate-100"
-                                  }`}
+                                    }`}
                                 >
                                   <span className="material-symbols-outlined text-[13px]">
                                     {routePointTypeMeta[point.pointType]?.icon}
@@ -3112,15 +3111,15 @@ function TenantDetailPage({
                         )}
                         {(isRouteDrafting ? draftRoutePoints : routePoints)
                           .length === 0 && (
-                          <tr>
-                            <td
-                              className="px-4 py-10 text-center text-sm text-on-surface-variant italic"
-                              colSpan="5"
-                            >
-                              Belum ada titik jalur atau sedang kosong.
-                            </td>
-                          </tr>
-                        )}
+                            <tr>
+                              <td
+                                className="px-4 py-10 text-center text-sm text-on-surface-variant italic"
+                                colSpan="5"
+                              >
+                                Belum ada titik jalur atau sedang kosong.
+                              </td>
+                            </tr>
+                          )}
                       </tbody>
                     </table>
                   </div>
@@ -3178,7 +3177,7 @@ function TenantDetailPage({
                               </td>
                               <td className="px-4 py-3 text-right text-xs font-mono font-semibold text-slate-500">
                                 {Number.isFinite(Number(road?.distance)) &&
-                                Number(road.distance) > 0
+                                  Number(road.distance) > 0
                                   ? `${(Number(road.distance) / 1000).toFixed(2)} km`
                                   : "-"}
                               </td>
@@ -3348,13 +3347,12 @@ function TenantDetailPage({
                                       </td>
                                       <td className="px-4 py-3">
                                         <span
-                                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${
-                                            point.pointType === "awal"
+                                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${point.pointType === "awal"
                                               ? "bg-indigo-50 text-indigo-700 border-indigo-100"
                                               : point.pointType === "tujuan"
                                                 ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                                                 : "bg-slate-50 text-slate-600 border-slate-100"
-                                          }`}
+                                            }`}
                                         >
                                           <span className="material-symbols-outlined text-[12px]">
                                             {
@@ -3365,7 +3363,7 @@ function TenantDetailPage({
                                           </span>
                                           {
                                             routePointTypeLabelMap[
-                                              point.pointType
+                                            point.pointType
                                             ]
                                           }
                                         </span>
@@ -3412,16 +3410,16 @@ function TenantDetailPage({
               >
                 <span className="material-symbols-outlined text-base">add</span>
                 Tambah Kontrak / Perubahan
-                </button>
-                </div>
+              </button>
+            </div>
 
-                {documentFeedback && (
-                <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            {documentFeedback && (
+              <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
                 {documentFeedback}
-                </div>
-                )}
+              </div>
+            )}
 
-                {/* Desktop Table View */}            <div className="hidden lg:block overflow-x-auto">
+            {/* Desktop Table View */}            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/50">
@@ -3552,9 +3550,9 @@ function TenantDetailPage({
                                   className="text-[10px] w-48 text-on-surface-variant file:mr-2 file:rounded-md file:border-0 file:bg-primary/5 file:px-2 file:py-1 file:text-[10px] file:text-primary file:font-bold"
                                   type="file"
                                   onChange={(e) => {
-                                      if (e.target.files?.[0]) {
-                                          setEmptyBakRows(prev => ({ ...prev, [row.id]: false }));
-                                      }
+                                    if (e.target.files?.[0]) {
+                                      setEmptyBakRows(prev => ({ ...prev, [row.id]: false }));
+                                    }
                                   }}
                                 />
                               )}
@@ -3742,9 +3740,9 @@ function TenantDetailPage({
                                 className="text-[10px] w-full text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-primary/5 file:px-3 file:py-1.5 file:text-[10px] file:text-primary file:font-black"
                                 type="file"
                                 onChange={(e) => {
-                                    if (e.target.files?.[0]) {
-                                        setEmptyBakRows(prev => ({ ...prev, [row.id]: false }));
-                                    }
+                                  if (e.target.files?.[0]) {
+                                    setEmptyBakRows(prev => ({ ...prev, [row.id]: false }));
+                                  }
                                 }}
                               />
                             )}
@@ -3996,8 +3994,8 @@ function TenantDetailPage({
                     const canUploadInvoiceFile = isSavingInvoice
                       ? false
                       : hasInvoiceFile ||
-                        !nextActionInvoice ||
-                        isCurrentFollowUpRow;
+                      !nextActionInvoice ||
+                      isCurrentFollowUpRow;
                     return (
                       <tr
                         key={invoice.id}
@@ -4756,8 +4754,8 @@ function TenantDetailPage({
                               setSelectedDeleteIspIds((previous) =>
                                 previous.includes(ispItem.id)
                                   ? previous.filter(
-                                      (value) => value !== ispItem.id,
-                                    )
+                                    (value) => value !== ispItem.id,
+                                  )
                                   : [...previous, ispItem.id],
                               )
                             }

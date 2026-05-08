@@ -284,7 +284,7 @@ function IspDetailPage({
                                 <div className="mb-2 inline-flex items-center gap-2">
                                     <span className="rounded-md bg-white/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">ISP</span>
                                     <span className="rounded-md bg-white/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">{['aktif', 'expired'].includes(detail?.status ?? isp.status) ? "Beroperasi" : "Berhenti"}</span>
-                                    <span className={`rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${ (detail?.status ?? isp.status) === 'expired' ? 'bg-rose-100 text-rose-700' : 'bg-white/50 text-primary'}`}>Kontrak: { (detail?.status ?? isp.status) === 'expired' ? 'Belum Diperpanjang' : 'Aktif' }</span>
+                                    <span className={`rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${(detail?.status ?? isp.status) === 'expired' ? 'bg-rose-100 text-rose-700' : 'bg-white/50 text-primary'}`}>Kontrak: {(detail?.status ?? isp.status) === 'expired' ? 'Belum Diperpanjang' : 'Aktif'}</span>
                                 </div>
                                 <h1 className="text-4xl font-extrabold tracking-tight text-on-surface">{ispName}</h1>
                                 <p className="mt-2 flex items-center gap-2 text-sm text-on-surface-variant"><span className="material-symbols-outlined text-base">description</span>Kontrak Induk: {contractRef}</p>
@@ -395,8 +395,8 @@ function IspDetailPage({
                                 {!isTeknisi && (
                                     <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-sm">
                                         <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-on-surface">
-                                        <span className="material-symbols-outlined text-xl text-blue-500">groups</span>
-                                        Status Kelengkapan Berkas Lokasi
+                                            <span className="material-symbols-outlined text-xl text-blue-500">groups</span>
+                                            Status Kelengkapan Berkas Lokasi
                                         </h3>
                                         <div className="space-y-3">
                                             {tenantActionRows.map((t) => (

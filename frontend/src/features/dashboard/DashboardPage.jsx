@@ -155,7 +155,7 @@ export default function DashboardPage({
                     
                     <div className="flex flex-col items-end gap-3">
                         <div className="flex items-center gap-2 bg-white/10 p-2 rounded-2xl border border-white/15 backdrop-blur-md">
-                            <span className="text-[10px] font-black text-white/50 uppercase tracking-widest pl-2 pr-2">SYNC DATA</span>
+                            <span className="text-[10px] font-black text-white/50 uppercase tracking-widest pl-2 pr-2">REFRESH</span>
                             <button 
                                 onClick={() => loadOperationalData(financialFilter.mode === 'specific_year' ? financialFilter.year : String(new Date().getUTCFullYear()))}
                                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all ${isLoadingOperational ? "bg-white/10 text-gold-accent" : "btn-premium"}`}

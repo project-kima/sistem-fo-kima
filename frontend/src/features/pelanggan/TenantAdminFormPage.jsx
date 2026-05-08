@@ -1,9 +1,90 @@
-
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import AppShell from "../../components/layout/AppShell";
-import { FieldInput, FieldSelect } from "../../components/shared/AppShared";
-import { API_BASE_URL, fetchJson } from "../../app/utils";
+import { API_BASE_URL, fetchJson, readFileAsDataUrl } from "../../app/utils";
+
+const GlassFieldInput = ({ label, type = "text", value, onChange, placeholder = "", icon }) => {
+    return (
+        <div className="space-y-3">
+            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gold-accent/60 ml-1">
+                {label}
+            </label>
+            <div className="relative group">
+                {icon && (
+                    <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-xl text-white/20 group-focus-within:text-gold-accent transition-all duration-300 pointer-events-none">
+                        {icon}
+                    </span>
+                )}
+                <input
+                    className={`w-full h-14 rounded-2xl bg-black/20 border border-white/10 ${icon ? "pl-14" : "px-6"} pr-6 text-sm font-bold placeholder:text-white/10 outline-none transition-all focus:bg-black/40 focus:border-gold-accent/40 focus:ring-4 focus:ring-gold-accent/5 shadow-inner-glass ${type === "date" ? "text-white/40 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" : "text-white"} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                    onChange={(event) => onChange(event.target.value)}
+                    onKeyDown={(e) => type === "date" && e.preventDefault()}
+                    onClick={(e) => type === "date" && e.target.showPicker && e.target.showPicker()}
+                    placeholder={placeholder}
+                    type={type}
+                    value={value}
+                />
+            </div>
+        </div>
+    );
+};
+
+const GlassCustomSelect = ({ label, value, onChange, options, icon, heightClass = "h-14", iconOnly = false }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+    const selectedOption = options.find(opt => opt.value === value) || options[0];
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div className={`space-y-3 relative ${isOpen ? "z-50" : "z-0"}`} ref={containerRef}>
+            {label && (
+                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gold-accent/60 ml-1">
+                    {label}
+                </label>
+            )}
+            <div className="relative">
+                <div
+                    onClick={() => setIsOpen(!isOpen)}
+                    className={`rounded-2xl bg-black/20 border flex items-center justify-center transition-all cursor-pointer shadow-inner-glass relative z-20 ${isOpen ? "border-gold-accent/60 bg-black/40 shadow-gold-glow" : "border-white/10 text-white/70 hover:border-white/30"} ${heightClass} ${iconOnly ? "w-11 px-0" : "w-full pl-14 pr-12 text-[10px] font-black"}`}
+                >
+                    <span className={`material-symbols-outlined transition-all duration-300 ${iconOnly ? "text-xl" : "absolute left-5 top-1/2 -translate-y-1/2 text-xl"}`} style={{ color: isOpen ? "#d4a937" : "rgba(255,255,255,0.2)" }}>
+                        {icon}
+                    </span>
+                    {!iconOnly && <span className="truncate uppercase tracking-widest">{selectedOption.label}</span>}
+                    {!iconOnly && (
+                        <span className={`material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-300 ${isOpen ? "rotate-180 text-gold-accent" : "text-white/20"}`}>
+                            expand_more
+                        </span>
+                    )}
+                </div>
+
+                {isOpen && (
+                    <div className={`absolute top-full mt-2 p-2 rounded-2xl bg-black/60 backdrop-blur-3xl border border-white/10 shadow-glass-depth z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden ${iconOnly ? "right-0 w-48" : "left-0 right-0"}`}>
+                        {options.map((opt) => (
+                            <div
+                                key={opt.value}
+                                onClick={() => {
+                                    onChange(opt.value);
+                                    setIsOpen(false);
+                                }}
+                                className={`flex items-center px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer transition-all mb-1 last:mb-0 ${value === opt.value ? "bg-gold-accent/10 text-gold-accent border border-gold-accent/20 shadow-gold-glow" : "text-white/40 hover:bg-white/5 hover:text-white"}`}
+                            >
+                                {opt.label}
+                                {value === opt.value && <span className="material-symbols-outlined ml-auto text-sm">check_circle</span>}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, mode = "create", onCancel, onNavigate, onSaved }) {
     const [form, setForm] = useState({
@@ -26,8 +107,9 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
     const [submitError, setSubmitError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // State for Search and Pagination
+    // State for Search, Sort and Pagination
     const [ispSearchTerm, setIspSearchTerm] = useState("");
+    const [ispSortBy, setIspSortBy] = useState("newest");
     const [ispPage, setIspPage] = useState(1);
     const itemsPerPage = 6;
 
@@ -35,53 +117,46 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
     const isLockedToIsp = !isEditMode && Boolean(lockedIsp?.id);
 
     useEffect(() => {
-        if (!initialData) {
-            return;
-        }
-
-        setForm((previous) => ({
-            ...previous,
+        if (!initialData) return;
+        setForm((p) => ({
+            ...p,
             name: initialData.name ?? "",
             status: initialData.rawStatus ?? initialData.status ?? "aktif",
         }));
     }, [initialData]);
 
     useEffect(() => {
-        if (!isLockedToIsp) {
-            return;
-        }
-
+        if (!isLockedToIsp) return;
         setSelectedIspId(Number(lockedIsp.id));
     }, [isLockedToIsp, lockedIsp]);
 
-    const selectIsp = (ispId) => {
-        setSelectedIspId(ispId);
-    };
+    const selectIsp = (ispId) => setSelectedIspId(ispId);
 
-    // Filter and Paginate ISPs
     const filteredIsps = isps.filter(isp => 
         isp.name.toLowerCase().includes(ispSearchTerm.toLowerCase()) ||
         (isp.contractReference && isp.contractReference.toLowerCase().includes(ispSearchTerm.toLowerCase()))
-    );
+    ).sort((a, b) => {
+        if (ispSortBy === "name_asc") return a.name.localeCompare(b.name);
+        if (ispSortBy === "name_desc") return b.name.localeCompare(a.name);
+        return (b.id || 0) - (a.id || 0); // newest default
+    });
     
     const totalPages = Math.ceil(filteredIsps.length / itemsPerPage);
     const displayedIsps = filteredIsps.slice((ispPage - 1) * itemsPerPage, ispPage * itemsPerPage);
 
     useEffect(() => {
-        setIspPage(1); // Reset to first page on search
+        setIspPage(1);
     }, [ispSearchTerm]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-
         if (!form.name.trim()) {
-            setSubmitError("Nama tenant wajib diisi.");
+            setSubmitError("Nama lokasi wajib diisi.");
             return;
         }
-
         if (!isEditMode) {
             if (!selectedIspId) {
-                setSubmitError("Tenant harus terhubung ke satu ISP.");
+                setSubmitError("Lokasi harus terhubung ke satu ISP.");
                 return;
             }
             if (form.paket === "shared" && (!form.ratioLeft || !form.ratioRight || Number(form.ratioLeft) < 1 || Number(form.ratioRight) < 1)) {
@@ -89,7 +164,7 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                 return;
             }
             if (!form.contractPeriodStart || !form.contractPeriodEnd || form.contractPeriodStart > form.contractPeriodEnd) {
-                setSubmitError("Periode kontrak tenant tidak valid.");
+                setSubmitError("Periode kontrak tidak valid.");
                 return;
             }
         }
@@ -105,10 +180,7 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                 method: isEditMode ? "PATCH" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(isEditMode
-                    ? {
-                        name: form.name.trim(),
-                        status: form.status,
-                    }
+                    ? { name: form.name.trim(), status: form.status }
                     : {
                         name: form.name.trim(),
                         status: form.status,
@@ -116,7 +188,6 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                         contractStartDate: form.contractStartDate || form.contractPeriodStart,
                         contractPeriodStart: form.contractPeriodStart,
                         contractPeriodEnd: form.contractPeriodEnd,
-                        
                         paket: form.paket,
                         jumlah: form.paket === "core" ? Math.round(Number(form.jumlah || 0)) : 0,
                         contractSharingRatio: form.paket === "shared" ? `${form.ratioLeft || 1}:${form.ratioRight || 8}` : undefined,
@@ -126,12 +197,9 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                         activationFeeAmount: Math.round(Number(form.activationFeeAmount || 0)),
                     }),
             });
-
-            if (onSaved) {
-                await onSaved(result);
-            }
+            if (onSaved) await onSaved(result);
         } catch (requestError) {
-            setSubmitError(requestError instanceof Error ? requestError.message : `Terjadi kesalahan saat ${isEditMode ? "memperbarui" : "menyimpan"} tenant.`);
+            setSubmitError(requestError instanceof Error ? requestError.message : `Terjadi kesalahan saat ${isEditMode ? "memperbarui" : "menyimpan"} lokasi.`);
         } finally {
             setIsSubmitting(false);
         }
@@ -139,158 +207,318 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
 
     return (
         <AppShell activeSection="customers" onNavigate={onNavigate}>
-            <form className="mx-auto max-w-6xl space-y-4 md:space-y-8" onSubmit={handleSubmit}>
-                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end px-2 md:px-0">
-                    <div>
-                        <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-on-surface-variant/60">{isEditMode ? "Edit Tenant" : "Tambah Tenant"}</p>
-                        <h1 className="mt-1 md:mt-2 text-xl md:text-3xl font-extrabold text-primary">{isEditMode ? "Edit Lokasi / Tenant" : "Tenant Baru"}</h1>
-                        {!isEditMode && (
-                            <p className="mt-1 md:mt-2 max-w-xl text-[11px] md:text-sm text-on-surface-variant">
-                                Sistem akan otomatis membuat kontrak dan invoice.
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex gap-2 md:gap-3">
-                        <button className="flex-1 md:flex-none rounded-xl px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high border border-slate-200 md:border-none" onClick={onCancel} type="button">Batalkan</button>
-                        <button className="flex-[2] md:flex-none rounded-xl bg-gradient-to-br from-primary to-primary-container px-4 md:px-8 py-2 md:py-2.5 text-xs md:text-sm font-bold text-white shadow-lg shadow-primary/20 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} type="submit">{isSubmitting ? "..." : isEditMode ? "Simpan" : "Simpan Tenant"}</button>
-                    </div>
-                </div>
+            {/* Background Glows */}
+            <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+                <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-gold-accent/5 blur-[120px]" />
+                <div className="absolute bottom-[-5%] left-[-5%] w-[30%] h-[30%] rounded-full bg-gold-accent/5 blur-[100px]" />
+            </div>
 
-                {submitError && <div className="mx-2 md:mx-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] md:text-sm font-medium text-red-700">{submitError}</div>}
+            <form className="relative z-10 mx-auto max-w-7xl space-y-10 pb-20 pt-4 px-6" onSubmit={handleSubmit}>
+                {/* Header Section */}
+                <header className="flex flex-col justify-between gap-8 md:flex-row md:items-end mb-6 px-2">
+                    <div className="space-y-4">
+                        <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-gold-accent/10 border border-gold-accent/20">
+                            <span className="w-2 h-2 rounded-full bg-gold-accent animate-pulse shadow-gold-glow" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-accent">
+                                {isEditMode ? "Modul Pengeditan" : "Modul Pendaftaran"}
+                            </span>
+                        </div>
+                        <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white leading-none">
+                            {isEditMode ? "Edit" : "Daftar"} <span className="text-gold-accent italic">Lokasi Baru</span>
+                        </h1>
+                        <p className="max-w-2xl text-base font-medium leading-relaxed text-white/60">
+                            Silakan lengkapi data administratif dan konfigurasi layanan untuk {isEditMode ? "memperbarui lokasi" : "mendaftarkan titik lokasi baru"}.
+                        </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                        <button 
+                            className="h-[64px] px-8 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-[0.2em] text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95 shadow-glass-depth"
+                            onClick={onCancel} 
+                            type="button"
+                        >
+                            Batal
+                        </button>
+                        <button 
+                            className="h-[64px] px-10 rounded-2xl btn-premium text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-gold-glow active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none" 
+                            disabled={isSubmitting} 
+                            type="submit"
+                        >
+                            {isSubmitting ? (
+                                <span className="flex items-center gap-2">
+                                    <span className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                                    Memproses...
+                                </span>
+                            ) : (
+                                isEditMode ? "Simpan Perubahan" : "Simpan Lokasi"
+                            )}
+                        </button>
+                    </div>
+                </header>
 
-                <div className="grid grid-cols-12 gap-3 md:gap-8 px-2 md:px-0">
-                    {/* KOLOM KIRI: Detail Utama */}
-                    <section className={`${isEditMode ? "col-span-12" : "col-span-7 md:col-span-8"} space-y-3 md:space-y-8`}>
-                        <div className="rounded-xl bg-surface-container-lowest p-3 md:p-8 shadow-sm">
-                            <div className="grid grid-cols-1 gap-3 md:gap-6">
-                                <FieldInput label="Nama Tenant" value={form.name} onChange={(value) => setForm((previous) => ({ ...previous, name: value }))} />
-                                <FieldSelect 
-                                    label="Status" 
+                {submitError && (
+                    <div className="mx-2 p-6 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-400 text-sm font-bold backdrop-blur-md animate-in fade-in slide-in-from-top-4">
+                        <div className="flex items-center gap-3">
+                            <span className="material-symbols-outlined">warning</span>
+                            {submitError}
+                        </div>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    {/* Left Column - Core Info */}
+                    <div className="lg:col-span-8 space-y-8">
+                        {/* Section: Identitas Lokasi */}
+                        <div className="glass-card rounded-premium p-8 border-white/20 shadow-glass-depth relative z-40">
+                            <div className="flex items-center gap-3 mb-8">
+                                <span className="h-6 w-1.5 bg-gold-accent rounded-full shadow-gold-glow"></span>
+                                <h3 className="text-xl font-black text-white uppercase tracking-widest">Identitas Lokasi</h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <GlassFieldInput 
+                                    label="Nama Lokasi" 
+                                    icon="location_on"
+                                    placeholder="Contoh: Gedung A - Lantai 2"
+                                    value={form.name} 
+                                    onChange={(val) => setForm(p => ({ ...p, name: val }))} 
+                                />
+                                <GlassCustomSelect 
+                                    label="Status Operasional" 
+                                    icon="verified_user"
                                     value={form.status} 
-                                    onChange={(value) => setForm((previous) => ({ ...previous, status: value }))} 
+                                    onChange={(val) => setForm(p => ({ ...p, status: val }))} 
                                     options={[
-                                        { value: "aktif", label: "Beroperasi" }, 
-                                        ...(isEditMode ? [{ value: "expired", label: "Expired" }] : []),
-                                        { value: "berhenti", label: "Berhenti" }
+                                        { value: "aktif", label: "BEROPERASI" }, 
+                                        ...(isEditMode ? [{ value: "expired", label: "MASA BERLAKU HABIS" }] : []),
+                                        { value: "berhenti", label: "BERHENTI" }
                                     ]} 
                                 />
-                                {!isEditMode && (
-                                    <>
-                                        <FieldSelect label="Paket" value={form.paket} onChange={(value) => setForm((previous) => ({ ...previous, paket: value }))} options={[{ value: "core", label: "Core" }, { value: "shared", label: "Shared" }]} />
-                                        {form.paket === "core" ? (
-                                            <FieldInput label="Core" type="number" value={form.jumlah} onChange={(value) => setForm((previous) => ({ ...previous, jumlah: value }))} />
-                                        ) : (
-                                            <div className="space-y-1">
-                                                <label className="block text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">Ratio</label>
-                                                <div className="flex items-center gap-1">
-                                                    <input className="w-full rounded-lg border border-slate-200 bg-surface-container-lowest px-2 py-1.5 text-xs focus:ring-1 focus:ring-primary/20" type="number" value={form.ratioLeft} onChange={(event) => setForm((previous) => ({ ...previous, ratioLeft: event.target.value }))} />
-                                                    <span className="font-bold text-slate-400">:</span>
-                                                    <input className="w-full rounded-lg border border-slate-200 bg-surface-container-lowest px-2 py-1.5 text-xs focus:ring-1 focus:ring-primary/20" type="number" value={form.ratioRight} onChange={(event) => setForm((previous) => ({ ...previous, ratioRight: event.target.value }))} />
-                                                </div>
-                                            </div>
-                                        )}
-                                        <FieldInput label="Awal Kontrak (Opsional)" type="date" value={form.contractStartDate} onChange={(value) => setForm((previous) => ({ ...previous, contractStartDate: value }))} />
-                                        <FieldInput label="Periode berjalan mulai" type="date" value={form.contractPeriodStart} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodStart: value }))} />
-                                        <FieldInput label="Periode berjalan akhir" type="date" value={form.contractPeriodEnd} onChange={(value) => setForm((previous) => ({ ...previous, contractPeriodEnd: value }))} />
-                                    </>
-                                )}
                             </div>
                         </div>
-                    </section>
 
-                    {/* KOLOM KANAN: Billing & Biaya */}
-                    {!isEditMode && (
-                        <section className="col-span-5 md:col-span-4 space-y-3 md:space-y-8">
-                            <div className="rounded-xl bg-surface-container-lowest p-3 md:p-6 shadow-sm">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="mb-2 block text-[9px] font-bold uppercase tracking-widest text-on-surface-variant leading-tight">Billing Period</label>
-                                        <div className="grid grid-cols-1 gap-1.5">
-                                            {["bulanan", "3bulanan", "custom"].map((modeValue) => (
-                                                <button key={modeValue} className={`rounded-lg py-1.5 text-[10px] font-bold transition-colors ${form.billingPeriodMode === modeValue ? "bg-primary text-white" : "bg-surface-container-lowest text-on-surface-variant border border-slate-100 hover:bg-slate-50"}`} onClick={() => setForm((previous) => ({ ...previous, billingPeriodMode: modeValue }))} type="button">{modeValue === "bulanan" ? "Bulanan" : modeValue === "3bulanan" ? "3 Bln" : "Custom"}</button>
-                                            ))}
-                                        </div>
-                                        {form.billingPeriodMode === "custom" && (
-                                            <div className="mt-2 rounded-lg bg-surface-container-lowest p-2 ring-1 ring-slate-200/50">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <input className="w-full rounded border-none bg-surface p-1.5 text-[10px] focus:ring-1 focus:ring-primary/20" min="1" onChange={(event) => setForm((previous) => ({ ...previous, billingCustomEvery: event.target.value }))} step="1" type="number" value={form.billingCustomEvery} placeholder="Every" />
-                                                    <select className="w-full rounded border-none bg-surface p-1.5 text-[10px] focus:ring-1 focus:ring-primary/20" onChange={(event) => setForm((previous) => ({ ...previous, billingCustomUnit: event.target.value }))} value={form.billingCustomUnit}>
-                                                        <option value="hari">Hari</option>
-                                                        <option value="bulan">Bulan</option>
-                                                        <option value="tahun">Tahun</option>
-                                                    </select>
+                        {!isEditMode && (
+                            <div className="glass-card rounded-premium p-8 border-white/20 shadow-glass-depth relative z-30">
+                                <div className="flex items-center gap-3 mb-8">
+                                    <span className="h-6 w-1.5 bg-gold-accent rounded-full shadow-gold-glow"></span>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-widest">Layanan & Kontrak</h3>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <GlassCustomSelect 
+                                            label="Jenis Paket" 
+                                            icon="inventory_2"
+                                            value={form.paket} 
+                                            onChange={(val) => setForm(p => ({ ...p, paket: val }))} 
+                                            options={[
+                                                { value: "core", label: "CORE" },
+                                                { value: "shared", label: "SHARING CORE" }
+                                            ]} 
+                                        />
+                                        {form.paket === "core" ? (
+                                            <GlassFieldInput 
+                                                label="Jumlah Core" 
+                                                icon="hub"
+                                                type="number"
+                                                placeholder="0"
+                                                value={form.jumlah} 
+                                                onChange={(val) => setForm(p => ({ ...p, jumlah: val }))} 
+                                            />
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gold-accent/60 ml-1">Ratio Shared</label>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative flex-1">
+                                                        <input className="w-full h-14 rounded-2xl bg-black/20 border border-white/10 px-6 text-sm font-bold text-white outline-none focus:border-gold-accent/40 shadow-inner-glass text-center" type="number" value={form.ratioLeft} onChange={(e) => setForm(p => ({ ...p, ratioLeft: e.target.value }))} />
+                                                    </div>
+                                                    <span className="text-xl font-black text-white/20">:</span>
+                                                    <div className="relative flex-1">
+                                                        <input className="w-full h-14 rounded-2xl bg-black/20 border border-white/10 px-6 text-sm font-bold text-white outline-none focus:border-gold-accent/40 shadow-inner-glass text-center" type="number" value={form.ratioRight} onChange={(e) => setForm(p => ({ ...p, ratioRight: e.target.value }))} />
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
-                                    <FieldInput label="Aktivasi" type="number" value={form.activationFeeAmount} onChange={(value) => setForm((previous) => ({ ...previous, activationFeeAmount: value }))} />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <GlassFieldInput label="Awal Kontrak (Ops)" icon="calendar_today" type="date" value={form.contractStartDate} onChange={(val) => setForm(p => ({ ...p, contractStartDate: val }))} />
+                                        <GlassFieldInput label="Mulai Periode" icon="event_available" type="date" value={form.contractPeriodStart} onChange={(val) => setForm(p => ({ ...p, contractPeriodStart: val }))} />
+                                        <GlassFieldInput label="Akhir Periode" icon="event_busy" type="date" value={form.contractPeriodEnd} onChange={(val) => setForm(p => ({ ...p, contractPeriodEnd: val }))} />
+                                    </div>
                                 </div>
                             </div>
-                        </section>
-                    )}
+                        )}
 
-                    {/* BAGIAN ISP: Lebar Penuh (col-span-12) dengan Search & Pagination */}
-                    {!isEditMode && (
-                        <section className="col-span-12">
-                            <div className="rounded-xl bg-surface-container-lowest p-4 md:p-8 shadow-sm">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                                    <div>
-                                        <h3 className="text-sm md:text-lg font-bold text-on-surface">Pilih ISP</h3>
-                                        <p className="text-[10px] md:text-xs text-on-surface-variant">Hubungkan tenant ke satu penyedia layanan.</p>
+                        {/* ISP Selection Section */}
+                        {!isEditMode && (
+                            <div className="glass-card rounded-premium p-8 border-white/20 shadow-glass-depth relative z-20">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                                    <div className="flex items-center gap-3">
+                                        <span className="h-6 w-1.5 bg-gold-accent rounded-full shadow-gold-glow"></span>
+                                        <h3 className="text-xl font-black text-white uppercase tracking-widest">Pilih Mitra ISP</h3>
                                     </div>
-                                    
-                                    <div className="relative">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Cari ISP..." 
-                                            className="w-full md:w-64 rounded-lg border border-slate-200 bg-surface px-3 py-2 text-xs focus:ring-2 focus:ring-primary/20"
-                                            value={ispSearchTerm}
-                                            onChange={(e) => setIspSearchTerm(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {displayedIsps.map((isp) => (
-                                        <label key={isp.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${selectedIspId === isp.id ? "border-primary bg-blue-50/60" : "border-slate-200 bg-white"}`}>
-                                            <input checked={selectedIspId === isp.id} className="mt-1" name="selectIspRadio" onChange={() => selectIsp(isp.id)} type="radio" />
-                                            <div className="min-w-0">
-                                                <p className="text-xs md:text-sm font-bold truncate text-on-surface">{isp.name}</p>
-                                                <p className="text-[10px] md:text-xs text-on-surface-variant truncate">{isp.contractReference || "Tanpa referensi"}</p>
-                                            </div>
-                                        </label>
-                                    ))}
-                                    {displayedIsps.length === 0 && (
-                                        <div className="col-span-full py-8 text-center text-xs text-on-surface-variant">
-                                            ISP tidak ditemukan.
+                                    <div className="flex flex-col md:flex-row items-center gap-3">
+                                        <div className="relative group w-full md:w-72">
+                                            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-gold-accent transition-colors">search</span>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Cari ISP..." 
+                                                className="w-full h-11 pl-12 pr-4 rounded-xl bg-black/40 border border-white/10 text-xs font-bold text-white outline-none focus:border-gold-accent/40 transition-all shadow-inner-glass"
+                                                value={ispSearchTerm}
+                                                onChange={(e) => setIspSearchTerm(e.target.value)}
+                                            />
                                         </div>
-                                    )}
+                                        <div className="flex-none">
+                                            <GlassCustomSelect 
+                                                value={ispSortBy}
+                                                onChange={setIspSortBy}
+                                                icon="sort"
+                                                heightClass="h-11"
+                                                iconOnly={true}
+                                                options={[
+                                                    { value: "newest", label: "TERBARU" },
+                                                    { value: "name_asc", label: "NAMA A-Z" },
+                                                    { value: "name_desc", label: "NAMA Z-A" }
+                                                ]}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* Pagination Controls */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {displayedIsps.map((isp) => (
+                                        <div 
+                                            key={isp.id} 
+                                            onClick={() => selectIsp(isp.id)}
+                                            className={`relative overflow-hidden group cursor-pointer rounded-2xl border transition-all duration-300 p-5 ${selectedIspId === isp.id ? "bg-gold-accent/10 border-gold-accent shadow-gold-glow" : "bg-white/5 border-white/10 hover:border-white/30"}`}
+                                        >
+                                            <div className="flex items-center gap-4 relative z-10">
+                                                <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${selectedIspId === isp.id ? "bg-gold-accent text-slate-900" : "bg-white/5 text-white/20"}`}>
+                                                    <span className="material-symbols-outlined text-2xl">{selectedIspId === isp.id ? "check_circle" : "corporate_fare"}</span>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className={`text-sm font-black uppercase tracking-widest truncate transition-colors ${selectedIspId === isp.id ? "text-gold-accent" : "text-white"}`}>{isp.name}</p>
+                                                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-tighter truncate">{isp.contractReference || "Tanpa referensi"}</p>
+                                                </div>
+                                            </div>
+                                            {selectedIspId === isp.id && (
+                                                <div className="absolute top-0 right-0 p-2">
+                                                    <div className="h-2 w-2 rounded-full bg-gold-accent animate-ping" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
                                 {totalPages > 1 && (
-                                    <div className="mt-6 flex items-center justify-center gap-2">
-                                        <button 
-                                            type="button"
-                                            disabled={ispPage === 1}
-                                            onClick={() => setIspPage(p => p - 1)}
-                                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold disabled:opacity-30"
-                                        >
-                                            Sebelumnya
-                                        </button>
-                                        <span className="text-[10px] font-bold text-on-surface-variant">Halaman {ispPage} dari {totalPages}</span>
-                                        <button 
-                                            type="button"
-                                            disabled={ispPage === totalPages}
-                                            onClick={() => setIspPage(p => p + 1)}
-                                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold disabled:opacity-30"
-                                        >
-                                            Selanjutnya
-                                        </button>
+                                    <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-6">
+                                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Halaman {ispPage} / {totalPages}</p>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                type="button"
+                                                disabled={ispPage === 1}
+                                                onClick={() => setIspPage(p => p - 1)}
+                                                className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined">chevron_left</span>
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                disabled={ispPage === totalPages}
+                                                onClick={() => setIspPage(p => p + 1)}
+                                                className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined">chevron_right</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        </section>
+                        )}
+                    </div>
+
+                    {/* Right Column - Billing */}
+                    {!isEditMode && (
+                        <div className="lg:col-span-4 space-y-8">
+                            <div className="glass-card rounded-premium p-8 border-white/20 shadow-glass-depth relative z-10">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gold-accent/5 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none"></div>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <span className="h-6 w-1.5 bg-gold-accent rounded-full shadow-gold-glow"></span>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-widest">Billing & Biaya</h3>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="space-y-4">
+                                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gold-accent/60 ml-1">Siklus Penagihan</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {["bulanan", "3bulanan", "custom"].map((modeValue) => (
+                                                <button 
+                                                    key={modeValue} 
+                                                    type="button"
+                                                    onClick={() => setForm(p => ({ ...p, billingPeriodMode: modeValue }))}
+                                                    className={`h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${form.billingPeriodMode === modeValue ? "bg-gold-accent text-slate-900 shadow-gold-glow" : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white border border-white/5"}`}
+                                                >
+                                                    {modeValue === "bulanan" ? "Bulan" : modeValue === "3bulanan" ? "3 Bln" : "Kustom"}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        
+                                        {form.billingPeriodMode === "custom" && (
+                                            <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4 animate-in slide-in-from-top-4 duration-500 shadow-inner-glass">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Konfigurasi Periode</p>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <div className="flex-[2] relative group">
+                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-gold-accent/40 uppercase tracking-widest pointer-events-none group-focus-within:text-gold-accent transition-colors">SETIAP</span>
+                                                        <input 
+                                                            className="w-full h-12 pl-16 pr-4 rounded-xl bg-black/20 border border-white/10 text-xs font-bold text-white outline-none focus:border-gold-accent/40 focus:bg-black/40 transition-all shadow-inner-glass [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                                            min="1" 
+                                                            type="number" 
+                                                            placeholder="0"
+                                                            value={form.billingCustomEvery} 
+                                                            onChange={(e) => setForm(p => ({ ...p, billingCustomEvery: e.target.value }))} 
+                                                        />
+                                                    </div>
+                                                    <div className="flex-[3]">
+                                                        <GlassCustomSelect 
+                                                            value={form.billingCustomUnit}
+                                                            onChange={(val) => setForm(p => ({ ...p, billingCustomUnit: val }))}
+                                                            heightClass="h-12"
+                                                            options={[
+                                                                { value: "hari", label: "HARI" },
+                                                                { value: "bulan", label: "BULAN" },
+                                                                { value: "tahun", label: "TAHUN" }
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <GlassFieldInput 
+                                        label="Biaya Aktivasi (IDR)" 
+                                        icon="payments"
+                                        type="number"
+                                        placeholder="0"
+                                        value={form.activationFeeAmount} 
+                                        onChange={(val) => setForm(p => ({ ...p, activationFeeAmount: val }))} 
+                                    />
+
+                                    <div className="p-6 rounded-2xl bg-gold-accent/5 border border-gold-accent/20">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="material-symbols-outlined text-gold-accent text-sm">info</span>
+                                            <p className="text-[10px] font-black text-gold-accent uppercase tracking-widest">Informasi Sistem</p>
+                                        </div>
+                                        <p className="text-[10px] text-white/40 font-medium leading-relaxed uppercase tracking-widest">
+                                            Invoice dan kontrak pertama akan dibuat secara otomatis setelah data disimpan.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </form>

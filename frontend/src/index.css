@@ -129,8 +129,9 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(212, 169, 55, 0.2);
+    background: rgba(251, 191, 36, 0.6);
     border-radius: 10px;
+    border: 1px solid rgba(251, 191, 36, 0.3);
   }
 }
 
@@ -171,14 +172,14 @@ input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.35) !impor
 .bg-emerald-100 { background-color: rgba(16,185,129,0.2) !important; }
 .text-emerald-700, .text-emerald-600 { color: #6ee7b7 !important; }
 
-/* Status badge merah */
-.bg-rose-100, .bg-rose-50 { background-color: rgba(244,63,94,0.18) !important; }
-.text-rose-700, .text-rose-600 { color: #fda4af !important; }
+/* Status badge merah - PREMIUM RED */
+.bg-rose-100, .bg-rose-50, .bg-red-50, .bg-red-100 { background-color: rgba(220, 38, 38, 0.15) !important; }
+.text-rose-700, .text-rose-600, .text-red-700, .text-red-600 { color: #ff4d4d !important; text-shadow: 0 0 10px rgba(220, 38, 38, 0.2); }
 
 /* Scrollbar gold */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(212,169,55,0.35); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(251, 191, 36, 0.6); border-radius: 10px; }
 
 /* Hide scrollbar for specific elements */
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -201,7 +202,6 @@ a.bg-slate-100:hover {
 
 /* Table: header & row gelap → transparan */
 thead, th {
-  background-color: rgba(255,255,255,0.08) !important;
   color: rgba(255,255,255,0.85) !important;
   border-color: rgba(255,255,255,0.15) !important;
 }

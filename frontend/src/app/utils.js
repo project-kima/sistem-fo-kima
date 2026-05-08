@@ -346,7 +346,7 @@ export const openSafeFile = (fileUrl, fileName = "dokumen.pdf") => {
             }
             const blob = new Blob([u8arr], { type: mime });
             const blobUrl = URL.createObjectURL(blob);
-            
+
             const win = window.open(blobUrl, "_blank");
             if (win) {
                 win.focus();
