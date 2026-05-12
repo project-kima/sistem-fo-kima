@@ -58,9 +58,7 @@ export default function LoginPage({ onLoginSuccess }) {
         background: "rgba(255,255,255,0.07)",
         border: "1px solid rgba(255,255,255,0.15)",
         color: "rgba(255,255,255,0.92)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        transition: "all 0.25s ease",
+        transition: "border-color 0.2s ease, background 0.2s ease",
         boxSizing: "border-box",
     };
 
@@ -78,8 +76,9 @@ export default function LoginPage({ onLoginSuccess }) {
                 background: "#0a0c12",
             }}
         >
-            <div style={{ position: "absolute", inset: 0, zIndex: 0, backgroundImage: "url(/kima1.jpeg)", backgroundSize: "cover", backgroundPosition: "center", animation: "bgZoom 20s ease-in-out infinite alternate", willChange: "transform", filter: "brightness(0.88) saturate(0.82) contrast(0.95)" }} />
-            <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(71,85,105,0.28)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", pointerEvents: "none" }} />
+            {/* Background layers */}
+            <div style={{ position: "absolute", inset: 0, zIndex: 0, backgroundImage: "url(/kima1.jpeg)", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.88) saturate(0.82) contrast(0.95)" }} />
+            <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(71,85,105,0.35)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", inset: 0, zIndex: 2, background: "radial-gradient(circle at 80% 20%, rgba(212,169,55,0.14) 0%, transparent 45%), radial-gradient(circle at 20% 80%, rgba(0,104,123,0.12) 0%, transparent 45%)", pointerEvents: "none" }} />
 
 
@@ -119,9 +118,7 @@ export default function LoginPage({ onLoginSuccess }) {
                             display: "flex",
                             flexDirection: "column",
                             justifyContent: "center",
-                            background: "rgba(255,255,255,0.06)",
-                            backdropFilter: "blur(24px)",
-                            WebkitBackdropFilter: "blur(24px)",
+                            background: "rgba(255,255,255,0.08)",
                         }}
                     >
                         <div style={{ marginBottom: "2.5rem" }}>
@@ -151,7 +148,7 @@ export default function LoginPage({ onLoginSuccess }) {
                                     border: "1px solid rgba(240,192,64,0.4)",
                                     boxShadow: "0 8px 24px rgba(212,169,55,0.3)",
                                     textDecoration: "none",
-                                    transition: "all 0.25s ease",
+                                    transition: "transform 0.2s ease, background 0.2s ease",
                                 }}
                             >
                                 Hubungi Admin via WhatsApp
@@ -174,9 +171,7 @@ export default function LoginPage({ onLoginSuccess }) {
                             display: "flex",
                             flexDirection: "column",
                             justifyContent: "center",
-                            background: "rgba(255,255,255,0.11)",
-                            backdropFilter: "blur(24px)",
-                            WebkitBackdropFilter: "blur(24px)",
+                            background: "rgba(255,255,255,0.13)",
                             borderLeft: "1px solid rgba(255,255,255,0.1)",
                         }}
                     >
@@ -203,8 +198,8 @@ export default function LoginPage({ onLoginSuccess }) {
                                     value={form.identifier}
                                     onChange={e => setForm(f => ({ ...f, identifier: e.target.value }))}
                                     style={inputStyle}
-                                    onFocus={e => { e.target.style.border = "1px solid rgba(240,192,64,0.6)"; e.target.style.background = "rgba(255,255,255,0.11)"; e.target.style.boxShadow = "0 0 0 3px rgba(240,192,64,0.08)"; }}
-                                    onBlur={e => { e.target.style.border = "1px solid rgba(255,255,255,0.15)"; e.target.style.background = "rgba(255,255,255,0.07)"; e.target.style.boxShadow = "none"; }}
+                                    onFocus={e => { e.target.style.borderColor = "rgba(240,192,64,0.6)"; e.target.style.background = "rgba(255,255,255,0.11)"; }}
+                                    onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.15)"; e.target.style.background = "rgba(255,255,255,0.07)"; }}
                                 />
                             </div>
 
@@ -216,8 +211,8 @@ export default function LoginPage({ onLoginSuccess }) {
                                     value={form.password}
                                     onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                                     style={inputStyle}
-                                    onFocus={e => { e.target.style.border = "1px solid rgba(240,192,64,0.6)"; e.target.style.background = "rgba(255,255,255,0.11)"; e.target.style.boxShadow = "0 0 0 3px rgba(240,192,64,0.08)"; }}
-                                    onBlur={e => { e.target.style.border = "1px solid rgba(255,255,255,0.15)"; e.target.style.background = "rgba(255,255,255,0.07)"; e.target.style.boxShadow = "none"; }}
+                                    onFocus={e => { e.target.style.borderColor = "rgba(240,192,64,0.6)"; e.target.style.background = "rgba(255,255,255,0.11)"; }}
+                                    onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.15)"; e.target.style.background = "rgba(255,255,255,0.07)"; }}
                                 />
                                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
                                     <button
@@ -248,7 +243,7 @@ export default function LoginPage({ onLoginSuccess }) {
                                     boxShadow: isSubmitting ? "none" : "0 8px 24px rgba(212,169,55,0.28)",
                                     cursor: isSubmitting ? "not-allowed" : "pointer",
                                     opacity: isSubmitting ? 0.6 : 1,
-                                    transition: "all 0.25s ease",
+                                    transition: "opacity 0.2s ease",
                                 }}
                             >
                                 {isSubmitting ? "Memverifikasi..." : "Masuk ke Sistem"}
@@ -275,7 +270,7 @@ export default function LoginPage({ onLoginSuccess }) {
                                                 setError("");
                                                 void submitLogin({ identifier: account.identifier, password: account.password });
                                             }}
-                                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "0.625rem", padding: "0.625rem 0.5rem", textAlign: "left", cursor: "pointer", transition: "all 0.2s ease", opacity: isSubmitting ? 0.5 : 1 }}
+                                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "0.625rem", padding: "0.625rem 0.5rem", textAlign: "left", cursor: "pointer", transition: "background 0.2s ease, border-color 0.2s ease", opacity: isSubmitting ? 0.5 : 1 }}
                                             onMouseEnter={e => { e.currentTarget.style.background = "rgba(240,192,64,0.1)"; e.currentTarget.style.border = "1px solid rgba(240,192,64,0.28)"; }}
                                             onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
                                         >
@@ -321,12 +316,11 @@ export default function LoginPage({ onLoginSuccess }) {
                             justifyContent: "space-between",
                             padding: "3.5rem",
                             overflow: "hidden",
-                            background: "rgba(10,12,18,0.72)",
-                            backdropFilter: "blur(28px)",
-                            WebkitBackdropFilter: "blur(28px)",
+                            background: "rgba(10,12,18,0.95)",
                             borderRight: "1px solid rgba(255,255,255,0.08)",
-                            transition: "transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)",
+                            transition: "transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
                             transform: activePanel === "login" ? "translateX(0%)" : "translateX(100%)",
+                            willChange: "transform",
                         }}
                     >
                         {/* Glow accent inside branding */}
