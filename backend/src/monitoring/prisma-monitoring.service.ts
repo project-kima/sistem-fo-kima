@@ -198,6 +198,10 @@ export class PrismaMonitoringService {
         coreTotal: latestVersion?.coreTotal ?? contract?.coreTotal ?? null,
         sharingRatio:
           latestVersion?.sharedCoreRatio ?? contract?.sharingRatio ?? null,
+        monthlyAmount: Number(latestVersion?.monthlyAmount ?? 0),
+        yearlyAmount: Number(latestVersion?.yearlyAmount ?? 0),
+        notes: customer.notes ?? null,
+        contractRemarks: latestVersion?.remarks ?? null,
         months,
       } satisfies MonitoringBillingRow;
     });

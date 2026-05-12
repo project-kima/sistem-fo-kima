@@ -386,6 +386,10 @@ export interface MonitoringBillingRow {
   coreType: CoreAllocationType | null;
   coreTotal: number | null;
   sharingRatio: string | null;
+  monthlyAmount: number;
+  yearlyAmount: number;
+  notes: string | null;
+  contractRemarks: string | null;
   months: InvoiceStatus[];
 }
 
