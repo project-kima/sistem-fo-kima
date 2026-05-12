@@ -31,6 +31,7 @@ model Customer {
   status              CustomerStatus
   activationFeeAmount Decimal                 @default(0) @map("activation_fee_amount") @db.Decimal(18, 2)
   activationFeePaidAt DateTime?               @map("activation_fee_paid_at") @db.Timestamptz(6)
+  notes               String?
   createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   contractStartDate   DateTime?               @map("contract_start_date") @db.Date
@@ -173,6 +174,9 @@ model ContractVersion {
   coreType         CoreAllocationType               @map("core_type")
   coreTotal        Int                              @default(0) @map("core_total")
   sharedCoreRatio  String?                          @map("shared_core_ratio") @db.VarChar(40)
+  monthlyAmount    Decimal                          @default(0) @map("monthly_amount") @db.Decimal(18, 2)
+  yearlyAmount     Decimal                          @default(0) @map("yearly_amount") @db.Decimal(18, 2)
+  remarks          String?
   bakDocumentId    Int?                             @unique @map("bak_document_id")
   renewalFileUrl   String?                          @map("renewal_file_url")
   renewalFileName  String?                          @map("renewal_file_name") @db.VarChar(255)
