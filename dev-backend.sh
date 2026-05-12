@@ -22,6 +22,15 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
+echo "🧬 Generating Prisma Client..."
+npm run prisma:generate
+
+echo "🗄️  Applying database migrations..."
+npm run prisma:deploy
+
+echo "🌱 Seeding default users (safe)..."
+npm run prisma:seed
+
 echo "🚀 Starting development server..."
 echo "Backend will run at: http://localhost:4000"
 echo ""

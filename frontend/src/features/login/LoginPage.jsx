@@ -77,8 +77,8 @@ export default function LoginPage({ onLoginSuccess }) {
             }}
         >
             {/* Background layers */}
-            <div style={{ position: "absolute", inset: 0, zIndex: 0, backgroundImage: "url(/kima1.jpeg)", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.88) saturate(0.82) contrast(0.95)" }} />
-            <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(71,85,105,0.35)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", inset: 0, zIndex: 0, backgroundImage: "url(/kima1.jpeg)", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.68) saturate(0.82) contrast(0.95)" }} />
+            <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(10,12,18,0.70)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", inset: 0, zIndex: 2, background: "radial-gradient(circle at 80% 20%, rgba(212,169,55,0.14) 0%, transparent 45%), radial-gradient(circle at 20% 80%, rgba(0,104,123,0.12) 0%, transparent 45%)", pointerEvents: "none" }} />
 
 
@@ -316,7 +316,7 @@ export default function LoginPage({ onLoginSuccess }) {
                             justifyContent: "space-between",
                             padding: "3.5rem",
                             overflow: "hidden",
-                            background: "rgba(10,12,18,0.95)",
+                            background: "rgba(10,12,18,0.97)",
                             borderRight: "1px solid rgba(255,255,255,0.08)",
                             transition: "transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
                             transform: activePanel === "login" ? "translateX(0%)" : "translateX(100%)",
