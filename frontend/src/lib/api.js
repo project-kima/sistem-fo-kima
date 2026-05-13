@@ -434,6 +434,7 @@ export const monitoringApi = {
         status,
         activation_fee_amount,
         activation_fee_paid_at,
+        contract_start_date,
         notes,
         ispMemberships:customer_isp_memberships(
           isp:isps(*)
@@ -463,6 +464,7 @@ export const monitoringApi = {
         invoices!inner(
           id,
           invoice_number,
+          contract_id,
           period_year,
           period_month,
           amount,
@@ -481,18 +483,71 @@ export const monitoringApi = {
 
     if (error) throw error;
 
+    const today = new Date().toISOString().slice(0, 10);
+    const currentMonth = new Date().getUTCMonth() + 1;
+    const selectedYear = Number(year);
+
+    const getDateValue = (value) => {
+      const timestamp = value ? new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`).getTime() : 0;
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
+
+    const getLatestVersion = (contract) => (
+      Array.isArray(contract?.versions)
+        ? [...contract.versions].sort((left, right) => {
+          const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+          if (versionDiff !== 0) return versionDiff;
+          return getDateValue(right.end_date ?? right.start_date) - getDateValue(left.end_date ?? left.start_date);
+        })[0]
+        : null
+    );
+
+    const getCurrentContract = (contracts = []) => {
+      const sortedContracts = [...contracts].sort((left, right) => {
+        const leftStart = getDateValue(left.start_date);
+        const rightStart = getDateValue(right.start_date);
+        if (rightStart !== leftStart) return rightStart - leftStart;
+        return getDateValue(right.end_date) - getDateValue(left.end_date);
+      });
+
+      return sortedContracts.find(contract => contract.start_date <= today && contract.end_date >= today)
+        ?? sortedContracts.find(contract => contract.start_date > today)
+        ?? sortedContracts[0]
+        ?? null;
+    };
+
+    const isMonthInsideContract = (contract, month) => {
+      if (!contract?.start_date || !contract?.end_date) return false;
+      const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+      const monthEndDate = new Date(Date.UTC(selectedYear, month, 0));
+      const monthEnd = monthEndDate.toISOString().slice(0, 10);
+      return monthEnd >= contract.start_date && monthStart <= contract.end_date;
+    };
+
     // Transform data to match backend format
     const rows = customers.map(customer => {
-      const customerIsps = customer.ispMemberships?.map(m => m.isp) || [];
-      const primaryIsp = customerIsps[0];
-      const contract = customer.contracts?.[0];
-      const latestVersion = contract?.versions?.sort((a, b) => b.version_number - a.version_number)[0];
+      const customerIsps = customer.ispMemberships?.map(m => m.isp).filter(Boolean) || [];
+      const ispNames = customerIsps.map(isp => isp.name).filter(Boolean);
+      const currentContract = getCurrentContract(customer.contracts || []);
+      const latestVersion = getLatestVersion(currentContract);
+      const currentMonthInvoice = customer.invoices?.find(
+        inv => inv.period_year === selectedYear
+          && inv.period_month === currentMonth
+          && inv.schedule_status === 'active'
+          && (!currentContract?.id || inv.contract_id === currentContract.id)
+      );
 
       // Build months array (12 months)
       const months = Array.from({ length: 12 }, (_, monthIndex) => {
         const month = monthIndex + 1;
+        if (currentContract && !isMonthInsideContract(currentContract, month)) {
+          return 'di_luar_periode';
+        }
         const invoice = customer.invoices?.find(
-          inv => inv.period_year === year && inv.period_month === month && inv.schedule_status === 'active'
+          inv => inv.period_year === selectedYear
+            && inv.period_month === month
+            && inv.schedule_status === 'active'
+            && (!currentContract?.id || inv.contract_id === currentContract.id)
         );
         return invoice ? invoice.status : 'belum_ditagih';
       });
@@ -500,21 +555,21 @@ export const monitoringApi = {
       return {
         customerId: customer.id,
         customerCode: customer.customer_code,
-        ispName: primaryIsp?.name || customer.isp_name || '-',
-        ispNames: customerIsps.map(isp => isp.name),
-        ispContractStart: primaryIsp?.contract_start_date || null,
+        ispName: ispNames.length > 0 ? ispNames.join(', ') : customer.isp_name || '-',
+        ispNames,
+        ispContractStart: customer.contract_start_date || null,
         customerName: customer.name,
         customerStatus: customer.status,
-        contractNumber: contract?.contract_number || null,
-        currentInvoiceNumber: customer.invoices?.[0]?.invoice_number || null,
+        contractNumber: currentContract?.contract_number?.startsWith('NO-BAK-') ? '-' : currentContract?.contract_number || null,
+        currentInvoiceNumber: currentMonthInvoice?.invoice_number || null,
         routeStatus: customer.routeVersions?.[0]?.flow_status || null,
         activationFeeAmount: Number(customer.activation_fee_amount || 0),
         activationFeePaidAt: customer.activation_fee_paid_at,
-        contractStart: latestVersion?.start_date || contract?.start_date || null,
-        contractEnd: latestVersion?.end_date || contract?.end_date || null,
-        coreType: latestVersion?.core_type || contract?.core_type || null,
-        coreTotal: latestVersion?.core_total || contract?.core_total || null,
-        sharingRatio: latestVersion?.shared_core_ratio || contract?.sharing_ratio || null,
+        contractStart: latestVersion?.start_date || currentContract?.start_date || null,
+        contractEnd: latestVersion?.end_date || currentContract?.end_date || null,
+        coreType: latestVersion?.core_type || currentContract?.core_type || null,
+        coreTotal: latestVersion?.core_total ?? currentContract?.core_total ?? null,
+        sharingRatio: latestVersion?.shared_core_ratio || currentContract?.sharing_ratio || null,
         monthlyAmount: Number(latestVersion?.monthly_amount || 0),
         yearlyAmount: Number(latestVersion?.yearly_amount || 0),
         notes: customer.notes || null,

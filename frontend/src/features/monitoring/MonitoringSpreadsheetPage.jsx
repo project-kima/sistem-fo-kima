@@ -97,6 +97,14 @@ const CustomSelect = ({ value, onChange, options, icon, label, variant = "defaul
     );
 };
 
+const formatMonitoringCoreAmount = (row) => {
+    if (row?.coreType === "sharing_core") {
+        return row?.sharingRatio || "-";
+    }
+
+    return row?.coreTotal ?? "-";
+};
+
 function MonitoringSpreadsheetPage({
     activeSection,
     onNavigate,
@@ -553,7 +561,7 @@ function MonitoringSpreadsheetPage({
                 formatDate(row.contractStart),
                 formatDate(row.contractEnd),
                 toTitleCase(row.coreType),
-                row.coreTotal ?? "-",
+                formatMonitoringCoreAmount(row),
                 ...(isTeknisi ? [] : [row.contractNumber ?? "-", row.currentInvoiceNumber ?? "-"]),
                 getRemainingRentalDays(row.contractEnd) ?? "-",
                 row.customerStatus === "nonaktif" ? "Berhenti" : "Beroperasi",
@@ -773,7 +781,7 @@ function MonitoringSpreadsheetPage({
                                     {toTitleCase(row.coreType)}
                                 </td>
                                 <td className="px-4 py-5 text-on-surface-variant font-black text-center transition-colors group-hover:bg-white/5 border-r border-white/5">
-                                    {row.coreTotal ?? "-"}
+                                    {formatMonitoringCoreAmount(row)}
                                 </td>
                                 {!isTeknisi && (
                                     <>

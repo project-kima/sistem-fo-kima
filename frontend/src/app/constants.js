@@ -68,6 +68,7 @@ export const invoiceStatusLabelMap = {
     belum_bayar: "Belum Bayar",
     terlambat: "Terlambat",
     belum_ditagih: "Belum Ditagih",
+    di_luar_periode: "Di Luar Periode",
 };
 
 export const invoiceStatusBadgeClass = {

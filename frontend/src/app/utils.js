@@ -613,6 +613,10 @@ export const getMonthStatusClass = (status) => {
         return "bg-white/10 text-white/40 border border-white/10";
     }
 
+    if (status === "di_luar_periode") {
+        return "bg-slate-950/60 text-white/10 border border-white/5 opacity-40 cursor-not-allowed";
+    }
+
     return "bg-slate-100/10 text-white/20 border-white/5 opacity-40";
 };
 
