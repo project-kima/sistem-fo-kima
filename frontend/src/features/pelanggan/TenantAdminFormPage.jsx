@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import AppShell from "../../components/layout/AppShell";
-import { API_BASE_URL, fetchJson, readFileAsDataUrl } from "../../app/utils";
+import api from "../../lib/api";
 
 const GlassFieldInput = ({ label, type = "text", value, onChange, placeholder = "", icon }) => {
     return (
@@ -174,30 +174,28 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
         setSubmitError("");
 
         try {
-            const endpoint = isEditMode && initialData?.id
-                ? `${API_BASE_URL}/api/customers/${initialData.id}`
-                : `${API_BASE_URL}/api/customers`;
-            const result = await fetchJson(endpoint, {
-                method: isEditMode ? "PATCH" : "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(isEditMode
-                    ? { name: form.name.trim(), status: form.status }
-                    : {
-                        name: form.name.trim(),
-                        status: form.status,
-                        ispIds: [selectedIspId],
-                        contractStartDate: form.contractStartDate || form.contractPeriodStart,
-                        contractPeriodStart: form.contractPeriodStart,
-                        contractPeriodEnd: form.contractPeriodEnd,
-                        paket: form.paket,
-                        jumlah: form.paket === "core" ? Math.round(Number(form.jumlah || 0)) : 0,
-                        contractSharingRatio: form.paket === "shared" ? `${form.ratioLeft || 1}:${form.ratioRight || 8}` : undefined,
-                        billingPeriodMode: form.billingPeriodMode,
-                        billingCustomEvery: form.billingPeriodMode === "custom" ? Number(form.billingCustomEvery) : undefined,
-                        billingCustomUnit: form.billingPeriodMode === "custom" ? form.billingCustomUnit : undefined,
-                        activationFeeAmount: Math.round(Number(form.activationFeeAmount || 0)),
-                    }),
-            });
+            const payload = isEditMode
+                ? { name: form.name.trim(), status: form.status }
+                : {
+                    name: form.name.trim(),
+                    status: form.status,
+                    ispIds: [selectedIspId],
+                    contractStartDate: form.contractStartDate || form.contractPeriodStart,
+                    contractPeriodStart: form.contractPeriodStart,
+                    contractPeriodEnd: form.contractPeriodEnd,
+                    paket: form.paket,
+                    jumlah: form.paket === "core" ? Math.round(Number(form.jumlah || 0)) : 0,
+                    contractSharingRatio: form.paket === "shared" ? `${form.ratioLeft || 1}:${form.ratioRight || 8}` : undefined,
+                    billingPeriodMode: form.billingPeriodMode,
+                    billingCustomEvery: form.billingPeriodMode === "custom" ? Number(form.billingCustomEvery) : undefined,
+                    billingCustomUnit: form.billingPeriodMode === "custom" ? form.billingCustomUnit : undefined,
+                    activationFeeAmount: Math.round(Number(form.activationFeeAmount || 0)),
+                };
+
+            const result = isEditMode && initialData?.id
+                ? await api.customers.update(initialData.id, payload)
+                : await api.customers.create(payload);
+
             if (onSaved) await onSaved(result);
         } catch (requestError) {
             setSubmitError(requestError instanceof Error ? requestError.message : `Terjadi kesalahan saat ${isEditMode ? "memperbarui" : "menyimpan"} lokasi.`);

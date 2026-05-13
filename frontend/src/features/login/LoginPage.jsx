@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
+import { signIn } from "@/lib/supabase";
 
 const devQuickAccounts = [
-    { key: "admin", label: "Admin", description: "Akses penuh", identifier: "admin", password: "Admin123!" },
-    { key: "teknisi", label: "Teknisi", description: "Operasional lapangan", identifier: "teknisi", password: "Teknisi123!" },
-    { key: "isp", label: "ISP", description: "Mitra ISP", identifier: "isp", password: "Isp12345!" },
+    { key: "admin", label: "Admin", description: "Akses penuh", email: "admin@kima.local", password: "Admin@2026" },
+    { key: "teknisi", label: "Teknisi", description: "Operasional lapangan", email: "teknisi@kima.local", password: "Teknisi@2026" },
+    { key: "isp", label: "ISP", description: "Mitra ISP", email: "isp@kima.local", password: "Isp@2026" },
 ];
 
 function normalizeWhatsAppNumber(rawNumber) {
@@ -20,7 +21,7 @@ function buildWhatsAppLink(rawNumber) {
 
 export default function LoginPage({ onLoginSuccess }) {
     const [activePanel, setActivePanel] = useState("login");
-    const [form, setForm] = useState({ identifier: "", password: "" });
+    const [form, setForm] = useState({ email: "", password: "" });
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -30,10 +31,13 @@ export default function LoginPage({ onLoginSuccess }) {
     const isDevelopment = Boolean(import.meta.env.DEV);
 
     const submitLogin = async (credentials) => {
-        if (!onLoginSuccess) return;
         setIsSubmitting(true);
+        setError("");
         try {
-            await onLoginSuccess(credentials);
+            const { session, user } = await signIn(credentials.email, credentials.password);
+            if (onLoginSuccess) {
+                await onLoginSuccess({ session, user });
+            }
         } catch (submitError) {
             setError(submitError instanceof Error ? submitError.message : "Login gagal. Silakan coba lagi.");
         } finally {
@@ -44,9 +48,9 @@ export default function LoginPage({ onLoginSuccess }) {
     const handleSubmit = async (event) => {
         event.preventDefault();
         setError("");
-        if (!form.identifier.trim()) { setError("Email/Username wajib diisi."); return; }
+        if (!form.email.trim()) { setError("Email wajib diisi."); return; }
         if (!form.password) { setError("Password wajib diisi."); return; }
-        await submitLogin({ identifier: form.identifier.trim(), password: form.password });
+        await submitLogin({ email: form.email.trim(), password: form.password });
     };
 
     const inputStyle = {
@@ -191,12 +195,12 @@ export default function LoginPage({ onLoginSuccess }) {
                             )}
 
                             <div>
-                                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.85)", marginBottom: "0.5rem" }}>Username / Email</label>
+                                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.85)", marginBottom: "0.5rem" }}>Email</label>
                                 <input
-                                    type="text"
-                                    placeholder="admin@kima.co.id"
-                                    value={form.identifier}
-                                    onChange={e => setForm(f => ({ ...f, identifier: e.target.value }))}
+                                    type="email"
+                                    placeholder="admin@kima.local"
+                                    value={form.email}
+                                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                                     style={inputStyle}
                                     onFocus={e => { e.target.style.borderColor = "rgba(240,192,64,0.6)"; e.target.style.background = "rgba(255,255,255,0.11)"; }}
                                     onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.15)"; e.target.style.background = "rgba(255,255,255,0.07)"; }}
@@ -266,9 +270,9 @@ export default function LoginPage({ onLoginSuccess }) {
                                             type="button"
                                             disabled={isSubmitting}
                                             onClick={() => {
-                                                setForm({ identifier: account.identifier, password: account.password });
+                                                setForm({ email: account.email, password: account.password });
                                                 setError("");
-                                                void submitLogin({ identifier: account.identifier, password: account.password });
+                                                void submitLogin({ email: account.email, password: account.password });
                                             }}
                                             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "0.625rem", padding: "0.625rem 0.5rem", textAlign: "left", cursor: "pointer", transition: "background 0.2s ease, border-color 0.2s ease", opacity: isSubmitting ? 0.5 : 1 }}
                                             onMouseEnter={e => { e.currentTarget.style.background = "rgba(240,192,64,0.1)"; e.currentTarget.style.border = "1px solid rgba(240,192,64,0.28)"; }}

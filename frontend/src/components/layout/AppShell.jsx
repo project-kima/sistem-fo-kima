@@ -301,7 +301,7 @@ function Sidebar({ isCollapsed, onToggle, activeSection, onNavigate, roleConfig 
     );
 }
 
-function MobileDropdownMenu({ activeSection, onNavigate, onClose, onLogout, roleConfig }) {
+function MobileDropdownMenu({ activeSection, onNavigate, onClose, roleConfig }) {
     return (
         <div className="fixed inset-0 z-50 p-4 lg:hidden">
             <div className="fixed inset-0 bg-black/20 backdrop-blur-md" onClick={onClose}></div>

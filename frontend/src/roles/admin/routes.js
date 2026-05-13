@@ -25,7 +25,16 @@ export const ADMIN_PATHS = {
     customerJalur: (customerId) => `/customers/${customerId}/jalur`,
     customerJalurPlanner: (customerId) => `/customers/${customerId}/jalur/planner`,
     customerJalurFullscreen: (customerId) => `/customers/${customerId}/jalur/fullscreen`,
-    ispDetail: (ispId) => `/isps/${ispId}`,
+    ispDetail: (ispId, { tab = "overview" } = {}) => {
+        const searchParams = new URLSearchParams();
+
+        if (tab && tab !== "overview") {
+            searchParams.set("tab", tab);
+        }
+
+        const query = searchParams.toString();
+        return `/isps/${ispId}${query ? `?${query}` : ""}`;
+    },
     ispEdit: (ispId) => `/isps/${ispId}/edit`,
 };
 
@@ -149,6 +158,7 @@ export function parseAdminRoute(pathname, search) {
             type: "isp-detail",
             sectionKey: "customers",
             ispId: ispDetailMatch[1],
+            initialTab: searchParams.get("tab") || "overview",
         };
     }
 

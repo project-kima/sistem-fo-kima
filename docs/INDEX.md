@@ -1,163 +1,90 @@
-# 📚 Dokumentasi Sistem FO KIMA
+# Dokumentasi Sistem FO KIMA
 
-Indeks lengkap dokumentasi Sistem FO KIMA.
+Indeks dokumentasi utama untuk setup, operasi, deployment, analisis, dan pengembangan Sistem FO KIMA.
 
----
-
-## 🚀 Quick Start
+## Quick Start
 
 | Dokumen | Deskripsi |
-|---------|-----------|
-| [README.md](../README.md) | Overview project & quick start guide |
-| [DEV_GUIDE.md](../DEV_GUIDE.md) | Panduan development lengkap |
-| [guides/QUICK_REFERENCE.md](guides/QUICK_REFERENCE.md) | Command reference cepat |
+| --- | --- |
+| [README.md](../README.md) | Overview project dan quick start. |
+| [DEV_GUIDE.md](../DEV_GUIDE.md) | Panduan development. |
+| [guides/QUICK_REFERENCE.md](guides/QUICK_REFERENCE.md) | Referensi command harian. |
 
----
-
-## 📖 Product Requirements
+## Product Requirements
 
 | Dokumen | Deskripsi |
-|---------|-----------|
-| [prd/PRD-sistem-arsip-kima.md](../prd/PRD-sistem-arsip-kima.md) | Product Requirements Document (v1.1) |
-| [prd/sequence-diagram-komprehensif.md](../prd/sequence-diagram-komprehensif.md) | Sequence diagram sistem |
-| [prd/business-flow.png](../prd/business-flow.png) | Business flow diagram |
+| --- | --- |
+| [prd/PRD-sistem-arsip-kima.md](../prd/PRD-sistem-arsip-kima.md) | Product Requirements Document dan flow bisnis utama. |
+| [prd/sequence-diagram-komprehensif.md](../prd/sequence-diagram-komprehensif.md) | Sequence diagram sistem. |
+| [prd/business-flow.png](../prd/business-flow.png) | Diagram business flow. |
 
----
-
-## 🚢 Deployment & Operations
+## Guides
 
 | Dokumen | Deskripsi |
-|---------|-----------|
+| --- | --- |
+| [guides/supabase-setup-guide.md](guides/supabase-setup-guide.md) | Setup Supabase Auth dan RLS. |
+| [guides/QUICK_REFERENCE.md](guides/QUICK_REFERENCE.md) | Referensi command dan alur harian. |
 
-### Backend Specific
-
-| Dokumen | Deskripsi |
-|---------|-----------|
-| [backend/README_CENDIKIA.md](../backend/README_CENDIKIA.md) | Dokumentasi seeding PT Cendikia (backend) |
-| [backend/SEEDING_CENDIKIA.md](../backend/SEEDING_CENDIKIA.md) | Detail data PT Cendikia |
-| [backend/PRODUCTION_DEPLOYMENT.md](../backend/PRODUCTION_DEPLOYMENT.md) | Panduan deployment production (generic) |
-
-### Backend-Supabase Specific
+## Deployment
 
 | Dokumen | Deskripsi |
-|---------|-----------|
-| [backend-supabase/README.md](../backend-supabase/README.md) | Overview Supabase backend |
-| [backend-supabase/DEPLOYMENT.md](../backend-supabase/DEPLOYMENT.md) | Panduan deployment Supabase |
-| [backend-supabase/DEPLOYMENT_CENDIKIA.md](../backend-supabase/DEPLOYMENT_CENDIKIA.md) | Deployment PT Cendikia ke Supabase |
+| --- | --- |
+| [deployment/DEPLOYMENT_GUIDE.md](deployment/DEPLOYMENT_GUIDE.md) | Checklist dan langkah deployment. |
+| [deployment/status-koneksi-supabase.md](deployment/status-koneksi-supabase.md) | Status koneksi Supabase dan catatan environment. |
 
----
-
-## 🛠️ Development Guides
+## Operations
 
 | Dokumen | Deskripsi |
-|---------|-----------|
-| [guides/QUICK_REFERENCE.md](guides/QUICK_REFERENCE.md) | Command reference & troubleshooting |
+| --- | --- |
+| [operations/TESTING_CHECKLIST.md](operations/TESTING_CHECKLIST.md) | Checklist pengujian manual. |
+| [operations/BUG_TRACKING.md](operations/BUG_TRACKING.md) | Catatan bug dan tracking. |
+| [operations/kredensial-admin.md](operations/kredensial-admin.md) | Catatan kredensial admin untuk kebutuhan operasional. |
+| [operations/panduan-insert-production.md](operations/panduan-insert-production.md) | Panduan insert data production. |
 
----
+## Analysis dan Referensi Teknis
 
-## 📜 Scripts
+| Dokumen | Deskripsi |
+| --- | --- |
+| [analysis/analisis-mapping-spreadsheet.md](analysis/analisis-mapping-spreadsheet.md) | Analisis mapping spreadsheet. |
+| [analysis/document-archiving-tenant-monitoring-system-design.md](analysis/document-archiving-tenant-monitoring-system-design.md) | Desain document archiving dan tenant monitoring. |
+| [analysis/field-baru-monitoring.md](analysis/field-baru-monitoring.md) | Catatan field baru monitoring. |
+| [analysis/fix-frontend-api-connection.md](analysis/fix-frontend-api-connection.md) | Catatan perbaikan koneksi API frontend. |
+| [database/document-schema.sql](database/document-schema.sql) | Referensi schema dokumen lama/pendukung. |
 
-Semua script tersedia di folder `scripts/`:
+## Scripts
+
+Script operasional tersedia di folder `scripts/` dan diindeks di [scripts/README.md](../scripts/README.md).
 
 | Script | Deskripsi |
-|--------|-----------|
-| [scripts/dev-start.sh](../scripts/dev-start.sh) | Start semua services (frontend + backend + docker) |
-| [scripts/dev-backend.sh](../scripts/dev-backend.sh) | Start backend only |
-| [scripts/dev-frontend.sh](../scripts/dev-frontend.sh) | Start frontend only |
-| [scripts/seed-cendikia-supabase-full.sql](../scripts/seed-cendikia-supabase-full.sql) | SQL script lengkap untuk seeding PT Cendikia |
+| --- | --- |
+| [scripts/dev/dev-frontend.sh](../scripts/dev/dev-frontend.sh) | Menjalankan frontend development. |
+| [scripts/auth/create-supabase-auth-users.sql](../scripts/auth/create-supabase-auth-users.sql) | Membuat user Supabase Auth. |
+| [scripts/auth/insert-admin-user-production.sql](../scripts/auth/insert-admin-user-production.sql) | Insert user admin legacy/operasional. |
+| [scripts/rls/setup-supabase-rls-policies.sql](../scripts/rls/setup-supabase-rls-policies.sql) | Setup Row Level Security policies. |
+| [scripts/seed/seed-cendikia-supabase-full.sql](../scripts/seed/seed-cendikia-supabase-full.sql) | Seed data Cendikia/customer demo production. |
+| [scripts/seed/rollback-cendikia-supabase.sql](../scripts/seed/rollback-cendikia-supabase.sql) | Rollback seed Cendikia. |
+| [scripts/seed/insert-charoen-pokphand-production.sql](../scripts/seed/insert-charoen-pokphand-production.sql) | Insert data PT Charoen Pokphand. |
+| [scripts/maintenance/fix-customer-contract-package-data.sql](../scripts/maintenance/fix-customer-contract-package-data.sql) | Koreksi data paket kontrak customer. |
+| [scripts/maintenance/clarify-customer-contract-schema.sql](../scripts/maintenance/clarify-customer-contract-schema.sql) | Comment, constraint, dan audit schema kontrak customer. |
 
----
+## Arsitektur Saat Ini
 
-## 🏗️ Arsitektur
+- Frontend: React + Vite.
+- Backend aplikasi utama: Supabase direct access dari frontend.
+- Database/Auth/API: Supabase Cloud.
+- Keamanan akses data: Supabase Row Level Security.
+- Route planner: Valhalla, jika fitur routing lokal digunakan.
 
-### Environment Setup
-
-**Local Development:**
-- Folder: `backend/` + `docker-compose.yml`
-- Database: PostgreSQL via Docker (localhost:5432)
-- Backend: NestJS (localhost:4000)
-- Frontend: React + Vite (localhost:5173)
-
-**Production:**
-- Folder: `backend-supabase/`
-- Database: Supabase PostgreSQL (cloud)
-- Backend: Supabase Edge Functions (serverless)
-- Frontend: Netlify
-
-Lihat: [prd/PRD-sistem-arsip-kima.md - Section 6](../prd/PRD-sistem-arsip-kima.md#6-arsitektur-teknis)
-
----
-
-## 📊 Database
-
-### Schema & Migrations
-
-- Schema: `backend/prisma/schema.prisma`
-- Migrations: `backend/prisma/migrations/`
-- Seeding: `backend/prisma/seed.ts`
-
-### Commands
+## Development Singkat
 
 ```bash
-# Generate Prisma Client
-npx prisma generate
-
-# Create migration
-npx prisma migrate dev --name migration_name
-
-# Apply migrations
-npx prisma migrate deploy
-
-# Seed database
-npm run prisma:seed
+npm --prefix frontend run dev
 ```
 
----
+Aplikasi development berjalan di `http://localhost:5173`.
 
-## 🔐 Authentication
+## Testing dan Deployment
 
-Default users (setelah seeding):
-
-| Role | Username | Password |
-|------|----------|----------|
-| Admin | `admin` | `Admin123!` |
-| Teknisi | `teknisi` | `Teknisi123!` |
-| ISP | `isp` | `Isp12345!` |
-
----
-
-## 🗺️ Route Planner (Valhalla)
-
-- Service: Valhalla routing engine
-- Data: OSM Sulawesi (`infra/valhalla/data/sulawesi.osm.pbf`)
-- Port: 8002
-- Endpoint: `POST http://localhost:8002/route`
-
----
-
-## 📝 API Documentation
-
-Lihat: [README.md - API Endpoints](../README.md#-api-endpoints)
-
----
-
-## 🤝 Contributing
-
-1. Baca [DEV_GUIDE.md](../DEV_GUIDE.md)
-2. Create feature branch
-3. Make changes & test locally
-4. Create pull request
-
----
-
-## 📞 Support
-
-Untuk pertanyaan atau issue:
-1. Check dokumentasi di folder ini
-2. Check [QUICK_REFERENCE.md](guides/QUICK_REFERENCE.md) untuk troubleshooting
-3. Contact development team
-
----
-
-**Last Updated:** 2026-05-12  
-**Maintained By:** Development Team
+1. Jalankan lint/build frontend.
+2. Ikuti [operations/TESTING_CHECKLIST.md](operations/TESTING_CHECKLIST.md).
+3. Ikuti [deployment/DEPLOYMENT_GUIDE.md](deployment/DEPLOYMENT_GUIDE.md) untuk rilis production.

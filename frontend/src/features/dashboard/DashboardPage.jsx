@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { monitoringMonths } from "../../app/constants";
-import { API_BASE_URL, fetchJson, formatCurrency } from "../../app/utils";
+import { formatCurrency } from "../../app/utils";
+import api from "../../lib/api";
 import {
     ResponsiveContainer,
     ComposedChart,
@@ -40,7 +41,6 @@ export default function DashboardPage({
     onNavigate,
     onLogout,
     customers,
-    isLoadingCustomers,
     currentRole = "admin"
 }) {
     const [availableYears] = useState([
@@ -75,9 +75,9 @@ export default function DashboardPage({
         setIsLoadingOperational(true);
         try {
             const [billingResult, alertsResult, insightsResult] = await Promise.all([
-                fetchJson(`${API_BASE_URL}/api/monitoring/billing?year=${year}`),
-                fetchJson(`${API_BASE_URL}/api/monitoring/alerts?year=${year}`),
-                fetchJson(`${API_BASE_URL}/api/monitoring/insights?year=${year}`),
+                api.monitoring.getBilling({ year: Number(year) }),
+                api.monitoring.getAlerts({ year: Number(year) }),
+                api.monitoring.getInsights({ year: Number(year) }),
             ]);
             setBillingSummary(billingResult?.summary ?? { lunas: 0, belum_bayar: 0, terlambat: 0 });
             setAlerts(Array.isArray(alertsResult) ? alertsResult : (alertsResult?.alerts ?? []));

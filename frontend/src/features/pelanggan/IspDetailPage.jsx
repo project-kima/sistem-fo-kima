@@ -2,15 +2,25 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { StatCard } from "../../components/shared/AppShared";
 import {
-    API_BASE_URL,
-    fetchJson,
-    formatContractPeriod,
     formatDate,
     getIspContractActionItems,
     isOpenableFileUrl,
     openSafeFile,
     readFileAsDataUrl,
+    resolveCustomerContractPeriodInfo,
+    resolveCustomerPackageInfo,
 } from "../../app/utils";
+import api from "../../lib/api";
+
+const getPackageDisplay = (packageValue) => {
+    const normalizedPackage = String(packageValue ?? "").toLowerCase();
+    const isSharingPackage = normalizedPackage.includes("shar") || normalizedPackage === "shared";
+
+    return {
+        label: isSharingPackage ? "SHARING CORE" : "CORE",
+        filterValue: isSharingPackage ? "sharing_core" : "core",
+    };
+};
 
 const GlassCustomSelect = ({ label, value, onChange, options, icon, heightClass = "h-12" }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -87,10 +97,12 @@ function IspDetailPage({
     canEditTenant = true,
     canDeleteTenant = true,
     currentRole = "admin",
+    initialTab = "overview",
+    onTabChange,
 }) {
     const isTeknisi = currentRole === "teknisi";
     const [detail, setDetail] = useState(null);
-    const [activeTab, setActiveTab] = useState("overview");
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [timeline, setTimeline] = useState([]);
@@ -129,18 +141,22 @@ function IspDetailPage({
         setShowPassword(false);
         setUserPopupLoading(true);
         try {
-            const result = await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/user`);
+            const result = {
+                hasUser: Boolean(detail?.userId || detail?.user_id),
+                user: {
+                    username: detail?.username ?? "",
+                    email: detail?.email ?? "",
+                    displayName: detail?.displayName ?? detail?.display_name ?? "",
+                    passwordPlain: null,
+                },
+            };
             setUserPopupData(result);
-            if (result?.user) {
-                setUserForm({
-                    username: result.user.username ?? "",
-                    email: result.user.email ?? "",
-                    password: "",
-                    displayName: result.user.displayName ?? "",
-                });
-            } else {
-                setUserForm({ username: "", email: "", password: "", displayName: "" });
-            }
+            setUserForm({
+                username: result.user.username ?? "",
+                email: result.user.email ?? "",
+                password: "",
+                displayName: result.user.displayName ?? "",
+            });
         } catch (err) {
             setUserPopupError(err instanceof Error ? err.message : "Gagal memuat data akun.");
         } finally {
@@ -153,21 +169,7 @@ function IspDetailPage({
         setUserPopupError("");
         setUserPopupFeedback("");
         try {
-            const payload = {};
-            if (userForm.username.trim()) payload.username = userForm.username.trim();
-            if (userForm.email.trim()) payload.email = userForm.email.trim();
-            if (userForm.password.trim()) payload.password = userForm.password.trim();
-            if (userForm.displayName.trim()) payload.displayName = userForm.displayName.trim();
-            const result = await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/user`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            setUserPopupData(result);
-            setUserForm(f => ({ ...f, password: "" }));
-            setUserPopupFeedback("Akun berhasil diperbarui.");
-            setUserPopupMode("view");
-            setShowPassword(false);
+            setUserPopupError("Pengelolaan akun ISP sekarang dilakukan melalui Supabase Auth Dashboard.");
         } catch (err) {
             setUserPopupError(err instanceof Error ? err.message : "Gagal menyimpan akun.");
         } finally {
@@ -179,13 +181,11 @@ function IspDetailPage({
         setIsLoading(true);
         setError("");
         try {
-            const [ispResult, rowsResult] = await Promise.all([
-                fetchJson(`${API_BASE_URL}/api/isps/${isp.id}`),
-                fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/contract-rows`),
-            ]);
+            const ispResult = await api.isps.getById(isp.id);
+            const rowsResult = Array.isArray(ispResult?.contractRows) ? ispResult.contractRows : [];
 
             setDetail(ispResult ?? null);
-            setContractRows(Array.isArray(rowsResult) ? rowsResult : []);
+            setContractRows(rowsResult);
             setRisalahRows(
                 Array.isArray(ispResult?.risalah)
                     ? ispResult.risalah.map((row, index) => ({
@@ -225,7 +225,25 @@ function IspDetailPage({
         void loadDetail();
     }, [loadDetail]);
 
-    const allTenants = Array.isArray(detail?.tenants) ? detail.tenants : [];
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
+
+    const handleTabChange = useCallback((nextTab) => {
+        setActiveTab(nextTab);
+        onTabChange?.(nextTab);
+    }, [onTabChange]);
+
+    const allTenants = useMemo(
+        () => Array.isArray(detail?.tenants)
+            ? detail.tenants.map((tenant) => ({
+                ...tenant,
+                contractPeriodInfo: resolveCustomerContractPeriodInfo(tenant),
+                packageInfo: resolveCustomerPackageInfo(tenant),
+            }))
+            : [],
+        [detail?.tenants],
+    );
 
     // Filtered & Sorted Tenants
     const filteredTenants = useMemo(() => {
@@ -247,7 +265,7 @@ function IspDetailPage({
 
         // 3. Paket Filter
         if (tenantPaketFilter !== "all") {
-            result = result.filter(t => (t.paket || "").toLowerCase() === tenantPaketFilter.toLowerCase());
+            result = result.filter(t => getPackageDisplay(t.packageInfo?.paket ?? t.paket).filterValue === tenantPaketFilter);
         }
 
         // 4. Sorting
@@ -309,17 +327,22 @@ function IspDetailPage({
         if (!file) return;
         setIsActionLoading(true);
         setError("");
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("fileDataUrl", await readFileAsDataUrl(file));
-        formData.append("fileName", file.name);
-        if (followUpId) formData.append("followUpId", String(followUpId));
-        let endpoint = "";
-        if (type === "bak") endpoint = `${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/bak`;
-        else if (type === "renewal") endpoint = `${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/renewal`;
-        else if (type === "contract") endpoint = `${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/contract-file`;
         try {
-            await fetchJson(`${endpoint}`, { method: "POST", body: formData });
+            const fileDataUrl = await readFileAsDataUrl(file);
+            if (type === "renewal" && followUpId) {
+                await api.ispRenewalFollowUps.update(followUpId, {
+                    renewal_file_url: fileDataUrl,
+                    renewal_file_name: file.name,
+                });
+            } else if (type === "renewal") {
+                await api.ispRenewalFollowUps.create(rowId);
+            } else {
+                const fieldMap = {
+                    bak: { bak_file_url: fileDataUrl, bak_file_name: file.name },
+                    contract: { contract_file_url: fileDataUrl, contract_file_name: file.name },
+                };
+                await api.ispContractRows.update(rowId, fieldMap[type] ?? {});
+            }
             await loadDetail();
             if (onRefreshAll) onRefreshAll();
         } catch (err) {
@@ -333,14 +356,21 @@ function IspDetailPage({
         if (!file) { setError("Harap pilih berkas tanggapan."); return; }
         setIsActionLoading(true);
         setError("");
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("decision", decision);
-        formData.append("fileDataUrl", await readFileAsDataUrl(file));
-        formData.append("fileName", file.name);
-        if (followUpId) formData.append("followUpId", String(followUpId));
         try {
-            await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/response`, { method: "POST", body: formData });
+            const fileDataUrl = await readFileAsDataUrl(file);
+            if (followUpId) {
+                await api.ispRenewalFollowUps.update(followUpId, {
+                    response_file_url: fileDataUrl,
+                    response_file_name: file.name,
+                    response_status: decision,
+                });
+            } else {
+                await api.ispContractRows.update(rowId, {
+                    response_file_url: fileDataUrl,
+                    response_file_name: file.name,
+                    response_status: decision,
+                });
+            }
             await loadDetail();
             if (onRefreshAll) onRefreshAll();
         } catch (err) {
@@ -354,7 +384,7 @@ function IspDetailPage({
         setIsActionLoading(true);
         setError("");
         try {
-            await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}/follow-ups`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+            await api.ispRenewalFollowUps.create(rowId);
             await loadDetail();
             if (onRefreshAll) onRefreshAll();
         } catch (requestError) {
@@ -430,7 +460,7 @@ function IspDetailPage({
     const handleUpdateRow = async (rowId, updates) => {
         setIsActionLoading(true);
         try {
-            await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}/contract-rows/${rowId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
+            await api.ispContractRows.update(rowId, updates);
             setEditingRow(null);
             await loadDetail();
         } catch { setError("Gagal memperbarui data baris."); } finally { setIsActionLoading(false); }
@@ -459,7 +489,7 @@ function IspDetailPage({
     const handleDeleteIsp = async () => {
         if (!window.confirm(`Apakah Anda yakin ingin menghapus ISP "${ispName}"?`)) return;
         setIsLoading(true);
-        try { await fetchJson(`${API_BASE_URL}/api/isps/${isp.id}`, { method: "DELETE" }); onBack(); if (onRefreshAll) onRefreshAll(); }
+        try { await api.isps.delete(isp.id); onBack(); if (onRefreshAll) onRefreshAll(); }
         catch (err) { setError(err instanceof Error ? err.message : "Gagal menghapus ISP."); setIsLoading(false); }
     };
 
@@ -768,17 +798,17 @@ function IspDetailPage({
                             {/* Integrated Metadata Strip (No Cards) */}
                             <div className="flex flex-wrap items-center gap-x-12 gap-y-4">
                                 <div className="space-y-1">
-                                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Pendaftaran Awal</p>
+                                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Periode Awal Kontrak</p>
                                     <p className="text-sm font-bold text-white/80">{formatDate(detail?.contractStartDate ?? isp.contractStartDate)}</p>
                                 </div>
                                 <div className="w-px h-6 bg-white/5 hidden md:block" />
                                 <div className="space-y-1">
-                                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">No. Kontrak Berjalan</p>
+                                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Nomor Kontrak</p>
                                     <p className="text-sm font-bold text-gold-accent italic tracking-tight">{contractRef}</p>
                                 </div>
                                 <div className="w-px h-6 bg-white/5 hidden md:block" />
                                 <div className="space-y-1">
-                                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Masa Berlaku</p>
+                                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Periode Berjalan</p>
                                     <p className="text-sm font-bold text-white/80 tracking-tight">
                                         {formatDate(detail?.contractPeriodStart ?? isp.contractPeriodStart)}
                                         <span className="mx-2 text-white/20 font-normal">sampai</span>
@@ -807,7 +837,7 @@ function IspDetailPage({
                             <button
                                 key={tab.id}
                                 className={`flex items-center gap-3 px-8 py-4 rounded-2xl text-[10px] font-bold tracking-[0.1em] transition-all duration-500 relative overflow-hidden ${activeTab === tab.id ? "text-white shadow-gold-glow" : "text-white/40 hover:text-white/70 hover:bg-white/5"}`}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => handleTabChange(tab.id)}
                                 type="button"
                             >
                                 {activeTab === tab.id && <div className="absolute inset-0 bg-gold-gradient animate-shimmer" />}
@@ -1097,7 +1127,7 @@ function IspDetailPage({
                                         options={[
                                             { value: "all", label: "SEMUA PAKET" },
                                             { value: "core", label: "CORE" },
-                                            { value: "shared", label: "SHARED" }
+                                            { value: "sharing_core", label: "SHARING CORE" }
                                         ]}
                                     />
 
@@ -1163,18 +1193,18 @@ function IspDetailPage({
                                                             })()}
                                                         </td>
                                                         <td className="px-6 py-6">
-                                                            <p className="text-[11px] font-bold text-white/60 uppercase">{formatDate(tenant.contractStartDate)}</p>
+                                                            <p className="text-[11px] font-bold text-white/60 uppercase">{formatDate(tenant.contractPeriodInfo?.contractStartDate ?? tenant.contractStartDate)}</p>
                                                         </td>
                                                         <td className="px-6 py-6">
                                                             <p className="text-[11px] font-bold text-white/60 italic tracking-tighter">
-                                                                {formatDate(tenant.contractPeriodStart)} - {formatDate(tenant.contractPeriodEnd)}
+                                                                {formatDate(tenant.contractPeriodInfo?.contractPeriodStart ?? tenant.contractPeriodStart)} - {formatDate(tenant.contractPeriodInfo?.contractPeriodEnd ?? tenant.contractPeriodEnd)}
                                                             </p>
                                                         </td>
                                                         <td className="px-6 py-6">
-                                                            <p className="text-xs font-bold text-white/70 tracking-widest">{tenant.paket || '-'}</p>
+                                                            <p className="text-xs font-bold text-white/70 tracking-widest">{getPackageDisplay(tenant.packageInfo?.paket ?? tenant.paket).label}</p>
                                                         </td>
                                                         <td className="px-6 py-6">
-                                                            <p className="text-xs font-bold text-white/70 tracking-widest">{tenant.contractSharingRatio ?? tenant.jumlah ?? '-'}</p>
+                                                            <p className="text-xs font-bold text-white/70 tracking-widest">{tenant.packageInfo?.jumlah ?? tenant.contractSharingRatio ?? tenant.jumlah ?? '-'}</p>
                                                         </td>
                                                         <td className="px-6 py-6 text-sm font-bold text-[#ff2400]">
                                                             {isTeknisi ? (
@@ -1265,7 +1295,7 @@ function IspDetailPage({
                                                         ) : <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-[10px] text-white/30 bg-white/5 border border-white/10 border-dashed px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all"><span className="material-symbols-outlined text-sm">upload</span>Upload<input type="file" className="hidden" onChange={(e) => handleFileUpload(row.id, 'contract', e.target.files[0])} /></label>}
                                                     </td>
                                                     <td className="px-6 py-6 border-r border-white/5 text-center">
-                                                        <span className="text-sm font-bold text-white/60">{formatDate(detail?.contractStartDate ?? isp.contractStartDate)}</span>
+                                                        <span className="text-sm font-bold text-white/60">{formatDate(row.contractStartDate ?? detail?.contractStartDate ?? detail?.contract_start_date ?? isp.contractStartDate ?? isp.contract_start_date)}</span>
                                                     </td>
                                                     <td className="px-6 py-6 text-center border-r border-white/5">
                                                         {editingRow?.id === row.id ? (
@@ -1296,7 +1326,7 @@ function IspDetailPage({
                                                             <div className="flex justify-end gap-2">
                                                                 <button
                                                                     className="w-9 h-9 flex items-center justify-center rounded-lg bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-90 transition-all"
-                                                                    onClick={() => handleUpdateRow(row.id, { contractReference: editingRow.contractReference, periodStart: editingRow.periodStart, periodEnd: editingRow.periodEnd })}
+                                                                    onClick={() => handleUpdateRow(row.id, { contract_reference: editingRow.contractReference, period_start: editingRow.periodStart, period_end: editingRow.periodEnd })}
                                                                     title="Simpan"
                                                                 >
                                                                     <span className="material-symbols-outlined text-base">check</span>

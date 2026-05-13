@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import AppShell from "../../components/layout/AppShell";
-import { API_BASE_URL, fetchJson, readFileAsDataUrl } from "../../app/utils";
+import { readFileAsDataUrl } from "../../app/utils";
+import api from "../../lib/api";
 
 const GlassFieldInput = ({ label, type = "text", value, onChange, placeholder = "", icon }) => {
     return (
@@ -136,10 +137,6 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
         setIsSubmitting(true);
         setSubmitError("");
         try {
-            const endpoint = isEditMode && initialData?.id
-                ? `${API_BASE_URL}/api/isps/${initialData.id}`
-                : `${API_BASE_URL}/api/isps`;
-            
             const payload = isEditMode
                 ? {
                     name: form.name.trim(),
@@ -164,11 +161,10 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
                     packageQuantity: form.packageQuantity,
                 };
 
-            const result = await fetchJson(endpoint, {
-                method: isEditMode ? "PATCH" : "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+            const result = isEditMode && initialData?.id
+                ? await api.isps.update(initialData.id, payload)
+                : await api.isps.create(payload);
+
             if (onSaved) await onSaved(result);
         } catch (error) {
             setSubmitError(error instanceof Error ? error.message : "Terjadi kesalahan.");

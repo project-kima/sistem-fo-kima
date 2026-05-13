@@ -1,194 +1,106 @@
 # Sistem FO KIMA
 
-Sistem arsip dokumen dan monitoring tenant berbasis web untuk pengelolaan ISP dan pelanggan fiber optik.
+Sistem arsip dokumen dan monitoring tenant berbasis web untuk pengelolaan ISP, pelanggan, kontrak, invoice, dan jalur fiber optik KIMA.
 
-## 📁 Struktur Project
+## Struktur Project
 
-```
+```text
 sistem-fo-kima/
-├── frontend/              # React + Vite + Tailwind CSS
-├── backend/               # NestJS API (Local Development)
-├── backend-supabase/      # Supabase Edge Functions (Production)
-├── docs/                  # Dokumentasi
-│   ├── deployment/        # Deployment guides
-│   └── guides/            # User guides & references
-├── prd/                   # Product Requirements Document
-├── scripts/               # Development & deployment scripts
-├── infra/                 # Infrastructure configs (Docker, Valhalla)
-└── docker-compose.yml     # Local development stack
+├── frontend/              # React + Vite application
+├── docs/                  # Dokumentasi teknis, operasional, deployment, analisis
+│   ├── guides/            # Panduan penggunaan dan setup
+│   ├── deployment/        # Deployment dan status koneksi
+│   ├── operations/        # Checklist, bug tracking, panduan operasional
+│   ├── analysis/          # Analisis dan catatan desain lama/pendukung
+│   └── database/          # Referensi schema/dokumen database
+├── prd/                   # Product requirements dan diagram bisnis
+├── scripts/               # Script operasional Supabase/SQL/dev
+│   ├── auth/              # Script user/auth
+│   ├── rls/               # Script Row Level Security
+│   ├── seed/              # Script seed/rollback data
+│   ├── maintenance/       # Script maintenance/audit data
+│   └── dev/               # Script development lokal
+└── infra/                 # Infrastruktur pendukung seperti Valhalla
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-### Development (Local)
+Arsitektur utama saat ini menggunakan frontend React/Vite yang mengakses Supabase secara langsung.
 
 ```bash
-# 1. Start PostgreSQL & Valhalla
-docker-compose up -d
-
-# 2. Start Backend
-cd backend
-npm install
-npm run prisma:migrate
-npm run prisma:seed
-npm run start:dev
-
-# 3. Start Frontend
-cd ../frontend
-npm install
-npm run dev
+npm --prefix frontend install
+npm --prefix frontend run dev
 ```
 
-**Access:**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:4000
-- Valhalla: http://localhost:8002
+Aplikasi development berjalan di:
 
-### Production (Supabase)
+```text
+http://localhost:5173
+```
 
-Lihat dokumentasi: `docs/deployment/`
+## Environment
 
-## 📚 Dokumentasi
+Frontend membutuhkan environment Supabase di `frontend/.env.development` atau `frontend/.env.production`.
 
-### Untuk Developer
-- **[DEV_GUIDE.md](DEV_GUIDE.md)** - Panduan development lengkap
-- **[docs/guides/QUICK_REFERENCE.md](docs/guides/QUICK_REFERENCE.md)** - Command reference cepat
+Variabel yang umum digunakan:
 
-### Untuk Deployment
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_VALHALLA_HOST` untuk route planner FO jika digunakan
 
-### Product Requirements
-- **[prd/PRD-sistem-arsip-kima.md](prd/PRD-sistem-arsip-kima.md)** - Product Requirements Document
+## Dokumentasi
 
-## 🏗️ Arsitektur
+- [docs/INDEX.md](docs/INDEX.md) — indeks dokumentasi utama.
+- [DEV_GUIDE.md](DEV_GUIDE.md) — panduan development.
+- [prd/PRD-sistem-arsip-kima.md](prd/PRD-sistem-arsip-kima.md) — Product Requirements Document.
+- [prd/sequence-diagram-komprehensif.md](prd/sequence-diagram-komprehensif.md) — sequence diagram sistem.
 
-### Local Development
-- **Frontend**: React + Vite (localhost:5173)
-- **Backend**: NestJS (localhost:4000)
-- **Database**: PostgreSQL via Docker (localhost:5432)
-- **Routing**: Valhalla (localhost:8002)
+## Arsitektur Saat Ini
 
-### Production
-- **Frontend**: Netlify
-- **Backend**: Supabase Edge Functions
-- **Database**: Supabase PostgreSQL
-- **Storage**: Supabase Storage
+```text
+Frontend React/Vite
+        |
+        v
+Supabase Auth + Supabase Database/REST + Supabase Storage
+        |
+        v
+PostgreSQL + Row Level Security
+```
 
-## 🛠️ Scripts Tersedia
+Komponen:
 
-### Development Scripts (di folder `scripts/`)
+- **Frontend:** React + Vite.
+- **Backend utama:** Supabase direct access dari frontend.
+- **Database/Auth:** Supabase PostgreSQL dan Supabase Auth.
+- **Security:** Supabase Row Level Security.
+- **Route planner:** Valhalla sebagai layanan pendukung jika fitur peta digunakan.
+
+Tidak ada service NestJS yang perlu dijalankan untuk alur utama aplikasi saat ini.
+
+## Scripts Penting
+
+- [scripts/README.md](scripts/README.md) — indeks script operasional.
+- [scripts/dev/dev-frontend.sh](scripts/dev/dev-frontend.sh) — menjalankan frontend development.
+- [scripts/auth/create-supabase-auth-users.sql](scripts/auth/create-supabase-auth-users.sql) — membuat user Supabase Auth.
+- [scripts/rls/setup-supabase-rls-policies.sql](scripts/rls/setup-supabase-rls-policies.sql) — setup Row Level Security.
+- [scripts/maintenance/fix-customer-contract-package-data.sql](scripts/maintenance/fix-customer-contract-package-data.sql) — koreksi data paket kontrak customer.
+- [scripts/maintenance/clarify-customer-contract-schema.sql](scripts/maintenance/clarify-customer-contract-schema.sql) — comment, constraint, dan audit schema kontrak customer.
+
+Script production dijalankan manual melalui Supabase SQL Editor setelah direview.
+
+## Verifikasi
+
 ```bash
-./scripts/dev-start.sh      # Start semua services
-./scripts/dev-backend.sh    # Start backend only
-./scripts/dev-frontend.sh   # Start frontend only
+npm --prefix frontend run lint
+npm --prefix frontend run build
 ```
 
-### Backend Scripts
-```bash
-cd backend
-npm run start:dev           # Start development server
-npm run prisma:migrate      # Run migrations
-npm run prisma:seed         # Seed sample data
-npm run prisma:seed:cendikia    # Seed PT Cendikia data
-npm run prisma:verify:cendikia  # Verify seeded data
-```
+## Valhalla Route Planner
 
-## 🔧 Environment Variables
+Konfigurasi Valhalla berada di `infra/valhalla/`. Layanan ini hanya diperlukan untuk fitur route planner FO.
 
-### Frontend
-- `VITE_API_BASE_URL` - Backend API URL (default: http://localhost:4000)
-- `VITE_VALHALLA_HOST` - Valhalla routing URL (default: http://localhost:8002)
+## Status
 
-### Backend
-- `DATABASE_URL` - PostgreSQL connection string
-- `HOST` - Server host (default: 127.0.0.1)
-- `PORT` - Server port (default: 4000)
-
-## 📊 Database
-
-### Migrations
-```bash
-cd backend
-npx prisma migrate dev      # Create & apply migration
-npx prisma migrate deploy   # Apply to production
-npx prisma generate         # Generate Prisma Client
-```
-
-### Seeding
-```bash
-# Sample data
-npm run prisma:seed
-
-# Force reset & reseed
-SEED_FORCE_RESET=true npm run prisma:seed
-
-# Seed specific data (PT Cendikia)
-npm run prisma:seed:cendikia
-```
-
-## 🗺️ Valhalla Route Planner
-
-Service Valhalla untuk route planner FO menggunakan data OSM Sulawesi.
-
-**Startup pertama:**
-- Build routing tiles (~5-10 menit)
-- Generate timezones & admin boundaries
-- Start HTTP service
-
-**Force rebuild:**
-```bash
-VALHALLA_REBUILD=1 docker-compose up -d valhalla
-```
-
-## 🔐 Authentication
-
-Default users (setelah seeding):
-- **Admin**: username `admin`, password `Admin123!`
-- **Teknisi**: username `teknisi`, password `Teknisi123!`
-- **ISP**: username `isp`, password `Isp12345!`
-
-## 📝 API Endpoints
-
-### Health Check
-- `GET /api/health`
-
-### Customers
-- `GET /api/customers`
-- `POST /api/customers`
-- `GET /api/customers/:id`
-- `PUT /api/customers/:id`
-- `DELETE /api/customers/:id`
-- `GET /api/customers/:id/compliance-status`
-- `GET /api/customers/:id/timeline`
-
-### Documents
-- `GET /api/customers/:id/documents`
-- `POST /api/customers/:id/documents`
-- `DELETE /api/customers/:id/documents/:docId`
-
-### Monitoring
-- `GET /api/monitoring/billing?year=&isp=&status=`
-- `GET /api/monitoring/alerts?year=`
-
-### ISPs
-- `GET /api/isps`
-- `POST /api/isps`
-- `GET /api/isps/:id`
-- `PUT /api/isps/:id`
-- `DELETE /api/isps/:id`
-
-## 🤝 Contributing
-
-1. Create feature branch
-2. Make changes
-3. Test locally
-4. Create pull request
-
-## 📄 License
-
-Internal use only - KIMA
-
----
-
-**Last Updated:** 2026-05-12  
-**Version:** 1.1  
+**Last Updated:** 2026-05-13  
+**Version:** 1.2  
 **Status:** Active Development

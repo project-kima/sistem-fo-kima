@@ -1,7 +1,17 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { SummaryCard, StatCard } from "../../components/shared/AppShared";
-import { API_BASE_URL, fetchJson } from "../../app/utils";
+import api from "../../lib/api";
+
+const getPackageDisplay = (packageValue) => {
+    const normalizedPackage = String(packageValue ?? "").toLowerCase();
+    const isSharingPackage = normalizedPackage.includes("shar") || normalizedPackage === "shared";
+
+    return {
+        label: isSharingPackage ? "SHARING CORE" : "CORE",
+        isSharingPackage,
+    };
+};
 
 // --- Custom UI Components ---
 const CustomSelect = ({ value, onChange, options, icon, label }) => {
@@ -255,7 +265,6 @@ function CustomerWorkspacePage({
     const totalActiveTenants = customers.filter((tenant) => isTenantActive(tenant)).length;
     const totalNonActiveTenants = customers.length - totalActiveTenants;
     const filteredTenantCount = allGroups.reduce((total, group) => total + group.tenants.length, 0);
-    const filteredActionTenantCount = allGroups.reduce((total, group) => total + group.actionTenantCount, 0);
     const totalFilteredActionCount = allGroups.reduce((total, group) => total + (group.totalActionCount || 0), 0);
     const totalGlobalActionCount = customers.reduce((total, tenant) => {
         const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
@@ -313,10 +322,7 @@ function CustomerWorkspacePage({
         if (!confirmDelete) return;
 
         try {
-            await fetchJson(`${API_BASE_URL}/api/isps/${group.id}`,
-                {
-                    method: "DELETE",
-                });
+            await api.isps.delete(group.id);
 
             alert("ISP berhasil dihapus.");
             onRefresh?.();
@@ -332,9 +338,9 @@ function CustomerWorkspacePage({
         }
 
         try {
-            await fetchJson(`${API_BASE_URL}/api/customers/${tenant.id}/archive`, {
-                method: "PATCH",
-            });
+            // TODO: Implement archive API in Supabase
+            // For now, we can use delete or update status
+            await api.customers.update(tenant.id, { status: 'nonaktif' });
 
             alert("Lokasi berhasil dipindahkan ke sampah.");
             onRefresh?.();
@@ -678,15 +684,19 @@ function CustomerWorkspacePage({
                                                                             <p className="text-[10px] font-black text-white/30 tracking-[0.2em] uppercase">{tenant.customerId}</p>
                                                                         </td>
                                                                         <td className="px-10 py-6">
-                                                                            {tenant.paket ? (
-                                                                                <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${(tenant.paket ?? "").toLowerCase() === "core"
-                                                                                    ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                                                                                    : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                                                                    }`}>
-                                                                                    <span className={`w-1.5 h-1.5 rounded-full ${(tenant.paket ?? "").toLowerCase() === "core" ? "bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.5)]" : "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]"}`} />
-                                                                                    {String(tenant.paket).toUpperCase()}
-                                                                                </span>
-                                                                            ) : (
+                                                                            {tenant.paket ? (() => {
+                                                                                const packageDisplay = getPackageDisplay(tenant.paket);
+
+                                                                                return (
+                                                                                    <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${packageDisplay.isSharingPackage
+                                                                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                                                                        : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                                                                                        }`}>
+                                                                                        <span className={`w-1.5 h-1.5 rounded-full ${packageDisplay.isSharingPackage ? "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.5)]"}`} />
+                                                                                        {packageDisplay.label}
+                                                                                    </span>
+                                                                                );
+                                                                            })() : (
                                                                                 <span className="text-[10px] font-bold text-white/20">-</span>
                                                                             )}
                                                                         </td>

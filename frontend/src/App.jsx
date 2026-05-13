@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "./components/layout/AppShell";
 import { sectionMeta } from "./app/constants";
-import { API_BASE_URL, fetchJson, mapCustomerToRow } from "./app/utils";
+import { mapCustomerToRow } from "./app/utils";
+import { signOut } from "./lib/supabase";
+import api from "./lib/api";
 
 // Lazy load heavy components
 const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"));
@@ -57,7 +59,7 @@ function App() {
         setCustomersError("");
 
         try {
-            const result = await fetchJson(`${API_BASE_URL}/api/customers`);
+            const result = await api.customers.getAll();
             const mappedCustomers = Array.isArray(result)
                 ? result.map((customer, index) => mapCustomerToRow(customer, index))
                 : [];
@@ -78,16 +80,19 @@ function App() {
         }
     }, []);
 
+    // Only load data when user is authenticated (not on login page)
     useEffect(() => {
-        void loadCustomers();
-    }, [loadCustomers]);
+        if (route.type !== "login") {
+            void loadCustomers();
+        }
+    }, [loadCustomers, route.type]);
 
     const loadIsps = useCallback(async () => {
         setIsLoadingIsps(true);
         setIspsError("");
 
         try {
-            const result = await fetchJson(`${API_BASE_URL}/api/isps`);
+            const result = await api.isps.getAll();
             setIsps(Array.isArray(result) ? result : []);
             return Array.isArray(result) ? result : [];
         } catch (error) {
@@ -102,9 +107,12 @@ function App() {
         }
     }, []);
 
+    // Only load ISPs when user is authenticated (not on login page)
     useEffect(() => {
-        void loadIsps();
-    }, [loadIsps]);
+        if (route.type !== "login") {
+            void loadIsps();
+        }
+    }, [loadIsps, route.type]);
 
     const navigateTo = useCallback((targetPath, { replace = false } = {}) => {
         if (typeof window === "undefined") {
@@ -315,9 +323,17 @@ function App() {
         navigateTo(appPaths.customers, { replace: true });
     }, [appPaths, loadCustomers, loadIsps, navigateTo]);
 
-    const handleLogout = useCallback(() => {
-        // We just redirect to login, which will effectively "logout" since App handles route access
-        navigateTo(appPaths.login, { replace: true });
+    const handleLogout = useCallback(async () => {
+        try {
+            await signOut();
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            // Clear role and redirect to login
+            setCurrentRole(APP_ROLES.admin);
+            persistRole(APP_ROLES.admin);
+            navigateTo(appPaths.login, { replace: true });
+        }
     }, [appPaths.login, navigateTo]);
 
     const handleOpenCustomerById = useCallback((customerId, initialTab = "overview") => {
@@ -359,16 +375,9 @@ function App() {
         return (
             <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary-container/10"><div className="text-sm text-on-surface-variant">Memuat...</div></div>}>
                 <LoginPage
-                    onLoginSuccess={async ({ identifier, password }) => {
-                        const result = await fetchJson(`${API_BASE_URL}/api/auth/login`, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({ identifier, password }),
-                        });
-
-                        const nextRole = result?.user?.role ?? APP_ROLES.admin;
+                    onLoginSuccess={async ({ user }) => {
+                        // Extract role from user metadata
+                        const nextRole = user?.user_metadata?.role ?? APP_ROLES.admin;
                         const nextRoleConfig = getRoleConfig(nextRole);
                         const nextRolePaths = getAppPaths(nextRole);
                         const landingPath = nextRolePaths[nextRoleConfig.defaultSection] ?? nextRolePaths.customers;
@@ -584,6 +593,7 @@ function App() {
                 <IspDetailPage
                     isp={selectedIsp}
                     currentRole={currentRole}
+                    initialTab={route.initialTab}
                     onBack={() => navigateTo(appPaths.customers, { replace: true })}
                     onEditIsp={handleOpenEditIsp}
                     onNavigate={handleNavigate}
@@ -591,6 +601,9 @@ function App() {
                     onOpenCreateTenant={handleOpenCreateTenantFromIsp}
                     onOpenTenant={(tenant, initialTab = "overview") =>
                         handleOpenTenantDetail(tenant, initialTab, selectedIsp)}
+                    onTabChange={(nextTab) => {
+                        navigateTo(appPaths.ispDetail(selectedIsp.id, { tab: nextTab }), { replace: true });
+                    }}
                     onRefreshAll={async () => {
                         await Promise.all([loadCustomers(), loadIsps()]);
                     }}

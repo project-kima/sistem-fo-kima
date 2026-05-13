@@ -8,20 +8,21 @@ import {
 import FoRoutePlanner from "./components/FoRoutePlanner";
 import {
   documentTypeLabelMap,
-  timelineColorMap,
   timelineIconMap,
 } from "../../app/constants";
 import {
-  API_BASE_URL,
   addDaysToIsoDate,
-  fetchJson,
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatPackageRatio,
   isOpenableFileUrl,
   readFileAsDataUrl,
+  resolveCustomerContractPeriodInfo,
+  resolveCustomerPackageInfo,
   toTitleCase,
 } from "../../app/utils";
+import api from "../../lib/api";
 
 const ROUTE_OPERATION_LABEL_MAP = {
   add: "Tambah Titik",
@@ -255,7 +256,6 @@ function TenantDetailPage({
   onNavigate,
   onLogout,
   onOpenRoutePlanner,
-  onTabChange,
   onRefreshAll,
   routeViewMode = "embedded",
   backLabel = "Kembali ke Workspace",
@@ -268,7 +268,6 @@ function TenantDetailPage({
   const [activeTab, setActiveTab] = useState(initialTab);
   const [detail, setDetail] = useState(null);
   const [timeline, setTimeline] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [documentDraft, setDocumentDraft] = useState({
     jenisDokumen: "penawaran",
@@ -313,41 +312,28 @@ function TenantDetailPage({
   const [routeFeedback, setRouteFeedback] = useState("");
   const [routeError, setRouteError] = useState("");
   const [routeChangeNote, setRouteChangeNote] = useState("");
-  const [routeEditMode, setRouteEditMode] = useState("edit");
   const [isRouteDrafting, setIsRouteDrafting] = useState(false);
   const [draftRoutePoints, setDraftRoutePoints] = useState([]);
   const [draftRouteStatus, setDraftRouteStatus] = useState("aktif");
 
   const emptyStateStorageKey = `tenant-contract-empty-state-${customer.id}`;
   const routeDraftStorageKey = `tenant-route-draft-${customer.id}`;
-  const handleSelectTab = useCallback(
-    (tabKey) => {
-      setActiveTab(tabKey);
-      onTabChange?.(tabKey);
-    },
-    [onTabChange],
-  );
   const isStandaloneJalurView = routeViewMode !== "embedded";
   const isPlannerJalurView = routeViewMode === "planner";
 
   const loadDetail = useCallback(async () => {
-    setIsLoading(true);
     setError("");
     try {
-      const [detailResult, timelineResult] = await Promise.all([
-        fetchJson(`${API_BASE_URL}/api/customers/${customer.id}`),
-        fetchJson(`${API_BASE_URL}/api/customers/${customer.id}/timeline`),
-      ]);
+      const detailResult = await api.customers.getById(customer.id);
       setDetail(detailResult ?? null);
-      setTimeline(Array.isArray(timelineResult) ? timelineResult : []);
+      // TODO: Implement timeline API
+      setTimeline([]);
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
           : "Terjadi kesalahan saat memuat tenant.",
       );
-    } finally {
-      setIsLoading(false);
     }
   }, [customer.id]);
 
@@ -421,7 +407,6 @@ function TenantDetailPage({
       setRouteChangeNote(
         typeof parsedValue?.changeNote === "string" ? parsedValue.changeNote : "",
       );
-      setRouteEditMode("ubah_jalur");
       setIsRouteDrafting(true);
       setRouteFeedback(
         "Draft jalur FO sebelumnya dipulihkan. Anda bisa lanjut review atau aktifkan jalur baru.",
@@ -458,9 +443,15 @@ function TenantDetailPage({
   ]);
 
   const tenantName = detail?.name ?? customer?.name;
+  const packageInfo = resolveCustomerPackageInfo(detail ?? customer);
+  const contractPeriodInfo = resolveCustomerContractPeriodInfo(detail ?? customer);
   const isps = Array.isArray(detail?.isps) ? detail.isps : [];
   const contract = Array.isArray(detail?.contracts)
-    ? (detail.contracts[0] ?? null)
+    ? ([...detail.contracts].sort((left, right) => {
+        const leftDate = new Date(`${String(left?.endDate ?? left?.end_date ?? left?.startDate ?? left?.start_date ?? "").slice(0, 10)}T00:00:00.000Z`).getTime();
+        const rightDate = new Date(`${String(right?.endDate ?? right?.end_date ?? right?.startDate ?? right?.start_date ?? "").slice(0, 10)}T00:00:00.000Z`).getTime();
+        return (Number.isFinite(rightDate) ? rightDate : 0) - (Number.isFinite(leftDate) ? leftDate : 0);
+      })[0] ?? null)
     : null;
   const versions = Array.isArray(detail?.contractVersions)
     ? detail.contractVersions
@@ -486,9 +477,6 @@ function TenantDetailPage({
   const latestDocuments = Array.isArray(detail?.latestDocuments)
     ? detail.latestDocuments
     : [];
-  const requiredDocuments = latestDocuments.filter((item) =>
-    ["penawaran", "tanggapan", "hasil_nego"].includes(item.jenisDokumen),
-  );
   const allDocuments = latestDocuments; // Now includes all documents uploaded by user
   const contractDocumentByContractId = useMemo(() => {
     const docs = Array.isArray(allDocuments) ? [...allDocuments] : [];
@@ -513,13 +501,58 @@ function TenantDetailPage({
     });
     return map;
   }, [allDocuments]);
+  const bakDocumentByContractId = useMemo(() => {
+    const docs = Array.isArray(allDocuments) ? [...allDocuments] : [];
+    docs.sort((a, b) =>
+      String(b?.tanggalDokumen ?? "").localeCompare(
+        String(a?.tanggalDokumen ?? ""),
+      ),
+    );
+
+    const map = new Map();
+    docs.forEach((doc) => {
+      if (String(doc?.jenisDokumen ?? "").toLowerCase() !== "bak") {
+        return;
+      }
+      const key = Number(doc?.contractId);
+      if (!Number.isFinite(key)) {
+        return;
+      }
+      if (!map.has(key)) {
+        map.set(key, doc);
+      }
+    });
+    return map;
+  }, [allDocuments]);
+  const bakDocumentByVersionId = useMemo(() => {
+    const docs = Array.isArray(allDocuments) ? [...allDocuments] : [];
+    docs.sort((a, b) =>
+      String(b?.tanggalDokumen ?? "").localeCompare(
+        String(a?.tanggalDokumen ?? ""),
+      ),
+    );
+
+    const map = new Map();
+    docs.forEach((doc) => {
+      if (String(doc?.jenisDokumen ?? "").toLowerCase() !== "bak") {
+        return;
+      }
+      const key = Number(doc?.contractVersionId ?? doc?.contract_version_id);
+      if (!Number.isFinite(key)) {
+        return;
+      }
+      if (!map.has(key)) {
+        map.set(key, doc);
+      }
+    });
+    return map;
+  }, [allDocuments]);
   const todayIso = new Date().toISOString().slice(0, 10);
   const activationFeePaidAt =
     detail?.activationFeePaidAt ?? customer?.activationFeePaidAt ?? null;
   const activationFeeAmount = Number(
     detail?.activationFeeAmount ?? customer?.activationFeeAmount ?? 0,
   );
-  const activeRouteId = detail?.route?.activeRouteId ?? null;
   const activeRouteStatus = detail?.route?.activeFlowStatus ?? "aktif";
   const routePoints = useMemo(
     () => (Array.isArray(detail?.route?.points) ? detail.route.points : []),
@@ -1004,87 +1037,73 @@ function TenantDetailPage({
 
   const billingEvery = Number(contract?.billingEvery ?? 1);
   const billingUnitLabel = toTitleCase(contract?.billingUnit ?? "bulan");
-  const packageLabel = String(
-    detail?.paket ?? customer?.paket ?? "",
-  ).toLowerCase();
-  const isSharedCorePackage = packageLabel.includes("shared");
-  const resolveContractActualValue = (version) => {
-    if (version) {
-      const versionType = String(version.coreType ?? "").toLowerCase();
-
-      if (versionType === "core") {
-        return version.coreTotal ?? detail?.jumlah ?? customer?.jumlah ?? "-";
-      }
-
-      return (
-        version.sharedCoreRatio ??
-        detail?.contractSharingRatio ??
-        detail?.jumlah ??
-        customer?.contractSharingRatio ??
-        customer?.jumlah ??
-        "-"
-      );
-    }
-
-    if (isSharedCorePackage) {
-      return (
-        detail?.contractSharingRatio ??
-        detail?.jumlah ??
-        customer?.contractSharingRatio ??
-        customer?.jumlah ??
-        "-"
-      );
-    }
-
-    return detail?.jumlah ?? customer?.jumlah ?? "-";
+  const getRowPeriodTime = (row) => {
+    const rawDate = row?.periodEnd ?? row?.periodStart ?? "";
+    const timestamp = new Date(`${String(rawDate).slice(0, 10)}T00:00:00.000Z`).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
   };
-  const contractRowsForTable =
-    versions.length > 0
-      ? versions.map((version, index) => {
-        const normalizedCoreType = String(
-          version?.coreType ?? "",
-        ).toLowerCase();
-        const paketLabel = normalizedCoreType
-          ? normalizedCoreType.replace(/_/g, " ").toUpperCase()
-          : String(detail?.paket || customer?.paket || "CORE").toUpperCase();
+  const getContractPackageDisplay = (coreType) => {
+    const normalizedCoreType = String(coreType ?? "").toLowerCase();
+    const isSharingPackage = normalizedCoreType.includes("shar") || normalizedCoreType === "shared";
 
-        return {
-          id: `version-${version.id ?? index}`,
-          contractId: contract?.id ?? null,
-          versionId: version?.id ?? null,
-          number: index + 1,
-          contractNumber: contract?.contractNumber ?? "",
-          note: index === 0 ? "Kontrak Beroperasi" : "Riwayat Perubahan",
-          periodStart: version?.startDate ?? contract?.startDate ?? "",
-          periodEnd: version?.endDate ?? contract?.endDate ?? "",
-          paket: paketLabel,
-          jumlahPaket: resolveContractActualValue(version),
-          hasBak: Boolean(version?.bakDocumentId),
-          renewalFollowUps: Array.isArray(version?.renewalFollowUps)
-            ? version.renewalFollowUps
-            : [],
-        };
-      })
-      : contract
-        ? [
-          {
-            id: `contract-${contract.id}`,
-            contractId: contract.id,
-            versionId: null,
-            number: 1,
-            contractNumber: contract.contractNumber ?? "",
-            note: "Kontrak Awal",
-            periodStart: contract.startDate ?? "",
-            periodEnd: contract.endDate ?? "",
-            paket: String(
-              detail?.paket || customer?.paket || "CORE",
-            ).toUpperCase(),
-            jumlahPaket: resolveContractActualValue(null),
-            hasBak: false,
-            renewalFollowUps: [],
-          },
-        ]
-        : [];
+    return isSharingPackage ? "SHARING CORE" : "CORE";
+  };
+  const resolveContractSharedRatio = (contractRow) => (
+    contractRow?.sharingRatio
+      ?? contractRow?.sharing_ratio
+      ?? null
+  );
+  const resolveContractPackageType = (contractRow) => (
+    resolveContractSharedRatio(contractRow)
+      ? "sharing_core"
+      : contractRow?.coreType
+      ?? contractRow?.core_type
+      ?? "core"
+  );
+  const resolveContractActualValue = (contractRow) => {
+    const sharedRatio = resolveContractSharedRatio(contractRow);
+    const normalizedCoreType = String(resolveContractPackageType(contractRow)).toLowerCase();
+    const isSharingPackage = normalizedCoreType.includes("shar") || normalizedCoreType === "shared";
+
+    if (isSharingPackage) {
+      return formatPackageRatio(sharedRatio) ?? "-";
+    }
+
+    return contractRow?.coreTotal
+      ?? contractRow?.core_total
+      ?? "-";
+  };
+  const contractsForTable = Array.isArray(detail?.contracts)
+    ? [...detail.contracts].sort((left, right) => (
+        getRowPeriodTime({ periodEnd: right?.endDate ?? right?.end_date, periodStart: right?.startDate ?? right?.start_date })
+        - getRowPeriodTime({ periodEnd: left?.endDate ?? left?.end_date, periodStart: left?.startDate ?? left?.start_date })
+      ))
+    : [];
+  const contractRowsForTable = contractsForTable.map((contractRow, index) => ({
+    id: `contract-${contractRow.id ?? index}`,
+    contractId: contractRow.id ?? null,
+    versionId: null,
+    number: index + 1,
+    contractNumber: contractRow.contractNumber ?? contractRow.contract_number ?? "",
+    note: index === 0 ? "Kontrak Beroperasi" : "Riwayat Perubahan",
+    periodStart: contractRow.startDate ?? contractRow.start_date ?? "",
+    periodEnd: contractRow.endDate ?? contractRow.end_date ?? "",
+    paket: getContractPackageDisplay(resolveContractPackageType(contractRow)),
+    jumlahPaket: resolveContractActualValue(contractRow),
+    hasBak: Boolean(
+      (contractRow.id ? bakDocumentByContractId.get(Number(contractRow.id)) : null)
+        ?? (Array.isArray(contractRow.versions)
+          ? contractRow.versions.some((version) => (
+              Boolean(version?.id ? bakDocumentByVersionId.get(Number(version.id)) : null)
+            ))
+          : false),
+    ),
+    renewalFollowUps: Array.isArray(contractRow.versions)
+      ? contractRow.versions.flatMap((version) => (
+          Array.isArray(version?.renewalFollowUps) ? version.renewalFollowUps : []
+        ))
+      : [],
+  }));
 
   const toggleContractNumberEmptyMark = (rowId) => {
     setEmptyContractNumberRows((previous) => ({
@@ -1140,17 +1159,10 @@ function TenantDetailPage({
     setInvoiceFeedback("");
 
     try {
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/contracts/${contract.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            billingEvery,
-            billingUnit: billingEditor.billingUnit,
-          }),
-        },
-      );
+      await api.contracts.update(contract.id, {
+        billingEvery,
+        billingUnit: billingEditor.billingUnit,
+      });
 
       setBillingEditor(null);
       setInvoiceFeedback(
@@ -1186,16 +1198,9 @@ function TenantDetailPage({
     setError("");
 
     try {
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/contracts/${contract.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contractNumber: normalizedContractNumber,
-          }),
-        },
-      );
+      await api.contracts.update(contract.id, {
+        contractNumber: normalizedContractNumber,
+      });
 
       setEmptyContractNumberRows({});
       await Promise.all([loadDetail(), onRefreshAll?.()]);
@@ -1242,18 +1247,12 @@ function TenantDetailPage({
     setVersionError("");
     setDocumentFeedback("");
     try {
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/contracts/${contract.id}/versions`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            startDate: versionEditor.startDate,
-            endDate: versionEditor.endDate,
-            sharedCoreRatio: versionEditor.ratio.trim(),
-          }),
-        },
-      );
+      await api.contractVersions.create({
+        contract_id: contract.id,
+        start_date: versionEditor.startDate,
+        end_date: versionEditor.endDate,
+        shared_core_ratio: versionEditor.ratio.trim(),
+      });
       setVersionEditor(null);
       setDocumentFeedback(
         "Riwayat perubahan kontrak berhasil dibuat. Upload BAK untuk mengaktifkan versi baru.",
@@ -1280,31 +1279,18 @@ function TenantDetailPage({
     setDocumentError("");
     setDocumentFeedback("");
     try {
-      const formData = new FormData();
-      formData.append("jenisDokumen", documentDraft.jenisDokumen);
-      if (documentDraft.nomorDokumen.trim())
-        formData.append("nomorDokumen", documentDraft.nomorDokumen.trim());
-      if (documentDraft.tanggalDokumen)
-        formData.append("tanggalDokumen", documentDraft.tanggalDokumen);
-      if (contract?.id) formData.append("contractId", String(contract.id));
-      if (documentDraft.contractVersionId)
-        formData.append(
-          "contractVersionId",
-          String(Number(documentDraft.contractVersionId)),
-        );
-      formData.append("file", documentDraft.uploadedFile);
-
-      const result = await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/documents`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-      const actions = Array.isArray(result?.automation?.actions)
-        ? result.automation.actions
-        : [];
-      setDocumentFeedback(actions.join(" ") || "Dokumen berhasil diunggah.");
+      const fileUrl = await readFileAsDataUrl(documentDraft.uploadedFile);
+      await api.documents.create({
+        customer_id: customer.id,
+        contract_id: contract?.id ?? null,
+        contract_version_id: documentDraft.contractVersionId ? Number(documentDraft.contractVersionId) : null,
+        contract_number: contract?.contractNumber ?? contract?.contract_number ?? null,
+        jenis_dokumen: documentDraft.jenisDokumen,
+        nomor_dokumen: documentDraft.nomorDokumen.trim() || null,
+        tanggal_dokumen: documentDraft.tanggalDokumen || null,
+        file_url: fileUrl,
+      });
+      setDocumentFeedback("Dokumen berhasil diunggah.");
       setDocumentDraft({
         jenisDokumen: "penawaran",
         nomorDokumen: "",
@@ -1341,18 +1327,14 @@ function TenantDetailPage({
     setError("");
     setDocumentFeedback("");
     try {
-      const formData = new FormData();
-      formData.append("jenisDokumen", "kontrak");
-      if (String(contract?.contractNumber ?? "").trim()) {
-        formData.append("nomorDokumen", String(contract.contractNumber).trim());
-      }
-      formData.append("tanggalDokumen", todayIso);
-      formData.append("contractId", String(contractId));
-      formData.append("file", file);
-
-      await fetchJson(`${API_BASE_URL}/api/customers/${customer.id}/documents`, {
-        method: "POST",
-        body: formData,
+      const fileUrl = await readFileAsDataUrl(file);
+      await api.documents.create({
+        customer_id: customer.id,
+        contract_id: contractId,
+        contract_number: String(contract?.contractNumber ?? contract?.contract_number ?? "").trim() || null,
+        jenis_dokumen: "kontrak",
+        tanggal_dokumen: todayIso,
+        file_url: fileUrl,
       });
 
       setDocumentFeedback("Berkas kontrak berhasil diunggah.");
@@ -1379,14 +1361,7 @@ function TenantDetailPage({
             ? { mode: "all" }
             : { mode: "selected", ispIds: selectedDeleteIspIds };
 
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/isps/remove`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
+      await api.customerIspMemberships.removeByCustomer(customer.id, payload);
       setDeleteModalOpen(false);
       await Promise.all([loadDetail(), onRefreshAll?.()]);
     } catch (requestError) {
@@ -1482,34 +1457,29 @@ function TenantDetailPage({
     setRouteFeedback("");
 
     try {
-      const endpoint =
-        routeEditMode === "ubah_jalur"
-          ? `${API_BASE_URL}/api/customers/${customer.id}/routes/change`
-          : `${API_BASE_URL}/api/customers/${customer.id}/routes/edit`;
+      let nextPoints = [...routePoints];
 
-      const payload = {
-        ...body,
-        ...(routeEditMode === "ubah_jalur"
-          ? {
-            changeNote:
-              routeChangeNote.trim() ||
-              "Perubahan struktur jalur dari halaman tenant.",
-          }
-          : {}),
-      };
+      if (body.operation === "delete") {
+        nextPoints = nextPoints.filter((point) => String(point.id) !== String(body.pointId));
+      } else if (body.operation === "reorder" && Array.isArray(body.orderedPointIds)) {
+        const pointById = new Map(nextPoints.map((point) => [point.id, point]));
+        nextPoints = body.orderedPointIds.map((id) => pointById.get(id)).filter(Boolean);
+      } else if (Array.isArray(body.points)) {
+        nextPoints = body.points;
+      }
 
-      await fetchJson(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      await api.customerRoutes.replace(customer.id, {
+        flowStatus: body.flowStatus ?? activeRouteStatus,
+        changeNote: routeChangeNote.trim() || "Perubahan struktur jalur dari halaman tenant.",
+        points: nextPoints.map((point, index) => ({
+          pathName: point.pathName,
+          pointType: point.pointType,
+          note: point.note,
+          orderNumber: index + 1,
+        })),
       });
 
-      setRouteFeedback(
-        routeEditMode === "ubah_jalur"
-          ? `${successMessage} Riwayat perubahan jalur berhasil dicatat.`
-          : successMessage,
-      );
-
+      setRouteFeedback(successMessage);
       await Promise.all([loadDetail(), onRefreshAll?.()]);
     } catch (requestError) {
       setRouteError(
@@ -1533,10 +1503,9 @@ function TenantDetailPage({
     setRouteBusy(true);
     setRouteError("");
     try {
-      const payload = {
-        operation: "replace",
-        changeNote: routeChangeNote,
+      await api.customerRoutes.replace(customer.id, {
         flowStatus: draftRouteStatus,
+        changeNote: routeChangeNote,
         points: (Array.isArray(draftRoutePoints) ? draftRoutePoints : []).map(
           (p, idx) => ({
             pathName: p.pathName,
@@ -1545,21 +1514,7 @@ function TenantDetailPage({
             orderNumber: idx + 1,
           }),
         ),
-      };
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/customers/${customer.id}/routes/change`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || "Gagal menyimpan struktur jalur.");
-      }
+      });
 
       setRouteChangeNote("");
       setIsRouteDrafting(false);
@@ -1637,36 +1592,6 @@ function TenantDetailPage({
     );
   };
 
-  const handleDeleteHistory = async (historyId) => {
-    if (
-      !confirm(
-        "Hapus catatan riwayat ini? Tindakan ini tidak dapat dibatalkan.",
-      )
-    )
-      return;
-
-    setRouteBusy(true);
-    setRouteError("");
-    setRouteFeedback("");
-    try {
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/routes/history/${historyId}`,
-        {
-          method: "DELETE",
-        },
-      );
-      setRouteFeedback("Riwayat berhasil dihapus.");
-      await loadDetail();
-    } catch (requestError) {
-      setRouteError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Gagal menghapus riwayat.",
-      );
-    } finally {
-      setRouteBusy(false);
-    }
-  };
 
   const handleDeleteAllHistory = async () => {
     if (
@@ -1680,18 +1605,7 @@ function TenantDetailPage({
     setRouteError("");
     setRouteFeedback("");
     try {
-      const result = await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/routes/history`,
-        {
-          method: "DELETE",
-        },
-      );
-      const deletedCount = Number(result?.deletedCount ?? 0);
-      setRouteFeedback(
-        deletedCount > 0
-          ? `${deletedCount} riwayat jalur berhasil dihapus.`
-          : "Tidak ada riwayat jalur yang perlu dihapus.",
-      );
+      setRouteFeedback("Penghapusan riwayat jalur langsung belum tersedia di mode Supabase direct access.");
       await loadDetail();
     } catch (requestError) {
       setRouteError(
@@ -1766,19 +1680,6 @@ function TenantDetailPage({
     );
   };
 
-  const handleFlowStatusChange = async (nextStatus) => {
-    if (isRouteDrafting) {
-      setDraftRouteStatus(nextStatus);
-      return;
-    }
-    await runRouteMutation(
-      {
-        operation: "status",
-        flowStatus: nextStatus,
-      },
-      "Status jalur berhasil diperbarui.",
-    );
-  };
 
   const handleApplyPlannedRoute = (plannedPoints, plannerMeta) => {
     if (!Array.isArray(plannedPoints) || plannedPoints.length < 2) {
@@ -1804,7 +1705,6 @@ function TenantDetailPage({
       .join(" • ");
 
     setIsRouteDrafting(true);
-    setRouteEditMode("ubah_jalur");
     setDraftRoutePoints(
       attachRoutePlannerMetaToDraftPoints(
         plannedPoints.map((point, index) => ({
@@ -1926,17 +1826,16 @@ function TenantDetailPage({
           null,
       }));
 
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/invoices/${invoice.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            dueDate: draft.dueDate || null,
-            amount,
-            invoiceFollowUps: followUpPayload,
+      await api.invoices.update(invoice.id, {
+        due_date: draft.dueDate || null,
+        amount,
+      });
+      await Promise.all(
+        followUpPayload.map((followUp) =>
+          api.invoiceFollowUps.update(followUp.id, {
+            invoice_number: followUp.invoiceNumber,
           }),
-        },
+        ),
       );
       setInvoiceEditingId((current) =>
         current === invoice.id ? null : current,
@@ -1981,20 +1880,19 @@ function TenantDetailPage({
     setInvoiceFeedback("");
     try {
       const invoiceFileUrl = await readFileAsDataUrl(file);
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/invoices/${invoice.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            followUpId,
-            invoiceNumber: followUpDraft.invoiceNumber.trim(),
-            dueDate: draft.dueDate,
-            amount,
-            invoiceFileUrl,
-          }),
-        },
-      );
+      if (followUpId) {
+        await api.invoiceFollowUps.update(followUpId, {
+          invoice_number: followUpDraft.invoiceNumber.trim(),
+          invoice_file_url: invoiceFileUrl,
+        });
+      } else {
+        await api.invoices.update(invoice.id, {
+          invoice_number: followUpDraft.invoiceNumber.trim(),
+          due_date: draft.dueDate,
+          amount,
+          invoice_file_url: invoiceFileUrl,
+        });
+      }
       setInvoiceEditingId((current) =>
         current === invoice.id ? null : current,
       );
@@ -2033,16 +1931,9 @@ function TenantDetailPage({
     setInvoiceFeedback("");
     try {
       const paymentProofFileUrl = await readFileAsDataUrl(file);
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/invoices/${invoice.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentProofFileUrl,
-          }),
-        },
-      );
+      await api.invoices.update(invoice.id, {
+        payment_proof_file_url: paymentProofFileUrl,
+      });
       setInvoiceFeedback(
         `Bukti bayar invoice #${invoice.id} berhasil diunggah.`,
       );
@@ -2052,51 +1943,6 @@ function TenantDetailPage({
         requestError instanceof Error
           ? requestError.message
           : "Gagal mengunggah bukti bayar.",
-      );
-    } finally {
-      setIsSavingInvoice(false);
-    }
-  };
-
-  const handleMarkInvoiceAsPaid = async (invoice) => {
-    if (!invoice) {
-      return;
-    }
-
-    const alreadyPaid =
-      typeof invoice?.paidAt === "string" && invoice.paidAt.trim().length > 0;
-    if (alreadyPaid) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Tandai invoice pembayaran ke-${invoice.paymentOrder ?? ""} sebagai SUDAH BAYAR?`,
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    setIsSavingInvoice(true);
-    setError("");
-    setInvoiceFeedback("");
-    try {
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/invoices/${invoice.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paidAt: todayIso,
-          }),
-        },
-      );
-      setInvoiceFeedback(`Invoice #${invoice.id} ditandai sudah bayar.`);
-      await Promise.all([loadDetail(), onRefreshAll?.()]);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Gagal menandai invoice sebagai sudah bayar.",
       );
     } finally {
       setIsSavingInvoice(false);
@@ -2138,14 +1984,7 @@ function TenantDetailPage({
 
           dueDateByInvoiceId[invoice.id] = dueDate;
 
-          return fetchJson(
-            `${API_BASE_URL}/api/customers/${customer.id}/invoices/${invoice.id}`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ dueDate }),
-            },
-          );
+          return api.invoices.update(invoice.id, { due_date: dueDate });
         }),
       );
 
@@ -2195,14 +2034,7 @@ function TenantDetailPage({
 
     setError("");
     try {
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/contracts/${row.contractId}/versions/${row.versionId}/follow-ups`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        },
-      );
+      await api.contractVersionRenewalFollowUps.create(row.versionId);
       await Promise.all([loadDetail(), onRefreshAll?.()]);
     } catch (requestError) {
       setError(
@@ -2220,17 +2052,19 @@ function TenantDetailPage({
 
     setError("");
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      if (followUpId) formData.append("followUpId", String(followUpId));
-
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/contracts/${row.contractId}/versions/${row.versionId}/renewal`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const renewalFileUrl = await readFileAsDataUrl(file);
+      if (followUpId) {
+        await api.contractVersionRenewalFollowUps.update(followUpId, {
+          renewal_file_url: renewalFileUrl,
+          renewal_file_name: file.name,
+        });
+      } else {
+        const followUp = await api.contractVersionRenewalFollowUps.create(row.versionId);
+        await api.contractVersionRenewalFollowUps.update(followUp.id, {
+          renewal_file_url: renewalFileUrl,
+          renewal_file_name: file.name,
+        });
+      }
       await Promise.all([loadDetail(), onRefreshAll?.()]);
     } catch (requestError) {
       setError(
@@ -2253,18 +2087,21 @@ function TenantDetailPage({
 
     setError("");
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("decision", decision);
-      if (followUpId) formData.append("followUpId", String(followUpId));
-
-      await fetchJson(
-        `${API_BASE_URL}/api/customers/${customer.id}/contracts/${row.contractId}/versions/${row.versionId}/response`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const responseFileUrl = await readFileAsDataUrl(file);
+      if (followUpId) {
+        await api.contractVersionRenewalFollowUps.update(followUpId, {
+          response_file_url: responseFileUrl,
+          response_file_name: file.name,
+          response_status: decision,
+        });
+      } else {
+        const followUp = await api.contractVersionRenewalFollowUps.create(row.versionId);
+        await api.contractVersionRenewalFollowUps.update(followUp.id, {
+          response_file_url: responseFileUrl,
+          response_file_name: file.name,
+          response_status: decision,
+        });
+      }
       await Promise.all([loadDetail(), onRefreshAll?.()]);
     } catch (requestError) {
       setError(
@@ -2654,14 +2491,12 @@ function TenantDetailPage({
                     rDot   = "bg-amber-400 shadow-amber-glow";
                 }
 
-                const paketVal      = (detail?.paket || customer?.paket || "CORE").toUpperCase();
-                const jumlahVal     = `${detail?.contractSharingRatio ?? detail?.jumlah ?? customer?.contractSharingRatio ?? customer?.jumlah ?? "—"}`;
+                const paketVal      = packageInfo.paket === "sharing_core" ? "SHARING CORE" : "CORE";
+                const jumlahVal     = packageInfo.jumlah ?? "—";
                 const alamatVal     = detail?.alamat || customer?.alamat || null;
                 const customerId    = detail?.customerId || customer?.customerId || null;
-                // Active contract period (from latest version or contract)
-                const latestVersion = versions[0] ?? null;
-                const periodStart   = latestVersion?.startDate ?? contract?.startDate ?? null;
-                const periodEnd     = latestVersion?.endDate   ?? contract?.endDate   ?? null;
+                const periodStart   = contractPeriodInfo.contractPeriodStart;
+                const periodEnd     = contractPeriodInfo.contractPeriodEnd;
 
                 return (
                     <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl shadow-glass-depth">
@@ -2754,7 +2589,7 @@ function TenantDetailPage({
                                     <div className="flex items-center gap-2">
                                         <span className="material-symbols-outlined text-[14px] text-emerald-400/60">event_available</span>
                                         <p className="text-[11px] font-black text-white tracking-wide">
-                                            {detail?.contractStartDate ? formatDate(detail.contractStartDate) : "—"}
+                                            {contractPeriodInfo.contractStartDate ? formatDate(contractPeriodInfo.contractStartDate) : "—"}
                                         </p>
                                     </div>
                                 </div>
@@ -3398,13 +3233,6 @@ function TenantDetailPage({
                                                                   {item.changeDescription || "Tidak ada deskripsi teknis mendalam untuk versi ini."}
                                                               </p>
                                                           </div>
-                                                          <button
-                                                              className="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-[#0f141e] transition-all"
-                                                              onClick={() => void handleRestoreVersion(item.id)}
-                                                              disabled={routeBusy}
-                                                          >
-                                                              Pulihkan ke Versi Ini
-                                                          </button>
                                                       </div>
                                                   </div>
                                               </div>
@@ -3568,7 +3396,7 @@ function TenantDetailPage({
                                             {/* Periode Awal Kontrak */}
                                             <td className="px-5 py-4">
                                                 <span className="text-[11px] font-black text-white/60">
-                                                    {detail?.contractStartDate ? formatDate(detail.contractStartDate) : "—"}
+                                                    {contractPeriodInfo.contractStartDate ? formatDate(contractPeriodInfo.contractStartDate) : "—"}
                                                 </span>
                                             </td>
 
@@ -4235,8 +4063,7 @@ function TenantDetailPage({
                     )}
                     {displayTimeline.map((event, idx) => {
                         const icon = timelineIconMap[event.type] ?? "history";
-                        const colorClass = timelineColorMap[event.type] ?? "text-white/20 bg-white/5";
-                        
+
                         return (
                             <div key={event.id} className="flex gap-10 group/item relative">
                                 {/* Dot & Icon */}

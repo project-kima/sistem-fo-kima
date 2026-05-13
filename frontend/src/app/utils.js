@@ -386,20 +386,185 @@ export const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
     reader.readAsDataURL(file);
 });
 
+export const formatPackageRatio = (value) => {
+    if (value == null || value === "") {
+        return null;
+    }
+
+    return String(value).trim().replace(":", "/");
+};
+
+const getDateValue = (value) => {
+    const timestamp = parseDateValue(value)?.getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const getContractVersionNumber = (version) => Number(version?.versionNumber ?? version?.version_number ?? 0);
+
+export const getLatestContractVersion = (contract) => (
+    Array.isArray(contract?.versions)
+        ? [...contract.versions].sort((left, right) => {
+            const versionDiff = getContractVersionNumber(right) - getContractVersionNumber(left);
+            if (versionDiff !== 0) {
+                return versionDiff;
+            }
+
+            return getDateValue(right.endDate ?? right.end_date ?? right.startDate ?? right.start_date)
+                - getDateValue(left.endDate ?? left.end_date ?? left.startDate ?? left.start_date);
+        })[0]
+        : null
+);
+
+const getContractLatestPeriodTimestamp = (contract) => {
+    const latestVersion = getLatestContractVersion(contract);
+    return getDateValue(
+        latestVersion?.endDate
+            ?? latestVersion?.end_date
+            ?? latestVersion?.startDate
+            ?? latestVersion?.start_date
+            ?? contract?.endDate
+            ?? contract?.end_date
+            ?? contract?.startDate
+            ?? contract?.start_date,
+    );
+};
+
+export const getCustomerPrimaryContract = (customer) => (
+    Array.isArray(customer.contracts)
+        ? [...customer.contracts].sort((left, right) => getContractLatestPeriodTimestamp(right) - getContractLatestPeriodTimestamp(left))[0]
+        : null
+);
+
+export const getCustomerInitialContract = (customer) => (
+    Array.isArray(customer.contracts)
+        ? [...customer.contracts].sort((left, right) => getDateValue(left.startDate ?? left.start_date) - getDateValue(right.startDate ?? right.start_date))[0]
+        : null
+);
+
+export const getCustomerSharedCoreRatio = (customer) => {
+    const contract = getCustomerPrimaryContract(customer);
+    const latestVersion = getLatestContractVersion(contract);
+
+    return latestVersion?.sharedCoreRatio
+        ?? latestVersion?.shared_core_ratio
+        ?? contract?.sharingRatio
+        ?? contract?.sharing_ratio
+        ?? customer.contractSharingRatio
+        ?? customer.contract_sharing_ratio
+        ?? null;
+};
+
+export const resolveCustomerPackageInfo = (customer) => {
+    const contract = getCustomerPrimaryContract(customer);
+    const latestVersion = getLatestContractVersion(contract);
+    const sharedCoreRatio = getCustomerSharedCoreRatio(customer);
+    const rawPackage = String(
+        latestVersion?.core_type
+            ?? latestVersion?.coreType
+            ?? contract?.core_type
+            ?? contract?.coreType
+            ?? customer.paket
+            ?? "",
+    ).toLowerCase();
+    const isSharingPackage = rawPackage.includes("shar") || rawPackage === "shared";
+    const isCorePackage = rawPackage.includes("core") || rawPackage === "";
+
+    if (isSharingPackage) {
+        return {
+            paket: "sharing_core",
+            jumlah: formatPackageRatio(
+                sharedCoreRatio
+                    ?? latestVersion?.shared_core_ratio
+                    ?? latestVersion?.sharedCoreRatio
+                    ?? contract?.sharing_ratio
+                    ?? contract?.sharingRatio
+                    ?? customer.jumlah,
+            ),
+        };
+    }
+
+    if (isCorePackage) {
+        return {
+            paket: "core",
+            jumlah: latestVersion?.core_total
+                ?? latestVersion?.coreTotal
+                ?? contract?.core_total
+                ?? contract?.coreTotal
+                ?? customer.jumlah
+                ?? null,
+        };
+    }
+
+    return {
+        paket: customer.paket ?? null,
+        jumlah: customer.jumlah ?? null,
+    };
+};
+
+export const resolveCustomerContractPeriodInfo = (customer) => {
+    const contract = getCustomerPrimaryContract(customer);
+    const initialContract = getCustomerInitialContract(customer);
+    const latestVersion = getLatestContractVersion(contract);
+
+    return {
+        contractStartDate: customer.contractStartDate
+            ?? customer.contract_start_date
+            ?? initialContract?.contract_start_date
+            ?? initialContract?.contractStartDate
+            ?? initialContract?.start_date
+            ?? initialContract?.startDate
+            ?? contract?.contract_start_date
+            ?? contract?.contractStartDate
+            ?? contract?.start_date
+            ?? contract?.startDate
+            ?? latestVersion?.start_date
+            ?? latestVersion?.startDate
+            ?? null,
+        contractPeriodStart: latestVersion?.start_date
+            ?? latestVersion?.startDate
+            ?? contract?.start_date
+            ?? contract?.startDate
+            ?? customer.contractPeriodStart
+            ?? customer.contract_period_start
+            ?? null,
+        contractPeriodEnd: latestVersion?.end_date
+            ?? latestVersion?.endDate
+            ?? contract?.end_date
+            ?? contract?.endDate
+            ?? customer.contractPeriodEnd
+            ?? customer.contract_period_end
+            ?? null,
+    };
+};
+
 export const mapCustomerToRow = (customer, index) => {
     const active = customer.status === "aktif";
-    const activationFeeAmount = Number(customer.activationFeeAmount ?? 0);
-    const activationFeePaidAt = customer.activationFeePaidAt ?? null;
+    const activationFeeAmount = Number(customer.activationFeeAmount ?? customer.activation_fee_amount ?? 0);
+    const activationFeePaidAt = customer.activationFeePaidAt ?? customer.activation_fee_paid_at ?? null;
     const routeStatus = typeof customer.routeStatus === "string"
         ? customer.routeStatus
         : "aktif";
-    const ispList = Array.isArray(customer.isps)
-        ? customer.isps
+    const packageInfo = resolveCustomerPackageInfo(customer);
+    const contractPeriodInfo = resolveCustomerContractPeriodInfo(customer);
+
+    // Handle both NestJS format (customer.isps) and Supabase format (customer.ispMemberships)
+    let ispList = [];
+    if (Array.isArray(customer.isps)) {
+        // NestJS format
+        ispList = customer.isps
             .map((isp) => isp?.name)
-            .filter((name) => typeof name === "string" && name.trim().length > 0)
-        : [];
+            .filter((name) => typeof name === "string" && name.trim().length > 0);
+    } else if (Array.isArray(customer.ispMemberships)) {
+        // Supabase format
+        ispList = customer.ispMemberships
+            .map((membership) => membership?.isp?.name)
+            .filter((name) => typeof name === "string" && name.trim().length > 0);
+    }
+
     const fallbackIspName = typeof customer.ispName === "string" && customer.ispName.trim()
         ? customer.ispName.trim()
+        : typeof customer.isp_name === "string" && customer.isp_name.trim()
+        ? customer.isp_name.trim()
         : "-";
     const primaryIsp = ispList[0] ?? fallbackIspName;
     const ispDisplay = ispList.length > 1
@@ -415,18 +580,19 @@ export const mapCustomerToRow = (customer, index) => {
         name: customer.name ?? "-",
         status: active ? "Beroperasi" : "Berhenti",
         active,
-        contracts: Number(customer.contractCount ?? 0),
-        documents: Number(customer.documentCount ?? 0),
-        invoices: Number(customer.invoiceCount ?? 0),
-        customerId: customer.customerCode ?? `CUST-${customer.id}`,
+        contracts: Number(customer.contractCount ?? customer.contract_count ?? 0),
+        documents: Number(customer.documentCount ?? customer.document_count ?? 0),
+        invoices: Number(customer.invoiceCount ?? customer.invoice_count ?? 0),
+        customerId: customer.customerCode ?? customer.customer_code ?? `CUST-${customer.id}`,
         rawStatus: customer.status,
         routeStatus,
-        contractPeriodStart: customer.contractPeriodStart ?? null,
-        contractPeriodEnd: customer.contractPeriodEnd ?? null,
+        contractStartDate: contractPeriodInfo.contractStartDate,
+        contractPeriodStart: contractPeriodInfo.contractPeriodStart,
+        contractPeriodEnd: contractPeriodInfo.contractPeriodEnd,
         activationFeeAmount,
         activationFeePaidAt,
-        paket: customer.paket ?? null,
-        jumlah: customer.jumlah ?? null,
+        paket: packageInfo.paket,
+        jumlah: packageInfo.jumlah,
     };
 };
 

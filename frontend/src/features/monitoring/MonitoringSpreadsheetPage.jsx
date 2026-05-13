@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { IssueCountRow } from "../../components/shared/AppShared";
 import { invoiceStatusLabelMap, monitoringMonths } from "../../app/constants";
 import {
-    API_BASE_URL,
-    fetchJson,
     formatCoreAllocation,
     formatCurrency,
     formatDate,
@@ -14,6 +12,7 @@ import {
     parseDateValue,
     toTitleCase,
 } from "../../app/utils";
+import api from "../../lib/api";
 
 // --- Custom UI Components ---
 const CustomSelect = ({ value, onChange, options, icon, label, variant = "default" }) => {
@@ -148,12 +147,6 @@ function MonitoringSpreadsheetPage({
     }));
 
     const [billingRows, setBillingRows] = useState([]);
-    const [billingSummary, setBillingSummary] = useState({
-        lunas: 0,
-        belum_bayar: 0,
-        terlambat: 0,
-        belum_ditagih: 0,
-    });
     const [alerts, setAlerts] = useState([]);
     const [recentActivities, setRecentActivities] = useState([]);
     const [selectedInvoiceCell, setSelectedInvoiceCell] = useState(null);
@@ -316,19 +309,17 @@ function MonitoringSpreadsheetPage({
             }
 
             const [billingResult, alertsResult] = await Promise.all([
-                fetchJson(`${API_BASE_URL}/api/monitoring/billing?${params.toString()}`),
-                fetchJson(`${API_BASE_URL}/api/monitoring/alerts?year=${encodeURIComponent(appliedFilters.year)}`),
+                api.monitoring.getBilling({
+                    year: appliedFilters.year,
+                    isp: appliedFilters.isp || undefined,
+                    status: appliedFilters.status || undefined,
+                }),
+                api.monitoring.getAlerts({ year: appliedFilters.year }),
             ]);
 
             const nextBillingRows = Array.isArray(billingResult?.rows) ? billingResult.rows : [];
 
             setBillingRows(nextBillingRows);
-            setBillingSummary({
-                lunas: Number(billingResult?.summary?.lunas ?? 0),
-                belum_bayar: Number(billingResult?.summary?.belum_bayar ?? 0),
-                terlambat: Number(billingResult?.summary?.terlambat ?? 0),
-                belum_ditagih: Number(billingResult?.summary?.belum_ditagih ?? 0),
-            });
 
             let nextAlerts = [];
             if (Array.isArray(alertsResult)) {
@@ -364,14 +355,13 @@ function MonitoringSpreadsheetPage({
             const timelineResults = await Promise.all(
                 candidateCustomerIds.map(async (customerId) => {
                     try {
-                        const timeline = await fetchJson(
-                            `${API_BASE_URL}/api/customers/${customerId}/timeline`,
-                        );
+                        // TODO: Implement timeline API in Supabase
+                        // const timeline = await api.customers.getTimeline(customerId);
 
                         return {
                             customerId,
                             customerName: nameMap.get(customerId) ?? `Pelanggan #${customerId}`,
-                            events: Array.isArray(timeline) ? timeline : [],
+                            events: [], // Temporarily disabled
                         };
                     } catch {
                         return {
@@ -422,7 +412,6 @@ function MonitoringSpreadsheetPage({
 
     const filteredRows = useMemo(() => {
         const loweredSearch = filters.search.trim().toLowerCase();
-        const todayIso = new Date().toISOString().slice(0, 10);
         const alertCustomerIds = new Set(alerts.map(a => a.customerId));
 
         return billingRows.filter((row) => {
@@ -460,35 +449,6 @@ function MonitoringSpreadsheetPage({
             return matchesSearch && matchesContract && matchesRoute && matchesTodo && matchesPackage;
         });
     }, [billingRows, filters.search, filters.contractStatus, filters.routeStatus, filters.todoStatus, filters.package, alerts]);
-
-    const visibleSummary = useMemo(() => {
-        const summary = {
-            lunas: 0,
-            belum_bayar: 0,
-            terlambat: 0,
-            belum_ditagih: 0,
-        };
-
-        filteredRows.forEach((row) => {
-            if (!Array.isArray(row.months)) {
-                return;
-            }
-
-            row.months.forEach((status) => {
-                if (status in summary) {
-                    summary[status] += 1;
-                }
-            });
-        });
-
-        return summary;
-    }, [filteredRows]);
-
-    const totalCells =
-        visibleSummary.lunas
-        + visibleSummary.belum_bayar
-        + visibleSummary.terlambat
-        + visibleSummary.belum_ditagih;
 
     const routeSummary = useMemo(() => {
         const summary = { aktif: 0, gangguan: 0, perbaikan: 0 };
