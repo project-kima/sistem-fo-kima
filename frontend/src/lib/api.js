@@ -622,6 +622,140 @@ export const monitoringApi = {
     };
   },
 
+  async getHistory({ year, isp }) {
+    const selectedYear = Number(year);
+    const yearStart = `${selectedYear}-01-01`;
+    const yearEnd = `${selectedYear}-12-31`;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select(`
+        id,
+        customer_code,
+        isp_name,
+        name,
+        status,
+        contract_start_date,
+        ispMemberships:customer_isp_memberships(
+          isp:isps(*)
+        ),
+        contracts(
+          id,
+          contract_number,
+          start_date,
+          end_date,
+          core_type,
+          core_total,
+          sharing_ratio,
+          status,
+          versions:contract_versions(
+            id,
+            version_number,
+            start_date,
+            end_date,
+            core_type,
+            core_total,
+            shared_core_ratio,
+            monthly_amount,
+            yearly_amount,
+            remarks
+          )
+        ),
+        invoices(
+          id,
+          invoice_number,
+          contract_id,
+          period_year,
+          period_month,
+          period_start_date,
+          period_end_date,
+          amount,
+          status,
+          schedule_status
+        )
+      `)
+      .eq('status', 'aktif');
+
+    if (error) throw error;
+
+    const getDateValue = (value) => {
+      const timestamp = value ? new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`).getTime() : 0;
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
+
+    const getLatestVersion = (contract) => (
+      Array.isArray(contract?.versions)
+        ? [...contract.versions].sort((left, right) => {
+          const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+          if (versionDiff !== 0) return versionDiff;
+          return getDateValue(right.end_date ?? right.start_date) - getDateValue(left.end_date ?? left.start_date);
+        })[0]
+        : null
+    );
+
+    const rows = (customers || []).flatMap(customer => {
+      const customerIsps = customer.ispMemberships?.map(m => m.isp).filter(Boolean) || [];
+      const ispNames = customerIsps.map(item => item.name).filter(Boolean);
+      const ispName = ispNames.length > 0 ? ispNames.join(', ') : customer.isp_name || '-';
+
+      return (customer.contracts || [])
+        .filter(contract => contract.start_date <= yearEnd && contract.end_date >= yearStart && contract.end_date < today)
+        .map(contract => {
+          const latestVersion = getLatestVersion(contract);
+          const contractInvoices = (customer.invoices || [])
+            .filter(invoice => invoice.contract_id === contract.id && invoice.schedule_status === 'active')
+            .sort((left, right) => {
+              const yearDiff = Number(right.period_year ?? 0) - Number(left.period_year ?? 0);
+              if (yearDiff !== 0) return yearDiff;
+              return Number(right.period_month ?? 0) - Number(left.period_month ?? 0);
+            });
+          const lastInvoice = contractInvoices[0];
+          const selectedYearInvoices = contractInvoices.filter(invoice => Number(invoice.period_year) === selectedYear);
+
+          return {
+            customerId: customer.id,
+            customerCode: customer.customer_code,
+            customerName: customer.name,
+            customerStatus: customer.status,
+            ispName,
+            ispNames,
+            ispContractStart: customer.contract_start_date || null,
+            contractId: contract.id,
+            contractNumber: contract.contract_number?.startsWith('NO-BAK-') ? '-' : contract.contract_number || null,
+            lastInvoiceNumber: lastInvoice?.invoice_number || null,
+            contractStart: latestVersion?.start_date || contract.start_date || null,
+            contractEnd: latestVersion?.end_date || contract.end_date || null,
+            coreType: latestVersion?.core_type || contract.core_type || null,
+            coreTotal: latestVersion?.core_total ?? contract.core_total ?? null,
+            sharingRatio: latestVersion?.shared_core_ratio || contract.sharing_ratio || null,
+            monthlyAmount: Number(latestVersion?.monthly_amount || 0),
+            yearlyAmount: Number(latestVersion?.yearly_amount || 0),
+            invoiceCount: contractInvoices.length,
+            selectedYearInvoiceCount: selectedYearInvoices.length,
+            lastInvoiceStatus: lastInvoice?.status || null,
+          };
+        });
+    });
+
+    let filteredRows = rows;
+
+    if (isp) {
+      const normalizedIspFilter = isp.trim().toLowerCase();
+      filteredRows = filteredRows.filter(row =>
+        [row.ispName, ...(row.ispNames || [])]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedIspFilter)
+      );
+    }
+
+    return {
+      year,
+      rows: filteredRows.sort((left, right) => getDateValue(right.contractEnd) - getDateValue(left.contractEnd)),
+    };
+  },
+
   // Get alerts
   async getAlerts({ year }) {
     // This would need complex logic - for now return empty

@@ -155,6 +155,7 @@ function MonitoringSpreadsheetPage({
     }));
 
     const [billingRows, setBillingRows] = useState([]);
+    const [historyRows, setHistoryRows] = useState([]);
     const [alerts, setAlerts] = useState([]);
     const [recentActivities, setRecentActivities] = useState([]);
     const [selectedInvoiceCell, setSelectedInvoiceCell] = useState(null);
@@ -316,18 +317,24 @@ function MonitoringSpreadsheetPage({
                 params.set("status", appliedFilters.status);
             }
 
-            const [billingResult, alertsResult] = await Promise.all([
+            const [billingResult, historyResult, alertsResult] = await Promise.all([
                 api.monitoring.getBilling({
                     year: appliedFilters.year,
                     isp: appliedFilters.isp || undefined,
                     status: appliedFilters.status || undefined,
                 }),
+                api.monitoring.getHistory({
+                    year: appliedFilters.year,
+                    isp: appliedFilters.isp || undefined,
+                }),
                 api.monitoring.getAlerts({ year: appliedFilters.year }),
             ]);
 
             const nextBillingRows = Array.isArray(billingResult?.rows) ? billingResult.rows : [];
+            const nextHistoryRows = Array.isArray(historyResult?.rows) ? historyResult.rows : [];
 
             setBillingRows(nextBillingRows);
+            setHistoryRows(nextHistoryRows);
 
             let nextAlerts = [];
             if (Array.isArray(alertsResult)) {
@@ -457,6 +464,25 @@ function MonitoringSpreadsheetPage({
             return matchesSearch && matchesContract && matchesRoute && matchesTodo && matchesPackage;
         });
     }, [billingRows, filters.search, filters.contractStatus, filters.routeStatus, filters.todoStatus, filters.package, alerts]);
+
+    const filteredHistoryRows = useMemo(() => {
+        const loweredSearch = filters.search.trim().toLowerCase();
+
+        return historyRows.filter((row) => {
+            const searchableText = [
+                row.customerName,
+                row.ispName,
+                row.customerCode,
+                row.contractNumber,
+                row.lastInvoiceNumber,
+            ].filter(Boolean).join(" ").toLowerCase();
+            const matchesSearch = !loweredSearch || searchableText.includes(loweredSearch);
+            const rowPackage = row.paket || row.coreType;
+            const matchesPackage = filters.package === "all" ? true : rowPackage === filters.package;
+
+            return matchesSearch && matchesPackage;
+        });
+    }, [historyRows, filters.search, filters.package]);
 
     const routeSummary = useMemo(() => {
         const summary = { aktif: 0, gangguan: 0, perbaikan: 0 };
@@ -926,9 +952,103 @@ function MonitoringSpreadsheetPage({
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
                             LOKASI: <span className="text-gold-accent ml-2">{filteredRows.length}</span>
                         </p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                            RIWAYAT: <span className="text-gold-accent ml-2">{filteredHistoryRows.length}</span>
+                        </p>
                     </div>
                 </div>
             )}
+        </section>
+    );
+
+    const historyTableSection = (
+        <section className="glass-card rounded-premium border-white/40 overflow-hidden shadow-glass-depth max-w-full">
+            <div className="flex flex-col gap-3 border-b border-white/10 bg-[#0f141e]/60 px-8 py-6 backdrop-blur-md md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-gold-accent/70">Arsip Kontrak</p>
+                    <h2 className="mt-2 text-xl font-black uppercase tracking-widest text-white">Riwayat Monitoring</h2>
+                    <p className="mt-2 max-w-3xl text-xs font-medium leading-relaxed text-white/45">
+                        Menampilkan kontrak yang sudah selesai tetapi masih beririsan dengan tahun filter, agar relasi lama seperti Medialink dan Merapi tetap bisa dilacak.
+                    </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+                    {filteredHistoryRows.length} Riwayat
+                </div>
+            </div>
+            <div className="max-w-full overflow-auto custom-scrollbar">
+                <table className="w-full min-w-[1320px] table-fixed border-separate border-spacing-0 text-[13px]">
+                    <thead>
+                        <tr>
+                            {[
+                                "NO",
+                                "MITRA ISP",
+                                "UNIT LOKASI",
+                                "PERIODE KONTRAK",
+                                "PAKET",
+                                "JUMLAH",
+                                "NO. KONTRAK",
+                                "INVOICE TERAKHIR",
+                                "STATUS",
+                            ].map((header) => (
+                                <th key={header} className="sticky top-0 z-20 border-b border-r border-white/10 bg-[#1e293b]/95 px-5 py-4 text-center text-[10px] font-black uppercase tracking-widest text-white backdrop-blur-3xl">
+                                    {header}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {filteredHistoryRows.length === 0 && (
+                            <tr>
+                                <td className="px-6 py-16 text-center text-sm font-bold italic text-white/35" colSpan="9">
+                                    Riwayat kontrak tidak ditemukan untuk filter saat ini.
+                                </td>
+                            </tr>
+                        )}
+
+                        {filteredHistoryRows.map((row, rowIndex) => (
+                            <tr key={`${row.customerId}-${row.contractId}-${rowIndex}`} className="bg-[#0f172a]/40 transition-all group hover:bg-[#1e293b]/60">
+                                <td className="border-r border-white/5 px-5 py-5 text-center font-black text-white/30 group-hover:text-gold-accent">
+                                    {String(rowIndex + 1).padStart(2, "0")}
+                                </td>
+                                <td className="border-r border-white/5 px-5 py-5 font-black text-white">
+                                    {row.ispName}
+                                </td>
+                                <td className="border-r border-white/5 px-5 py-5">
+                                    <p className="truncate font-black text-on-surface group-hover:text-gold-accent">{row.customerName}</p>
+                                    <button
+                                        className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gold-accent hover:text-white transition-colors"
+                                        onClick={() => onOpenCustomerById(row.customerId, "overview")}
+                                        type="button"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                        Detail Unit
+                                    </button>
+                                </td>
+                                <td className="border-r border-white/5 px-5 py-5 text-center text-xs font-bold text-on-surface-variant">
+                                    {formatDate(row.contractStart)} <span className="mx-2 text-white/15">-</span> {formatDate(row.contractEnd)}
+                                </td>
+                                <td className="border-r border-white/5 px-5 py-5 text-center font-black text-on-surface-variant">
+                                    {toTitleCase(row.coreType)}
+                                </td>
+                                <td className="border-r border-white/5 px-5 py-5 text-center font-black text-on-surface-variant">
+                                    {formatMonitoringCoreAmount(row)}
+                                </td>
+                                <td className="border-r border-white/5 px-5 py-5 font-mono text-[11px] font-bold text-on-surface-variant">
+                                    {row.contractNumber ?? "-"}
+                                </td>
+                                <td className="border-r border-white/5 px-5 py-5 font-mono text-[11px] font-bold text-on-surface-variant">
+                                    {row.lastInvoiceNumber ?? "-"}
+                                </td>
+                                <td className="px-5 py-5 text-center">
+                                    <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-white/45">
+                                        Selesai
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </section>
     );
 
@@ -1344,6 +1464,8 @@ function MonitoringSpreadsheetPage({
                 </section>
 
                 {tableSection}
+
+                {historyTableSection}
 
                 {/* KPI Section moved to bottom */}
                 <section className="grid grid-cols-1 gap-6 sm:grid-cols-3">
