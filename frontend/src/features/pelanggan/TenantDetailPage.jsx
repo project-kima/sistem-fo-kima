@@ -2368,7 +2368,7 @@ function TenantDetailPage({
                                                 <img
                                                     src={ispItem.logoUrl}
                                                     alt={ispItem.name}
-                                                    className="h-10 w-10 rounded-xl object-contain border border-white/10 bg-white/5 p-1 shrink-0"
+                                                    className="h-10 w-10 rounded-xl object-cover border border-white/10 bg-white/5 shrink-0"
                                                 />
                                             ) : (
                                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/30">

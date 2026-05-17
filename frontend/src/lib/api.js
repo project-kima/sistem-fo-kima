@@ -178,7 +178,7 @@ const mapCustomerDetail = (customer) => {
     contractPeriodStart: customer.contractPeriodStart ?? customer.contract_period_start ?? latestContractVersion?.startDate ?? activeContract?.startDate ?? null,
     contractPeriodEnd: customer.contractPeriodEnd ?? customer.contract_period_end ?? latestContractVersion?.endDate ?? activeContract?.endDate ?? null,
     isps: Array.isArray(customer.ispMemberships)
-      ? customer.ispMemberships.map(membership => membership.isp).filter(Boolean)
+      ? customer.ispMemberships.map(membership => mapIsp(membership.isp)).filter(Boolean)
       : [],
     contracts,
     contractVersions: contracts.flatMap(contract => (
@@ -333,6 +333,29 @@ const mapIspContractRow = (row) => ({
     : [],
 });
 
+const mapIspPayload = (ispData = {}) => {
+  const payload = {};
+
+  if (Object.prototype.hasOwnProperty.call(ispData, 'name')) payload.name = ispData.name;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'status')) payload.status = ispData.status;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'logoUrl')) payload.logo_url = ispData.logoUrl;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'logo_url')) payload.logo_url = ispData.logo_url;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'packageName')) {
+    payload.paket = String(ispData.packageName).toLowerCase() === 'core' ? 'core' : 'shared';
+  }
+  if (Object.prototype.hasOwnProperty.call(ispData, 'paket')) payload.paket = ispData.paket;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'packageQuantity')) payload.jumlah = Number(ispData.packageQuantity || 0);
+  if (Object.prototype.hasOwnProperty.call(ispData, 'jumlah')) payload.jumlah = ispData.jumlah;
+
+  return payload;
+};
+
+const mapIsp = (isp) => isp ? ({
+  ...isp,
+  logoUrl: isp.logoUrl ?? isp.logo_url ?? null,
+  contractReference: isp.contractReference ?? isp.contract_reference ?? null,
+}) : isp;
+
 export const ispsApi = {
   // Get all ISPs
   async getAll() {
@@ -342,7 +365,7 @@ export const ispsApi = {
       .order('name', { ascending: true });
 
     if (error) throw error;
-    return data;
+    return Array.isArray(data) ? data.map(mapIsp) : [];
   },
 
   // Get ISP by ID
@@ -372,7 +395,7 @@ export const ispsApi = {
     if (error) throw error;
 
     return {
-      ...data,
+      ...mapIsp(data),
       contractRows: Array.isArray(data.contractRows)
         ? data.contractRows.map(mapIspContractRow)
         : [],
@@ -384,7 +407,7 @@ export const ispsApi = {
   async create(ispData) {
     const { data, error } = await supabase
       .from('isps')
-      .insert(ispData)
+      .insert(mapIspPayload(ispData))
       .select()
       .single();
 
@@ -396,7 +419,7 @@ export const ispsApi = {
   async update(id, ispData) {
     const { data, error } = await supabase
       .from('isps')
-      .update(ispData)
+      .update(mapIspPayload(ispData))
       .eq('id', id)
       .select()
       .single();

@@ -74,7 +74,7 @@ function createCompanyIcon(logoUrl) {
             <div class="fo-marker fo-marker--provider">
                 <span class="fo-marker__pulse"></span>
                 <div class="fo-marker__core overflow-hidden bg-white p-0.5">
-                    <img src="${logoUrl}" class="h-full w-full object-contain rounded-full" />
+                    <img src="${logoUrl}" class="h-full w-full object-cover rounded-full" />
                 </div>
             </div>
         `,

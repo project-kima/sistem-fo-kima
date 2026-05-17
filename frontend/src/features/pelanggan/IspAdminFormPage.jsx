@@ -111,7 +111,7 @@ function IspAdminFormPage({ initialData = null, mode = "create", onCancel, onNav
             ...prev,
             name: initialData.name ?? "",
             status: initialData.status ?? "aktif",
-            logoUrl: initialData.logoUrl ?? "",
+            logoUrl: initialData.logoUrl ?? initialData.logo_url ?? "",
         }));
     }, [initialData]);
 

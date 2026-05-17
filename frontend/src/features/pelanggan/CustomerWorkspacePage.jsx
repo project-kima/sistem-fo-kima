@@ -596,7 +596,7 @@ function CustomerWorkspacePage({
                                             >
                                                 <div className="w-20 h-20 rounded-3xl bg-white shadow-xl flex items-center justify-center text-gold-accent border border-white/10 overflow-hidden relative group-hover/title-btn:scale-105 transition-all duration-500">
                                                     {group.logoUrl ? (
-                                                        <img src={group.logoUrl} alt={group.name} className="w-full h-full object-contain p-3" />
+                                                        <img src={group.logoUrl} alt={group.name} className="w-full h-full object-cover" />
                                                     ) : (
                                                         <span className="material-symbols-outlined text-4xl">router</span>
                                                     )}
