@@ -13,6 +13,23 @@ const getPackageDisplay = (packageValue) => {
     };
 };
 
+const normalizeOperationalStatus = (status) => String(status ?? "").trim().toLowerCase();
+const isStoppedStatus = (status) => ["berhenti", "nonaktif"].includes(normalizeOperationalStatus(status));
+const getTenantOperationalStatus = (tenant, todayIso) => {
+    const rawStatus = normalizeOperationalStatus(tenant?.rawStatus);
+    if (isStoppedStatus(rawStatus)) return "berhenti";
+    if (rawStatus === "expired") return "expired";
+
+    const contractEndDate = typeof tenant?.contractPeriodEnd === "string"
+        ? tenant.contractPeriodEnd.slice(0, 10)
+        : "";
+    return contractEndDate && contractEndDate < todayIso ? "expired" : "beroperasi";
+};
+const isTenantActive = (tenant, todayIso) => getTenantOperationalStatus(tenant, todayIso) === "beroperasi";
+const resolveTenantRouteStatus = (tenant, todayIso) => getTenantOperationalStatus(tenant, todayIso) === "berhenti"
+    ? "nonaktif"
+    : String(tenant?.routeStatus || "aktif").trim().toLowerCase();
+
 // --- Custom UI Components ---
 const CustomSelect = ({ value, onChange, options, icon, label }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -121,9 +138,6 @@ function CustomerWorkspacePage({
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const todayIso = new Date().toISOString().slice(0, 10);
-    const isTenantActive = (tenant) => String(tenant?.rawStatus ?? "")
-        .trim()
-        .toLowerCase() === "aktif";
 
     // Reset to page 1 when any filter changes
     const handleFilterChange = (setter, value) => {
@@ -144,9 +158,10 @@ function CustomerWorkspacePage({
     // First, filter all customers based on global filters (search, status, etc.)
     const filteredTenants = useMemo(() => {
         return customers.filter((tenant) => {
+            const operationalStatus = getTenantOperationalStatus(tenant, todayIso);
             const matchesListType = listType === "riwayat"
-                ? !isTenantActive(tenant)
-                : isTenantActive(tenant);
+                ? operationalStatus === "berhenti"
+                : operationalStatus !== "berhenti";
             if (!matchesListType) return false;
 
             const searchableText = [
@@ -156,13 +171,8 @@ function CustomerWorkspacePage({
                 ...(Array.isArray(tenant.ispList) ? tenant.ispList : []),
             ].filter(Boolean).join(" ").toLowerCase();
 
-            const contractEndDate = typeof tenant.contractPeriodEnd === "string"
-                ? tenant.contractPeriodEnd.slice(0, 10)
-                : "";
-            const contractStatusKey = contractEndDate && contractEndDate < todayIso
-                ? "expired"
-                : "beroperasi";
-            const tenantRouteStatus = String(tenant.routeStatus || "aktif").trim().toLowerCase();
+            const contractStatusKey = getTenantOperationalStatus(tenant, todayIso);
+            const tenantRouteStatus = resolveTenantRouteStatus(tenant, todayIso);
             const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
             const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
             const todoStatusKey = priorityCount + needActionCount > 0 ? "perlu_tindakan" : "tidak_ada";
@@ -199,7 +209,7 @@ function CustomerWorkspacePage({
                 return {
                     ...isp,
                     tenants: tenants.sort((a, b) => a.name.localeCompare(b.name)),
-                    activeTenantCount: tenants.filter((tenant) => isTenantActive(tenant)).length,
+                    activeTenantCount: tenants.filter((tenant) => isTenantActive(tenant, todayIso)).length,
                     actionTenantCount,
                     totalActionCount,
                 };
@@ -228,7 +238,7 @@ function CustomerWorkspacePage({
                 logoUrl: null,
                 contractReference: "Kumpulan lokasi yang belum terhubung ke ISP master",
                 tenants: otherTenants.sort((a, b) => a.name.localeCompare(b.name)),
-                activeTenantCount: otherTenants.filter((tenant) => isTenantActive(tenant)).length,
+                activeTenantCount: otherTenants.filter((tenant) => isTenantActive(tenant, todayIso)).length,
                 actionTenantCount: otherTenants.filter((tenant) => {
                     const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
                     const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
@@ -253,7 +263,7 @@ function CustomerWorkspacePage({
             // Default: newest first
             return b.id - a.id;
         });
-    }, [filteredIsps, filteredTenants, shouldIncludeEmptyIspGroups, normalizedSearch, ispSortMethod]);
+    }, [filteredIsps, filteredTenants, shouldIncludeEmptyIspGroups, normalizedSearch, ispSortMethod, todayIso]);
 
     const totalPages = Math.ceil(allGroups.length / itemsPerPage);
     const paginatedGroups = useMemo(() => {
@@ -262,7 +272,7 @@ function CustomerWorkspacePage({
     }, [allGroups, currentPage, itemsPerPage]);
 
     // --- LOGIC: Stats ---
-    const totalActiveTenants = customers.filter((tenant) => isTenantActive(tenant)).length;
+    const totalActiveTenants = customers.filter((tenant) => isTenantActive(tenant, todayIso)).length;
     const totalNonActiveTenants = customers.length - totalActiveTenants;
     const filteredTenantCount = allGroups.reduce((total, group) => total + group.tenants.length, 0);
     const totalFilteredActionCount = allGroups.reduce((total, group) => total + (group.totalActionCount || 0), 0);
@@ -707,27 +717,27 @@ function CustomerWorkspacePage({
                                                                         </td>
                                                                         <td className="px-10 py-6">
                                                                             <div className="flex flex-wrap items-center gap-2.5">
-                                                                                <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isTenantActive(tenant)
+                                                                                <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isTenantActive(tenant, todayIso)
                                                                                     ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                                                                     : "bg-white/5 text-white/40 border border-white/10"
                                                                                     }`}>
-                                                                                    <span className={`w-1.5 h-1.5 rounded-full ${isTenantActive(tenant) ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]" : "bg-white/20"}`} />
-                                                                                    {isTenantActive(tenant) ? "Beroperasi" : "Berhenti"}
+                                                                                    <span className={`w-1.5 h-1.5 rounded-full ${isTenantActive(tenant, todayIso) ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]" : "bg-white/20"}`} />
+                                                                                    {getTenantOperationalStatus(tenant, todayIso) === "expired" ? "Belum Diperpanjang" : isTenantActive(tenant, todayIso) ? "Beroperasi" : "Berhenti"}
                                                                                 </span>
-                                                                                <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${tenant.routeStatus === "gangguan"
+                                                                                <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${resolveTenantRouteStatus(tenant, todayIso) === "gangguan"
                                                                                     ? "bg-red-600/10 text-red-400 border border-red-600/20"
-                                                                                    : tenant.routeStatus === "perbaikan"
+                                                                                    : resolveTenantRouteStatus(tenant, todayIso) === "perbaikan"
                                                                                         ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                                                                        : tenant.routeStatus === "nonaktif"
+                                                                                        : resolveTenantRouteStatus(tenant, todayIso) === "nonaktif"
                                                                                             ? "bg-white/5 text-white/40 border border-white/10"
                                                                                             : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                                                                                     }`}>
                                                                                     Jalur {
-                                                                                        tenant.routeStatus === "gangguan"
+                                                                                        resolveTenantRouteStatus(tenant, todayIso) === "gangguan"
                                                                                             ? "Gangguan"
-                                                                                            : tenant.routeStatus === "perbaikan"
+                                                                                            : resolveTenantRouteStatus(tenant, todayIso) === "perbaikan"
                                                                                                 ? "Perbaikan"
-                                                                                                : tenant.routeStatus === "nonaktif"
+                                                                                                : resolveTenantRouteStatus(tenant, todayIso) === "nonaktif"
                                                                                                     ? "Nonaktif"
                                                                                                     : "Aktif"
                                                                                     }

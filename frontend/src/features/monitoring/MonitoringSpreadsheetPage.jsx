@@ -105,6 +105,12 @@ const formatMonitoringCoreAmount = (row) => {
     return row?.coreTotal ?? "-";
 };
 
+const normalizeOperationalStatus = (status) => String(status ?? "").trim().toLowerCase();
+const isStoppedStatus = (status) => ["berhenti", "nonaktif"].includes(normalizeOperationalStatus(status));
+const resolveRouteStatus = (customerStatus, routeStatus) => isStoppedStatus(customerStatus)
+    ? "nonaktif"
+    : String(routeStatus || "aktif").trim().toLowerCase();
+
 function MonitoringSpreadsheetPage({
     activeSection,
     onNavigate,
@@ -441,7 +447,7 @@ function MonitoringSpreadsheetPage({
             // 2. Status Kontrak Filter
             const remainingDays = getRemainingRentalDays(row.contractEnd);
             let contractStatusKey = "beroperasi";
-            if (row.customerStatus === "nonaktif") {
+            if (isStoppedStatus(row.customerStatus)) {
                 contractStatusKey = "berhenti";
             } else if (remainingDays !== null && remainingDays < 0) {
                 contractStatusKey = "expired";
@@ -449,7 +455,7 @@ function MonitoringSpreadsheetPage({
             const matchesContract = filters.contractStatus === "all" ? true : contractStatusKey === filters.contractStatus;
 
             // 3. Status Jalur Filter
-            const tenantRouteStatus = String(row.routeStatus || "aktif").trim().toLowerCase();
+            const tenantRouteStatus = resolveRouteStatus(row.customerStatus, row.routeStatus);
             const matchesRoute = filters.routeStatus === "all" ? true : tenantRouteStatus === filters.routeStatus;
 
             // 4. Status Tindakan Filter
@@ -487,9 +493,10 @@ function MonitoringSpreadsheetPage({
     const routeSummary = useMemo(() => {
         const summary = { aktif: 0, gangguan: 0, perbaikan: 0 };
         billingRows.forEach((row) => {
-            if (row.routeStatus === "gangguan") {
+            const routeStatus = resolveRouteStatus(row.customerStatus, row.routeStatus);
+            if (routeStatus === "gangguan") {
                 summary.gangguan++;
-            } else if (row.routeStatus === "perbaikan" || row.routeStatus === "maintenance") {
+            } else if (routeStatus === "perbaikan" || routeStatus === "maintenance") {
                 summary.perbaikan++;
             } else {
                 summary.aktif++;
@@ -512,7 +519,8 @@ function MonitoringSpreadsheetPage({
         const combined = [];
 
         billingRows.forEach((row) => {
-            if (row.routeStatus === "gangguan") {
+            const routeStatus = resolveRouteStatus(row.customerStatus, row.routeStatus);
+            if (routeStatus === "gangguan") {
                 combined.push({
                     customerId: row.customerId,
                     customerName: row.customerName,
@@ -590,8 +598,8 @@ function MonitoringSpreadsheetPage({
                 formatMonitoringCoreAmount(row),
                 ...(isTeknisi ? [] : [row.contractNumber ?? "-", row.currentInvoiceNumber ?? "-"]),
                 getRemainingRentalDays(row.contractEnd) ?? "-",
-                row.customerStatus === "nonaktif" ? "Berhenti" : "Beroperasi",
-                row.routeStatus || "aktif",
+                isStoppedStatus(row.customerStatus) ? "Berhenti" : "Beroperasi",
+                resolveRouteStatus(row.customerStatus, row.routeStatus),
                 ...(isTeknisi ? [] : [row.activationFeePaidAt ? "Selesai" : formatCurrency(row.activationFeeAmount), ...monthsData])
             ];
             return data.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
@@ -845,7 +853,7 @@ function MonitoringSpreadsheetPage({
                                         let label = "BEROPERASI";
                                         let style = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-emerald-glow/5";
 
-                                        if (row.customerStatus === "nonaktif") {
+                                        if (isStoppedStatus(row.customerStatus)) {
                                             label = "BERHENTI";
                                             style = "bg-white/5 text-white/40 border-white/10";
                                         } else if (remainingDays !== null && remainingDays < 0) {
@@ -862,7 +870,7 @@ function MonitoringSpreadsheetPage({
                                 </td>
                                 <td className="px-6 py-5 text-center transition-colors group-hover:bg-white/5 border-r border-white/5">
                                     {(() => {
-                                        const statusValue = (row.routeStatus ?? "aktif").toLowerCase();
+                                        const statusValue = resolveRouteStatus(row.customerStatus, row.routeStatus);
                                         const label = statusValue === "perbaikan" || statusValue === "sedang perbaikan" ? "PERBAIKAN" : statusValue.toUpperCase();
                                         const style = {
                                             aktif: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-emerald-glow/5",

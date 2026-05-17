@@ -696,9 +696,14 @@ export const monitoringApi = {
           amount,
           status,
           schedule_status
+        ),
+        routeVersions:customer_route_versions(
+          version_number,
+          flow_status,
+          created_at
         )
       `)
-      .eq('status', 'aktif');
+      .eq('status', 'berhenti');
 
     if (error) throw error;
 
@@ -717,10 +722,21 @@ export const monitoringApi = {
         : null
     );
 
+    const getLatestRouteVersion = (customer) => (
+      Array.isArray(customer?.routeVersions)
+        ? [...customer.routeVersions].sort((left, right) => {
+          const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+          if (versionDiff !== 0) return versionDiff;
+          return getDateValue(right.created_at) - getDateValue(left.created_at);
+        })[0]
+        : null
+    );
+
     const rows = (customers || []).flatMap(customer => {
       const customerIsps = customer.ispMemberships?.map(m => m.isp).filter(Boolean) || [];
       const ispNames = customerIsps.map(item => item.name).filter(Boolean);
       const ispName = ispNames.length > 0 ? ispNames.join(', ') : customer.isp_name || '-';
+      const latestRouteVersion = getLatestRouteVersion(customer);
 
       return (customer.contracts || [])
         .filter(contract => contract.start_date <= yearEnd && contract.end_date >= yearStart && contract.end_date < today)
@@ -741,6 +757,7 @@ export const monitoringApi = {
             customerCode: customer.customer_code,
             customerName: customer.name,
             customerStatus: customer.status,
+            routeStatus: latestRouteVersion?.flow_status || null,
             ispName,
             ispNames,
             ispContractStart: customer.contract_start_date || null,

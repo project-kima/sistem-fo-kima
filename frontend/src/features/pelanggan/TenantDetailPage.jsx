@@ -2459,7 +2459,7 @@ function TenantDetailPage({
                 }
 
                 // Route status
-                const rawR = activeRouteStatus.toLowerCase();
+                const rawR = rawStatus === "berhenti" || rawStatus === "nonaktif" ? "nonaktif" : activeRouteStatus.toLowerCase();
                 let rLabel = "Jalur Aktif";
                 let rIcon  = "cable";
                 let rBg    = "bg-emerald-500/10";

@@ -22,6 +22,19 @@ const getPackageDisplay = (packageValue) => {
     };
 };
 
+const normalizeOperationalStatus = (status) => String(status ?? "").trim().toLowerCase();
+const isStoppedStatus = (status) => ["berhenti", "nonaktif"].includes(normalizeOperationalStatus(status));
+const getOperationalLabel = (status) => {
+    const normalizedStatus = normalizeOperationalStatus(status);
+    if (isStoppedStatus(normalizedStatus)) return "Berhenti";
+    if (normalizedStatus === "expired") return "Belum Diperpanjang";
+    return "Beroperasi";
+};
+const isOperationallyActive = (status) => normalizeOperationalStatus(status) === "aktif";
+const resolveRouteStatus = (customerStatus, routeStatus) => isStoppedStatus(customerStatus)
+    ? "nonaktif"
+    : normalizeOperationalStatus(routeStatus || "aktif");
+
 const GlassCustomSelect = ({ label, value, onChange, options, icon, heightClass = "h-12" }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef(null);
@@ -743,9 +756,9 @@ function IspDetailPage({
                                     Kembali ke Workspace
                                 </button>
                                 <div className="h-3 w-px bg-white/10" />
-                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${['aktif', 'expired'].includes(detail?.status ?? isp.status) ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-white/30'}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${['aktif', 'expired'].includes(detail?.status ?? isp.status) ? 'bg-emerald-400 shadow-emerald-glow animate-pulse' : 'bg-white/20'}`} />
-                                    <span className="text-[9px] font-bold tracking-widest">{['aktif', 'expired'].includes(detail?.status ?? isp.status) ? "Beroperasi" : "Berhenti"}</span>
+                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${isOperationallyActive(detail?.status ?? isp.status) ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-white/30'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${isOperationallyActive(detail?.status ?? isp.status) ? 'bg-emerald-400 shadow-emerald-glow animate-pulse' : 'bg-white/20'}`} />
+                                    <span className="text-[9px] font-bold tracking-widest">{getOperationalLabel(detail?.status ?? isp.status)}</span>
                                 </div>
                             </div>
 
@@ -871,7 +884,7 @@ function IspDetailPage({
                                 {/* Stats Cards */}
                                 <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                                     <StatCard label="Total Lokasi" value={summary.tenantCount ?? allTenants.length} icon="groups" accent="gold" />
-                                    <StatCard label="Lokasi Beroperasi" value={allTenants.filter(t => t.status === "aktif" || t.status === "expired").length} icon="check_circle" accent="gold" />
+                                    <StatCard label="Lokasi Beroperasi" value={allTenants.filter(t => isOperationallyActive(t.status)).length} icon="check_circle" accent="gold" />
 
                                     {/* Custom Informai Jalur Card */}
                                     <div className="glass-card rounded-premium p-6 border-white/20 group hover:border-gold-accent/40 transition-all duration-500">
@@ -1173,12 +1186,12 @@ function IspDetailPage({
                                                         <td className="px-6 py-6">
                                                             <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-bold border transition-all ${['aktif'].includes(tenant.status) ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : tenant.status === 'expired' ? 'bg-[#ff2400]/10 text-[#ff2400] border-[#ff2400]/20' : 'bg-white/5 text-white/30 border-white/10'}`}>
                                                                 <span className={`w-1.5 h-1.5 rounded-full ${['aktif'].includes(tenant.status) ? 'bg-emerald-400 shadow-emerald-glow' : tenant.status === 'expired' ? 'bg-[#ff2400] shadow-red-glow' : 'bg-white/20'}`} />
-                                                                {tenant.status === 'aktif' ? "Beroperasi" : tenant.status === 'expired' ? "Belum Diperpanjang" : "Berhenti"}
+                                                                {getOperationalLabel(tenant.status)}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-6">
                                                             {(() => {
-                                                                const routeStatus = tenant.route?.activeFlowStatus ?? tenant.status_jalur;
+                                                                const routeStatus = resolveRouteStatus(tenant.status, tenant.route?.activeFlowStatus ?? tenant.status_jalur);
                                                                 const colors = {
                                                                     aktif: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
                                                                     gangguan: "bg-[#ff2400]/10 text-[#ff2400] border-[#ff2400]/20",
