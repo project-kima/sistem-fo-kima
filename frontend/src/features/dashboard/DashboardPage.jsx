@@ -21,21 +21,6 @@ import {
  * Responsiveness: Tablet (md) to Desktop (xl)
  */
 
-const sewaSharingTrendData = [
-    { name: 'Jan', '1:2': 10, '1:4': 20, '1:8': 15, '1:16': 5, '1:32': 2 },
-    { name: 'Feb', '1:2': 12, '1:4': 22, '1:8': 16, '1:16': 6, '1:32': 3 },
-    { name: 'Mar', '1:2': 11, '1:4': 24, '1:8': 18, '1:16': 8, '1:32': 4 },
-    { name: 'Apr', '1:2': 14, '1:4': 25, '1:8': 17, '1:16': 7, '1:32': 4 },
-    { name: 'Mei', '1:2': 15, '1:4': 27, '1:8': 19, '1:16': 9, '1:32': 5 },
-    { name: 'Jun', '1:2': 13, '1:4': 26, '1:8': 20, '1:16': 8, '1:32': 5 },
-    { name: 'Jul', '1:2': 16, '1:4': 28, '1:8': 22, '1:16': 10, '1:32': 6 },
-    { name: 'Agt', '1:2': 18, '1:4': 30, '1:8': 21, '1:16': 11, '1:32': 6 },
-    { name: 'Sep', '1:2': 17, '1:4': 29, '1:8': 23, '1:16': 12, '1:32': 7 },
-    { name: 'Okt', '1:2': 19, '1:4': 32, '1:8': 25, '1:16': 13, '1:32': 7 },
-    { name: 'Nov', '1:2': 20, '1:4': 31, '1:8': 24, '1:16': 14, '1:32': 8 },
-    { name: 'Des', '1:2': 22, '1:4': 34, '1:8': 26, '1:16': 15, '1:32': 9 },
-];
-
 export default function DashboardPage({
     activeSection,
     onNavigate,
@@ -68,20 +53,23 @@ export default function DashboardPage({
     const [billingSummary, setBillingSummary] = useState({ lunas: 0, belum_bayar: 0, terlambat: 0 });
     const [alerts, setAlerts] = useState([]);
     const [insights, setInsights] = useState(null);
+    const [dashboardMetrics, setDashboardMetrics] = useState(null);
     const [isLoadingOperational, setIsLoadingOperational] = useState(false);
     const [growthType, setGrowthType] = useState("tenant");
 
     const loadOperationalData = useCallback(async (year) => {
         setIsLoadingOperational(true);
         try {
-            const [billingResult, alertsResult, insightsResult] = await Promise.all([
+            const [billingResult, alertsResult, insightsResult, metricsResult] = await Promise.all([
                 api.monitoring.getBilling({ year: Number(year) }),
                 api.monitoring.getAlerts({ year: Number(year) }),
                 api.monitoring.getInsights({ year: Number(year) }),
+                api.monitoring.getDashboardMetrics({ year: Number(year) }),
             ]);
             setBillingSummary(billingResult?.summary ?? { lunas: 0, belum_bayar: 0, terlambat: 0 });
             setAlerts(Array.isArray(alertsResult) ? alertsResult : (alertsResult?.alerts ?? []));
             setInsights(insightsResult?.months && insightsResult?.totals ? insightsResult : null);
+            setDashboardMetrics(metricsResult ?? null);
         } catch (error) {
             console.error("Dashboard load error:", error);
         } finally {
@@ -106,14 +94,16 @@ export default function DashboardPage({
         const today = new Date().toISOString().slice(0, 10);
         let beroperasi = 0, expired = 0, berhenti = 0;
         tenants.forEach(t => {
-            const isActive = String(t.rawStatus || "").toLowerCase().trim() === "aktif";
-            if (!isActive) { berhenti++; return; }
+            const status = String(t.rawStatus || "").toLowerCase().trim();
+            if (["berhenti", "nonaktif"].includes(status)) { berhenti++; return; }
+            if (status === "expired") { expired++; return; }
             const endDate = typeof t.contractPeriodEnd === "string" ? t.contractPeriodEnd.slice(0, 10) : "";
             if (endDate && endDate < today) expired++; else beroperasi++;
         });
         return {
             ispCount: isps.length,
             tenantCount: tenants.length,
+            activeTenantCount: beroperasi,
             contract: { beroperasi, expired, berhenti, totalOperational: beroperasi + expired }
         };
     }, [customers]);
@@ -132,10 +122,21 @@ export default function DashboardPage({
         return total === 0 ? 0 : Math.round((Number(billingSummary.lunas) / total) * 100);
     }, [billingSummary]);
 
-    const growthData = {
-        tenant: [{ year: "2022", count: 85 }, { year: "2023", count: 78 }, { year: "2024", count: 92 }, { year: "2025", count: 88 }, { year: "2026", count: 105 }],
-        isp: [{ year: "2022", count: 18 }, { year: "2023", count: 21 }, { year: "2024", count: 25 }, { year: "2025", count: 22 }, { year: "2026", count: 28 }],
-    };
+    const sharingRows = useMemo(() => ([
+        { ratio: '1:2', count: dashboardMetrics?.sharingCounts?.['1/2'] ?? 0 },
+        { ratio: '1:4', count: dashboardMetrics?.sharingCounts?.['1/4'] ?? 0 },
+        { ratio: '1:8', count: dashboardMetrics?.sharingCounts?.['1/8'] ?? 0 },
+        { ratio: '1:16', count: dashboardMetrics?.sharingCounts?.['1/16'] ?? 0 },
+        { ratio: '1:32', count: dashboardMetrics?.sharingCounts?.['1/32'] ?? 0 },
+    ]), [dashboardMetrics]);
+
+    const sharingTrendData = dashboardMetrics?.sharingTrend?.length ? dashboardMetrics.sharingTrend : [];
+    const growthData = dashboardMetrics?.growth ?? { tenant: [], isp: [] };
+    const capacityCore = dashboardMetrics?.capacityCore ?? { total: 0, available: 0, availablePercent: 0 };
+    const coreRentals = dashboardMetrics?.coreRentals ?? { totalCoreUsed: 0, locationCount: 0 };
+    const routeStatus = dashboardMetrics?.routeStatus ?? { aktif: 0, gangguan: 0, perbaikan: 0, nonaktif: 0, total: 0 };
+    const routeTotal = Math.max(Number(routeStatus.total || 0), 1);
+    const routePercent = (count) => Math.round((Number(count || 0) / routeTotal) * 100);
 
     const glassCardClass = "glass-card rounded-premium p-6 md:p-8 relative overflow-hidden group";
 
@@ -172,7 +173,7 @@ export default function DashboardPage({
                     <StatCard label="Pendapatan Terealisasi" value={formatCurrency(insights?.totals?.revenuePaid ?? 0)} icon="account_balance_wallet" accent="gold" sub="Lunas Terverifikasi" />
                     <StatCard label="Proyeksi Tagihan" value={formatCurrency(insights?.totals?.revenueProjected ?? 0)} icon="analytics" accent="gold" sub="Total Tagihan Berjalan" />
                     <StatCard label="Jaringan Mitra" value={stats.ispCount} icon="hub" accent="gold" sub="Mitra ISP Terintegrasi" />
-                    <StatCard label="Total Lokasi Aktif" value={stats.tenantCount} icon="groups" accent="gold" sub="Total Unit Lokasi" />
+                    <StatCard label="Total Lokasi Aktif" value={stats.activeTenantCount} icon="groups" accent="gold" sub="Lokasi Beroperasi" />
                 </section>
 
                 {/* Core Infrastructure Section */}
@@ -184,15 +185,15 @@ export default function DashboardPage({
                             <h2 className="text-xl font-black text-white tracking-tight leading-none">Capacity Core</h2>
                         </div>
                         <div className="mt-2 flex-1">
-                            <p className="text-4xl font-black text-white">384</p>
+                            <p className="text-4xl font-black text-white">{capacityCore.available}</p>
                             <p className="text-[10px] font-medium text-white/70 mt-1 uppercase tracking-widest">Core Tersedia</p>
                         </div>
                         <div className="mt-4">
                             <div className="flex justify-end mb-2">
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest">76% Tersedia</span>
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest">{capacityCore.availablePercent}% Tersedia</span>
                             </div>
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10 border border-white/5">
-                                <div className="h-full bg-gradient-to-r from-yellow-500 to-gold-accent rounded-full shadow-[0_0_10px_rgba(212,169,55,0.4)]" style={{ width: "76%" }}></div>
+                                <div className="h-full bg-gradient-to-r from-yellow-500 to-gold-accent rounded-full shadow-[0_0_10px_rgba(212,169,55,0.4)]" style={{ width: `${capacityCore.availablePercent}%` }}></div>
                             </div>
                         </div>
                     </div>
@@ -204,12 +205,12 @@ export default function DashboardPage({
                             <h2 className="text-xl font-black text-white tracking-tight leading-none">Sewa Core</h2>
                         </div>
                         <div className="mt-2 flex-1">
-                            <p className="text-4xl font-black text-white">128</p>
+                            <p className="text-4xl font-black text-white">{coreRentals.totalCoreUsed}</p>
                             <p className="text-[10px] font-medium text-white/70 mt-1 uppercase tracking-widest">Core Disewa</p>
                         </div>
                         <div className="mt-4">
                             <span className="text-[10px] font-black text-white/70 uppercase tracking-widest leading-relaxed block">
-                                <span className="text-white text-lg mr-1">32</span> Lokasi Menggunakan
+                                <span className="text-white text-lg mr-1">{coreRentals.locationCount}</span> Lokasi Menggunakan
                             </span>
                         </div>
                     </div>
@@ -221,13 +222,7 @@ export default function DashboardPage({
                             <h2 className="text-xl font-black text-white tracking-tight leading-none">Sewa Sharing</h2>
                         </div>
                         <div className="flex-1 mt-2 flex flex-col justify-between">
-                            {[
-                                {ratio: '1:2', count: 12}, 
-                                {ratio: '1:4', count: 24}, 
-                                {ratio: '1:8', count: 18}, 
-                                {ratio: '1:16', count: 8}, 
-                                {ratio: '1:32', count: 4}
-                            ].map((item) => (
+                            {sharingRows.map((item) => (
                                 <div key={item.ratio} className="flex justify-between items-center py-2 px-3 rounded-xl hover:bg-white/10 hover:shadow-[0_0_15px_rgba(255,255,255,0.08)] transition-all border-b border-white/10 last:border-0 group cursor-default">
                                     <span className="text-[10px] font-black text-white transition-colors">Ratio {item.ratio}</span>
                                     <span className="text-sm font-black text-white">{item.count}</span>
@@ -244,7 +239,7 @@ export default function DashboardPage({
                         </div>
                         <div className="flex-1 w-full min-h-[120px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={sewaSharingTrendData} margin={{ top: 5, right: 5, bottom: 5, left: -25 }}>
+                                <LineChart data={sharingTrendData} margin={{ top: 5, right: 5, bottom: 5, left: -25 }}>
                                     <CartesianGrid strokeDasharray="0" vertical={false} stroke="rgba(255,255,255,0.08)" />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 900, fill: 'rgba(255,255,255,0.6)' }} dy={10} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 900, fill: 'rgba(255,255,255,0.6)' }} />
@@ -405,14 +400,14 @@ export default function DashboardPage({
                         </div>
                         <div className="flex-1 flex flex-col justify-between mt-2">
                             <div className="space-y-4">
-                                <OperationalStatusRow label="Aktif & Beroperasi" count="42" percent="75" color="bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]" bg="bg-emerald-500/5 border-emerald-500/10" />
-                                <OperationalStatusRow label="Gangguan Jaringan" count="8" percent="35" color="bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]" bg="bg-amber-500/5 border-amber-500/10" />
-                                <OperationalStatusRow label="Sedang Perbaikan" count="7" percent="15" color="bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]" bg="bg-rose-500/5 border-rose-500/10" />
+                                <OperationalStatusRow label="Aktif & Beroperasi" count={routeStatus.aktif} percent={routePercent(routeStatus.aktif)} color="bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]" bg="bg-emerald-500/5 border-emerald-500/10" />
+                                <OperationalStatusRow label="Gangguan Jaringan" count={routeStatus.gangguan} percent={routePercent(routeStatus.gangguan)} color="bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]" bg="bg-amber-500/5 border-amber-500/10" />
+                                <OperationalStatusRow label="Sedang Perbaikan" count={routeStatus.perbaikan} percent={routePercent(routeStatus.perbaikan)} color="bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]" bg="bg-rose-500/5 border-rose-500/10" />
                             </div>
                             <div className="mt-6 p-5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between shrink-0">
                                 <div>
                                     <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Total Jalur Terdata</p>
-                                    <p className="text-3xl font-black text-on-surface mt-1">57</p>
+                                    <p className="text-3xl font-black text-on-surface mt-1">{routeStatus.total}</p>
                                 </div>
                                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-on-surface-variant border border-white/5">
                                     <span className="material-symbols-outlined text-2xl">route</span>

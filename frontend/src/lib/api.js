@@ -798,24 +798,317 @@ export const monitoringApi = {
 
   // Get alerts
   async getAlerts({ year }) {
-    // This would need complex logic - for now return empty
+    const selectedYear = Number(year);
+    const today = new Date().toISOString().slice(0, 10);
+    const warningDate = new Date();
+    warningDate.setUTCDate(warningDate.getUTCDate() + 90);
+    const warningDateIso = warningDate.toISOString().slice(0, 10);
+
+    const [contractsResult, invoicesResult, routesResult] = await Promise.all([
+      supabase
+        .from('contracts')
+        .select(`
+          id,
+          contract_number,
+          end_date,
+          status,
+          customer:customers(id, name, status)
+        `)
+        .gte('end_date', today)
+        .lte('end_date', warningDateIso)
+        .eq('status', 'aktif'),
+      supabase
+        .from('invoices')
+        .select(`
+          id,
+          invoice_number,
+          period_year,
+          period_month,
+          amount,
+          status,
+          customer:customers(id, name, status)
+        `)
+        .eq('period_year', selectedYear)
+        .eq('schedule_status', 'active')
+        .in('status', ['belum_bayar', 'terlambat']),
+      supabase
+        .from('customers')
+        .select(`
+          id,
+          name,
+          status,
+          routeVersions:customer_route_versions(version_number, flow_status, created_at)
+        `)
+        .eq('status', 'aktif')
+    ]);
+
+    if (contractsResult.error) throw contractsResult.error;
+    if (invoicesResult.error) throw invoicesResult.error;
+    if (routesResult.error) throw routesResult.error;
+
+    const getDateValue = (value) => {
+      const timestamp = value ? new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`).getTime() : 0;
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
+
+    const alerts = [];
+
+    (contractsResult.data || []).forEach(contract => {
+      alerts.push({
+        type: 'contract_expiring',
+        title: 'Kontrak akan berakhir',
+        message: `${contract.customer?.name || 'Customer'} berakhir pada ${contract.end_date}`,
+        severity: 'warning',
+      });
+    });
+
+    (invoicesResult.data || []).forEach(invoice => {
+      alerts.push({
+        type: 'invoice_attention',
+        title: 'Invoice perlu perhatian',
+        message: `${invoice.customer?.name || 'Customer'} invoice ${invoice.invoice_number || '-'} ${invoice.status}`,
+        severity: invoice.status === 'terlambat' ? 'critical' : 'warning',
+      });
+    });
+
+    (routesResult.data || []).forEach(customer => {
+      const latestRoute = Array.isArray(customer.routeVersions)
+        ? [...customer.routeVersions].sort((left, right) => {
+          const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+          if (versionDiff !== 0) return versionDiff;
+          return getDateValue(right.created_at) - getDateValue(left.created_at);
+        })[0]
+        : null;
+      const routeStatus = String(latestRoute?.flow_status || 'aktif').trim().toLowerCase();
+      if (['gangguan', 'perbaikan', 'maintenance'].includes(routeStatus)) {
+        alerts.push({
+          type: 'route_attention',
+          title: 'Jalur perlu perhatian',
+          message: `${customer.name || 'Customer'} jalur ${routeStatus}`,
+          severity: routeStatus === 'gangguan' ? 'critical' : 'warning',
+        });
+      }
+    });
+
     return {
       year,
-      alerts: [],
+      alerts,
     };
   },
 
   // Get insights
   async getInsights({ year }) {
-    // This would need complex logic - for now return empty
+    const selectedYear = Number(year);
+    const { data: invoices, error } = await supabase
+      .from('invoices')
+      .select('id, customer_id, period_month, amount, status, schedule_status')
+      .eq('period_year', selectedYear)
+      .eq('schedule_status', 'active');
+
+    if (error) throw error;
+
+    const months = Array.from({ length: 12 }, (_, index) => ({
+      month: index + 1,
+      revenuePaid: 0,
+      revenueProjected: 0,
+      activeRentals: 0,
+    }));
+
+    (invoices || []).forEach(invoice => {
+      const monthIndex = Number(invoice.period_month) - 1;
+      if (monthIndex < 0 || monthIndex > 11) return;
+      const amount = Number(invoice.amount || 0);
+      months[monthIndex].revenueProjected += amount;
+      if (invoice.status === 'lunas') months[monthIndex].revenuePaid += amount;
+      months[monthIndex].activeRentals += 1;
+    });
+
+    const totals = months.reduce((acc, month) => ({
+      revenuePaid: acc.revenuePaid + month.revenuePaid,
+      revenueProjected: acc.revenueProjected + month.revenueProjected,
+      activeRentals: acc.activeRentals + month.activeRentals,
+    }), { revenuePaid: 0, revenueProjected: 0, activeRentals: 0 });
+
     return {
       year,
-      months: [],
+      months,
       totals: {
-        revenuePaid: 0,
-        revenueProjected: 0,
+        revenuePaid: totals.revenuePaid,
+        revenueProjected: totals.revenueProjected,
         estimatedProfit: 0,
-        averageActiveRentals: 0,
+        averageActiveRentals: Math.round(totals.activeRentals / 12),
+      },
+    };
+  },
+
+  async getDashboardMetrics({ year }) {
+    const selectedYear = Number(year);
+    const today = new Date().toISOString().slice(0, 10);
+    const startYear = selectedYear - 4;
+
+    const [customersResult, ispsResult] = await Promise.all([
+      supabase
+        .from('customers')
+        .select(`
+          id,
+          customer_code,
+          name,
+          status,
+          contract_start_date,
+          created_at,
+          contracts(
+            id,
+            start_date,
+            end_date,
+            core_type,
+            core_total,
+            sharing_ratio,
+            status,
+            versions:contract_versions(version_number, start_date, end_date, core_type, core_total, shared_core_ratio)
+          ),
+          routeVersions:customer_route_versions(version_number, flow_status, created_at)
+        `),
+      supabase
+        .from('isps')
+        .select('id, name, status, paket, jumlah, created_at')
+    ]);
+
+    if (customersResult.error) throw customersResult.error;
+    if (ispsResult.error) throw ispsResult.error;
+
+    const customers = customersResult.data || [];
+    const isps = ispsResult.data || [];
+    const getDateValue = (value) => {
+      const timestamp = value ? new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`).getTime() : 0;
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
+    const normalizeStatus = (status) => String(status ?? '').trim().toLowerCase();
+    const isStoppedStatus = (status) => ['berhenti', 'nonaktif'].includes(normalizeStatus(status));
+    const isContractInPeriod = (contract, start, end) => contract?.start_date <= end && contract?.end_date >= start;
+    const getLatestVersion = (contract) => (
+      Array.isArray(contract?.versions)
+        ? [...contract.versions].sort((left, right) => {
+          const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+          if (versionDiff !== 0) return versionDiff;
+          return getDateValue(right.end_date ?? right.start_date) - getDateValue(left.end_date ?? left.start_date);
+        })[0]
+        : null
+    );
+    const getRelevantContract = (contracts = []) => {
+      const sortedContracts = [...contracts].sort((left, right) => {
+        const startDiff = getDateValue(right.start_date) - getDateValue(left.start_date);
+        if (startDiff !== 0) return startDiff;
+        return getDateValue(right.end_date) - getDateValue(left.end_date);
+      });
+      return sortedContracts.find(contract => contract.start_date <= today && contract.end_date >= today)
+        ?? sortedContracts.find(contract => contract.start_date > today)
+        ?? sortedContracts[0]
+        ?? null;
+    };
+    const getLatestRouteVersion = (customer) => (
+      Array.isArray(customer?.routeVersions)
+        ? [...customer.routeVersions].sort((left, right) => {
+          const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+          if (versionDiff !== 0) return versionDiff;
+          return getDateValue(right.created_at) - getDateValue(left.created_at);
+        })[0]
+        : null
+    );
+
+    const totalCoreCapacity = 384;
+
+    const sharingRatios = ['1/2', '1/4', '1/8', '1/16', '1/32'];
+    const sharingCounts = Object.fromEntries(sharingRatios.map(ratio => [ratio, 0]));
+    const sharingTrend = Array.from({ length: 12 }, (_, index) => ({
+      month: index + 1,
+      name: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'][index],
+      '1:2': 0,
+      '1:4': 0,
+      '1:8': 0,
+      '1:16': 0,
+      '1:32': 0,
+    }));
+    const routeStatus = { aktif: 0, gangguan: 0, perbaikan: 0, nonaktif: 0, total: 0 };
+    let totalCoreUsed = 0;
+    let coreLocationCount = 0;
+
+    customers.forEach(customer => {
+      const customerStatus = normalizeStatus(customer.status);
+      const relevantContract = getRelevantContract(customer.contracts || []);
+      const latestVersion = getLatestVersion(relevantContract);
+      const coreType = latestVersion?.core_type || relevantContract?.core_type || null;
+      const coreTotal = Number(latestVersion?.core_total ?? relevantContract?.core_total ?? 0);
+      const sharingRatio = latestVersion?.shared_core_ratio || relevantContract?.sharing_ratio || null;
+      const currentOrFuture = relevantContract && relevantContract.end_date >= today;
+
+      if (currentOrFuture && !isStoppedStatus(customerStatus)) {
+        if (coreType === 'core') {
+          totalCoreUsed += coreTotal;
+          coreLocationCount += 1;
+        } else if (coreType === 'sharing_core' && sharingRatio) {
+          sharingCounts[sharingRatio] = (sharingCounts[sharingRatio] || 0) + 1;
+        }
+      }
+
+      (customer.contracts || []).forEach(contract => {
+        const version = getLatestVersion(contract);
+        const ratio = version?.shared_core_ratio || contract.sharing_ratio;
+        const type = version?.core_type || contract.core_type;
+        if (type !== 'sharing_core' || !ratio) return;
+        sharingTrend.forEach((monthData, index) => {
+          const month = index + 1;
+          const monthStart = `${selectedYear}-${String(month).padStart(2, '0')}-01`;
+          const monthEnd = new Date(Date.UTC(selectedYear, month, 0)).toISOString().slice(0, 10);
+          if (!isContractInPeriod(contract, monthStart, monthEnd)) return;
+          const chartKey = ratio.replace('/', ':');
+          if (Object.prototype.hasOwnProperty.call(monthData, chartKey)) monthData[chartKey] += 1;
+        });
+      });
+
+      const latestRoute = getLatestRouteVersion(customer);
+      const effectiveRouteStatus = isStoppedStatus(customerStatus)
+        ? 'nonaktif'
+        : normalizeStatus(latestRoute?.flow_status || 'aktif');
+      const routeKey = ['perbaikan', 'maintenance'].includes(effectiveRouteStatus) ? 'perbaikan' : effectiveRouteStatus;
+      if (Object.prototype.hasOwnProperty.call(routeStatus, routeKey)) routeStatus[routeKey] += 1;
+      else routeStatus.aktif += 1;
+      routeStatus.total += 1;
+    });
+
+    const growthYears = Array.from({ length: 5 }, (_, index) => startYear + index);
+    const tenantGrowth = growthYears.map(growthYear => ({
+      year: String(growthYear),
+      count: customers.filter(customer => {
+        const sourceDate = customer.contract_start_date || customer.created_at;
+        return sourceDate && Number(String(sourceDate).slice(0, 4)) <= growthYear;
+      }).length,
+    }));
+    const ispGrowth = growthYears.map(growthYear => ({
+      year: String(growthYear),
+      count: isps.filter(isp => {
+        const sourceDate = isp.created_at;
+        return sourceDate && Number(String(sourceDate).slice(0, 4)) <= growthYear;
+      }).length,
+    }));
+
+    return {
+      year,
+      capacityCore: {
+        total: totalCoreCapacity,
+        used: totalCoreUsed,
+        available: Math.max(totalCoreCapacity - totalCoreUsed, 0),
+        availablePercent: totalCoreCapacity > 0 ? Math.round(((totalCoreCapacity - totalCoreUsed) / totalCoreCapacity) * 100) : 0,
+      },
+      coreRentals: {
+        totalCoreUsed,
+        locationCount: coreLocationCount,
+      },
+      sharingCounts,
+      sharingTrend,
+      routeStatus,
+      growth: {
+        tenant: tenantGrowth,
+        isp: ispGrowth,
       },
     };
   },
