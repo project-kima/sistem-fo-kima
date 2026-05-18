@@ -110,6 +110,7 @@ const CustomSelect = ({ value, onChange, options, icon, label }) => {
 function CustomerWorkspacePage({
     activeSection,
     customers,
+    customersPageInfo = null,
     isps,
     error,
     secondaryError,
@@ -121,6 +122,7 @@ function CustomerWorkspacePage({
     onOpenCreateTenant,
     onOpenCreateIsp,
     onRefresh,
+    onLoadMoreCustomers,
     canCreateTenant = true,
     canCreateIsp = true,
     currentRole = "admin",
@@ -135,6 +137,8 @@ function CustomerWorkspacePage({
     const [collapsedMap, setCollapsedMap] = useState({});
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
+    const totalCustomerCount = Number(customersPageInfo?.count ?? customers.length);
+    const hasMoreCustomers = Boolean(customersPageInfo?.hasMore);
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const todayIso = new Date().toISOString().slice(0, 10);
@@ -428,7 +432,12 @@ function CustomerWorkspacePage({
                 {/* 3. SUMMARY CARDS */}
                 <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
                     <StatCard label="Total ISP" value={isps.length} icon="hub" accent="gold" />
-                    <StatCard label="Total Lokasi" value={customers.length} icon="groups" accent="gold" />
+                    <StatCard
+                        label="Total Lokasi"
+                        value={totalCustomerCount > customers.length ? `${customers.length}/${totalCustomerCount}` : customers.length}
+                        icon="groups"
+                        accent="gold"
+                    />
                     <StatCard label="Lokasi Beroperasi" value={totalActiveTenants} icon="check_circle" accent="gold" />
                     <StatCard label="Lokasi Berhenti" value={totalStoppedTenants} icon="cancel" accent="gold" />
                     {!isTeknisi && <StatCard label="Butuh Perhatian" value={totalGlobalActionCount} icon="warning" accent="gold" color="text-red-500" />}
@@ -567,6 +576,12 @@ function CustomerWorkspacePage({
                                 <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gold-accent/10 border border-gold-accent/20 text-[10px] font-black uppercase tracking-widest text-gold-accent shadow-lg shadow-gold-accent/5">
                                     <span className="material-symbols-outlined text-lg">filter_list</span>
                                     Filter Aktif
+                                </div>
+                            )}
+                            {hasMoreCustomers && (
+                                <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[10px] font-black uppercase tracking-widest text-blue-200/80 shadow-sm">
+                                    <span className="material-symbols-outlined text-lg">database</span>
+                                    Data dimuat {customers.length} dari {totalCustomerCount}
                                 </div>
                             )}
                         </div>
@@ -845,6 +860,19 @@ function CustomerWorkspacePage({
                                     <span className="material-symbols-outlined text-lg">chevron_right</span>
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {!isLoading && hasMoreCustomers && (
+                        <div className="flex justify-center">
+                            <button
+                                onClick={() => void onLoadMoreCustomers?.()}
+                                className="h-14 inline-flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-8 text-[10px] font-black uppercase tracking-[0.2em] text-white/70 hover:text-gold-accent hover:border-gold-accent/40 transition-all active:scale-95 shadow-glass-depth"
+                                type="button"
+                            >
+                                <span className="material-symbols-outlined">expand_more</span>
+                                Muat Lagi ({customers.length}/{totalCustomerCount})
+                            </button>
                         </div>
                     )}
 

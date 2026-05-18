@@ -31,6 +31,7 @@ Folder ini berisi script operasional untuk Supabase, seed data, maintenance data
 
 | Script | Fungsi |
 | --- | --- |
+| [maintenance/add-performance-indexes.sql](maintenance/add-performance-indexes.sql) | Menambahkan index query Supabase/PostgREST untuk mempercepat load dashboard, pelanggan, ISP, invoice, kontrak, dokumen, route, dan follow-up. |
 | [maintenance/fix-customer-contract-package-data.sql](maintenance/fix-customer-contract-package-data.sql) | Koreksi data paket kontrak customer BTN/Wastec/Charoen dan normalisasi sharing core. |
 | [maintenance/clarify-customer-contract-schema.sql](maintenance/clarify-customer-contract-schema.sql) | Menambahkan comment, constraint `NOT VALID`, dan audit query untuk schema kontrak customer. |
 

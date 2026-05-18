@@ -5,6 +5,32 @@ import { supabase } from './supabase';
  * Menggantikan fetch calls ke backend NestJS dengan Supabase client
  */
 
+const LIST_PAGE_SIZE = 500;
+const QUERY_CHUNK_SIZE = 100;
+
+const chunkArray = (items, size = QUERY_CHUNK_SIZE) => {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
+
+const fetchInChunks = async (items, fetchChunk, size = QUERY_CHUNK_SIZE) => {
+  const chunks = chunkArray(items, size);
+  const results = [];
+
+  for (const chunk of chunks) {
+    if (chunk.length === 0) continue;
+    const data = await fetchChunk(chunk);
+    if (Array.isArray(data)) {
+      results.push(...data);
+    }
+  }
+
+  return results;
+};
+
 // ============================================================================
 // CUSTOMERS API
 // ============================================================================
@@ -15,10 +41,6 @@ const mapInvoiceFollowUp = (followUp) => ({
   splitOrder: followUp.splitOrder ?? followUp.split_order ?? 1,
   invoiceNumber: followUp.invoiceNumber ?? followUp.invoice_number ?? null,
   invoiceFileUrl: followUp.invoiceFileUrl ?? followUp.invoice_file_url ?? null,
-  invoiceFileName: followUp.invoiceFileName ?? followUp.invoice_file_name ?? null,
-  paymentProofFileUrl: followUp.paymentProofFileUrl ?? followUp.payment_proof_file_url ?? null,
-  paymentProofFileName: followUp.paymentProofFileName ?? followUp.payment_proof_file_name ?? null,
-  paidAt: followUp.paidAt ?? followUp.paid_at ?? null,
 });
 
 const mapContractVersionRenewalFollowUp = (followUp) => ({
@@ -29,7 +51,7 @@ const mapContractVersionRenewalFollowUp = (followUp) => ({
   renewalFileName: followUp.renewalFileName ?? followUp.renewal_file_name ?? null,
   responseFileUrl: followUp.responseFileUrl ?? followUp.response_file_url ?? null,
   responseFileName: followUp.responseFileName ?? followUp.response_file_name ?? null,
-  responseStatus: followUp.responseStatus ?? followUp.response_status ?? null,
+  responseStatus: followUp.responseStatus ?? followUp.response_decision ?? null,
 });
 
 const mapContractVersion = (version) => ({
@@ -75,9 +97,7 @@ const mapCustomerInvoice = (invoice) => ({
   periodEndDate: invoice.periodEndDate ?? invoice.period_end_date ?? null,
   invoiceNumber: invoice.invoiceNumber ?? invoice.invoice_number ?? null,
   invoiceFileUrl: invoice.invoiceFileUrl ?? invoice.invoice_file_url ?? null,
-  invoiceFileName: invoice.invoiceFileName ?? invoice.invoice_file_name ?? null,
   paymentProofFileUrl: invoice.paymentProofFileUrl ?? invoice.payment_proof_file_url ?? null,
-  paymentProofFileName: invoice.paymentProofFileName ?? invoice.payment_proof_file_name ?? null,
   paidAt: invoice.paidAt ?? invoice.paid_at ?? null,
   dueDate: invoice.dueDate ?? invoice.due_date ?? null,
   scheduleStatus: invoice.scheduleStatus ?? invoice.schedule_status ?? null,
@@ -101,7 +121,7 @@ const mapRoutePoint = (point) => ({
   ...point,
   routeVersionId: point.routeVersionId ?? point.route_version_id ?? null,
   pointType: point.pointType ?? point.point_type ?? null,
-  sequenceNumber: point.sequenceNumber ?? point.sequence_number ?? 0,
+  sequenceNumber: point.sequenceNumber ?? point.order_number ?? 0,
 });
 
 const mapRouteVersion = (version) => ({
@@ -157,6 +177,163 @@ const getContractLatestPeriodTimestamp = (contract) => {
   );
 };
 
+const normalizeBillingSchedule = (mode, customEvery, customUnit) => {
+  if (mode === '3bulanan') return { billing_every: 3, billing_unit: 'bulan' };
+  if (mode === 'custom') {
+    return {
+      billing_every: Math.max(1, Number(customEvery || 1)),
+      billing_unit: customUnit || 'bulan',
+    };
+  }
+  return { billing_every: 1, billing_unit: 'bulan' };
+};
+
+const getCustomerCode = () => {
+  const timestamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+  return `CUST-${timestamp}`;
+};
+
+const assignIfPresent = (payload, source, keys, targetKey, transform = (value) => value) => {
+  const key = keys.find((item) => Object.prototype.hasOwnProperty.call(source, item));
+  if (!key) return;
+  payload[targetKey] = transform(source[key]);
+};
+
+const withUpdatedAt = (payload) => ({
+  ...payload,
+  updated_at: new Date().toISOString(),
+});
+
+const mapDocumentPayload = (documentData = {}) => {
+  const payload = {};
+  assignIfPresent(payload, documentData, ['customer_id', 'customerId'], 'customer_id');
+  assignIfPresent(payload, documentData, ['contract_id', 'contractId'], 'contract_id');
+  assignIfPresent(payload, documentData, ['contract_version_id', 'contractVersionId'], 'contract_version_id');
+  assignIfPresent(payload, documentData, ['contract_number', 'contractNumber'], 'contract_number');
+  assignIfPresent(payload, documentData, ['jenis_dokumen', 'jenisDokumen'], 'jenis_dokumen');
+  assignIfPresent(payload, documentData, ['nomor_dokumen', 'nomorDokumen'], 'nomor_dokumen');
+  assignIfPresent(payload, documentData, ['tanggal_dokumen', 'tanggalDokumen'], 'tanggal_dokumen');
+  assignIfPresent(payload, documentData, ['file_url', 'fileUrl'], 'file_url');
+  return payload;
+};
+
+const mapInvoicePayload = (invoiceData = {}) => {
+  const payload = {};
+  assignIfPresent(payload, invoiceData, ['customer_id', 'customerId'], 'customer_id');
+  assignIfPresent(payload, invoiceData, ['invoice_number', 'invoiceNumber'], 'invoice_number');
+  assignIfPresent(payload, invoiceData, ['contract_id', 'contractId'], 'contract_id');
+  assignIfPresent(payload, invoiceData, ['contract_version_id', 'contractVersionId'], 'contract_version_id');
+  assignIfPresent(payload, invoiceData, ['contract_number', 'contractNumber'], 'contract_number');
+  assignIfPresent(payload, invoiceData, ['period_month', 'periodMonth'], 'period_month');
+  assignIfPresent(payload, invoiceData, ['period_year', 'periodYear'], 'period_year');
+  assignIfPresent(payload, invoiceData, ['period_start_date', 'periodStartDate'], 'period_start_date');
+  assignIfPresent(payload, invoiceData, ['period_end_date', 'periodEndDate'], 'period_end_date');
+  assignIfPresent(payload, invoiceData, ['due_date', 'dueDate'], 'due_date');
+  assignIfPresent(payload, invoiceData, ['amount'], 'amount', (value) => Number(value || 0));
+  assignIfPresent(payload, invoiceData, ['status'], 'status');
+  assignIfPresent(payload, invoiceData, ['schedule_version', 'scheduleVersion'], 'schedule_version');
+  assignIfPresent(payload, invoiceData, ['schedule_status', 'scheduleStatus'], 'schedule_status');
+  assignIfPresent(payload, invoiceData, ['document_id', 'documentId'], 'document_id');
+  assignIfPresent(payload, invoiceData, ['paid_at', 'paidAt'], 'paid_at');
+  assignIfPresent(payload, invoiceData, ['invoice_file_url', 'invoiceFileUrl'], 'invoice_file_url');
+  assignIfPresent(payload, invoiceData, ['payment_proof_file_url', 'paymentProofFileUrl'], 'payment_proof_file_url');
+  return payload;
+};
+
+const mapContractPayload = (contractData = {}) => {
+  const payload = {};
+  assignIfPresent(payload, contractData, ['customer_id', 'customerId'], 'customer_id');
+  assignIfPresent(payload, contractData, ['contract_number', 'contractNumber'], 'contract_number');
+  assignIfPresent(payload, contractData, ['start_date', 'startDate'], 'start_date');
+  assignIfPresent(payload, contractData, ['end_date', 'endDate'], 'end_date');
+  assignIfPresent(payload, contractData, ['core_type', 'coreType'], 'core_type');
+  assignIfPresent(payload, contractData, ['core_total', 'coreTotal'], 'core_total', (value) => Number(value || 0));
+  assignIfPresent(payload, contractData, ['sharing_ratio', 'sharingRatio'], 'sharing_ratio');
+  assignIfPresent(payload, contractData, ['status'], 'status');
+  assignIfPresent(payload, contractData, ['billing_every', 'billingEvery'], 'billing_every', (value) => Number(value || 1));
+  assignIfPresent(payload, contractData, ['billing_unit', 'billingUnit'], 'billing_unit');
+  return payload;
+};
+
+const mapContractVersionPayload = (versionData = {}) => {
+  const payload = {};
+  assignIfPresent(payload, versionData, ['contract_id', 'contractId'], 'contract_id');
+  assignIfPresent(payload, versionData, ['customer_id', 'customerId'], 'customer_id');
+  assignIfPresent(payload, versionData, ['version_number', 'versionNumber'], 'version_number');
+  assignIfPresent(payload, versionData, ['start_date', 'startDate'], 'start_date');
+  assignIfPresent(payload, versionData, ['end_date', 'endDate'], 'end_date');
+  assignIfPresent(payload, versionData, ['core_type', 'coreType'], 'core_type');
+  assignIfPresent(payload, versionData, ['core_total', 'coreTotal'], 'core_total', (value) => Number(value || 0));
+  assignIfPresent(payload, versionData, ['shared_core_ratio', 'sharedCoreRatio'], 'shared_core_ratio');
+  assignIfPresent(payload, versionData, ['bak_document_id', 'bakDocumentId'], 'bak_document_id');
+  assignIfPresent(payload, versionData, ['renewal_file_url', 'renewalFileUrl'], 'renewal_file_url');
+  assignIfPresent(payload, versionData, ['renewal_file_name', 'renewalFileName'], 'renewal_file_name');
+  assignIfPresent(payload, versionData, ['response_file_url', 'responseFileUrl'], 'response_file_url');
+  assignIfPresent(payload, versionData, ['response_file_name', 'responseFileName'], 'response_file_name');
+  assignIfPresent(payload, versionData, ['monthly_amount', 'monthlyAmount'], 'monthly_amount', (value) => Number(value || 0));
+  assignIfPresent(payload, versionData, ['yearly_amount', 'yearlyAmount'], 'yearly_amount', (value) => Number(value || 0));
+  assignIfPresent(payload, versionData, ['remarks'], 'remarks');
+  return payload;
+};
+
+const mapIspContractRowPayload = (rowData = {}) => {
+  const payload = {};
+  assignIfPresent(payload, rowData, ['isp_id', 'ispId'], 'isp_id');
+  assignIfPresent(payload, rowData, ['contract_reference', 'contractReference'], 'contract_reference');
+  assignIfPresent(payload, rowData, ['period_start', 'periodStart', 'start_date', 'startDate'], 'period_start');
+  assignIfPresent(payload, rowData, ['period_end', 'periodEnd', 'end_date', 'endDate'], 'period_end');
+  assignIfPresent(payload, rowData, ['renewal_status', 'renewalStatus'], 'renewal_status');
+  assignIfPresent(payload, rowData, ['bak_file_url', 'bakFileUrl'], 'bak_file_url');
+  assignIfPresent(payload, rowData, ['bak_file_name', 'bakFileName'], 'bak_file_name');
+  assignIfPresent(payload, rowData, ['renewal_file_url', 'renewalFileUrl'], 'renewal_file_url');
+  assignIfPresent(payload, rowData, ['renewal_file_name', 'renewalFileName'], 'renewal_file_name');
+  assignIfPresent(payload, rowData, ['response_file_url', 'responseFileUrl'], 'response_file_url');
+  assignIfPresent(payload, rowData, ['response_file_name', 'responseFileName'], 'response_file_name');
+  assignIfPresent(payload, rowData, ['contract_file_url', 'contractFileUrl'], 'contract_file_url');
+  assignIfPresent(payload, rowData, ['contract_file_name', 'contractFileName'], 'contract_file_name');
+  return payload;
+};
+
+const mapInvoiceFollowUpPayload = (followUpData = {}) => {
+  const payload = {};
+  assignIfPresent(payload, followUpData, ['invoice_id', 'invoiceId'], 'invoice_id');
+  assignIfPresent(payload, followUpData, ['split_order', 'splitOrder'], 'split_order');
+  assignIfPresent(payload, followUpData, ['source'], 'source');
+  assignIfPresent(payload, followUpData, ['trigger_code', 'triggerCode'], 'trigger_code');
+  assignIfPresent(payload, followUpData, ['title'], 'title');
+  assignIfPresent(payload, followUpData, ['description'], 'description');
+  assignIfPresent(payload, followUpData, ['status'], 'status');
+  assignIfPresent(payload, followUpData, ['invoice_number', 'invoiceNumber'], 'invoice_number');
+  assignIfPresent(payload, followUpData, ['invoice_file_url', 'invoiceFileUrl'], 'invoice_file_url');
+  return payload;
+};
+
+const mapRenewalFollowUpPayload = (followUpData = {}) => {
+  const payload = {};
+  assignIfPresent(payload, followUpData, ['version_id', 'versionId'], 'version_id');
+  assignIfPresent(payload, followUpData, ['row_id', 'rowId'], 'row_id');
+  assignIfPresent(payload, followUpData, ['split_order', 'splitOrder'], 'split_order');
+  assignIfPresent(payload, followUpData, ['source'], 'source');
+  assignIfPresent(payload, followUpData, ['trigger_code', 'triggerCode'], 'trigger_code');
+  assignIfPresent(payload, followUpData, ['title'], 'title');
+  assignIfPresent(payload, followUpData, ['description'], 'description');
+  assignIfPresent(payload, followUpData, ['status'], 'status');
+  assignIfPresent(payload, followUpData, ['renewal_file_url', 'renewalFileUrl'], 'renewal_file_url');
+  assignIfPresent(payload, followUpData, ['renewal_file_name', 'renewalFileName'], 'renewal_file_name');
+  assignIfPresent(payload, followUpData, ['response_file_url', 'responseFileUrl'], 'response_file_url');
+  assignIfPresent(payload, followUpData, ['response_file_name', 'responseFileName'], 'response_file_name');
+  assignIfPresent(payload, followUpData, ['response_decision', 'responseDecision', 'response_status', 'responseStatus'], 'response_decision');
+  return payload;
+};
+
+const mapRouteHistoryPayload = (customerId, historyData = {}) => ({
+  customer_id: customerId,
+  operation: historyData.operation ?? historyData.title ?? null,
+  note: historyData.note ?? historyData.description ?? null,
+  snapshot_before: historyData.snapshot_before ?? historyData.snapshotBefore ?? null,
+  snapshot_after: historyData.snapshot_after ?? historyData.snapshotAfter ?? historyData.metadata ?? null,
+});
+
 const mapCustomerDetail = (customer) => {
   const contracts = Array.isArray(customer.contracts)
     ? customer.contracts.map(mapCustomerContract).sort((left, right) => getContractLatestPeriodTimestamp(right) - getContractLatestPeriodTimestamp(left))
@@ -208,25 +385,129 @@ const mapCustomerDetail = (customer) => {
 
 export const customersApi = {
   // Get all customers
-  async getAll() {
-    const { data, error } = await supabase
+  async getAll({ limit = LIST_PAGE_SIZE, offset = 0 } = {}) {
+    const from = Math.max(0, Number(offset) || 0);
+    const to = from + Math.max(1, Number(limit) || LIST_PAGE_SIZE) - 1;
+
+    const { data: customers, error, count } = await supabase
       .from('customers')
       .select(`
-        *,
+        id,
+        customer_code,
+        isp_name,
+        name,
+        status,
+        activation_fee_amount,
+        activation_fee_paid_at,
+        contract_start_date,
+        created_at,
+        updated_at,
         ispMemberships:customer_isp_memberships(
-          isp:isps(*)
-        ),
-        contracts(
-          *,
-          versions:contract_versions(*)
-        ),
-        invoices(*),
-        routeVersions:customer_route_versions(*)
-      `)
-      .order('name', { ascending: true });
+          isp:isps(id,name,status,logo_url)
+        )
+      `, { count: 'exact' })
+      .order('name', { ascending: true })
+      .range(from, to);
 
     if (error) throw error;
-    return data;
+    if (!Array.isArray(customers) || customers.length === 0) {
+      return {
+        data: [],
+        count: count ?? 0,
+        limit: Math.max(1, Number(limit) || LIST_PAGE_SIZE),
+        offset: from,
+        hasMore: false,
+      };
+    }
+
+    const customerIds = customers.map((customer) => customer.id).filter(Boolean);
+
+    const [contracts, routeVersions] = await Promise.all([
+      fetchInChunks(customerIds, async (ids) => {
+        const { data, error: contractsError } = await supabase
+          .from('contracts')
+          .select(`
+            id,
+            customer_id,
+            contract_number,
+            start_date,
+            end_date,
+            core_type,
+            core_total,
+            sharing_ratio,
+            status,
+            billing_every,
+            billing_unit,
+            created_at,
+            updated_at,
+            versions:contract_versions(
+              id,
+              contract_id,
+              version_number,
+              start_date,
+              end_date,
+              core_type,
+              core_total,
+              shared_core_ratio,
+              monthly_amount,
+              yearly_amount,
+              remarks
+            )
+          `)
+          .in('customer_id', ids);
+
+        if (contractsError) throw contractsError;
+        return data || [];
+      }),
+      fetchInChunks(customerIds, async (ids) => {
+        const { data, error: routesError } = await supabase
+          .from('customer_route_versions')
+          .select('id, customer_id, version_number, flow_status, created_at')
+          .in('customer_id', ids);
+
+        if (routesError) throw routesError;
+        return data || [];
+      }),
+    ]);
+
+    const contractsByCustomerId = new Map();
+    contracts.forEach((contract) => {
+      const list = contractsByCustomerId.get(contract.customer_id) || [];
+      list.push(contract);
+      contractsByCustomerId.set(contract.customer_id, list);
+    });
+
+    const routeVersionsByCustomerId = new Map();
+    routeVersions.forEach((routeVersion) => {
+      const list = routeVersionsByCustomerId.get(routeVersion.customer_id) || [];
+      list.push(routeVersion);
+      routeVersionsByCustomerId.set(routeVersion.customer_id, list);
+    });
+
+    const rows = customers.map((customer) => {
+      const customerRouteVersions = routeVersionsByCustomerId.get(customer.id) || [];
+      const latestRouteVersion = [...customerRouteVersions].sort((left, right) => {
+        const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+        if (versionDiff !== 0) return versionDiff;
+        return getDateValue(right.created_at) - getDateValue(left.created_at);
+      })[0];
+
+      return {
+        ...customer,
+        contracts: contractsByCustomerId.get(customer.id) || [],
+        routeVersions: customerRouteVersions,
+        routeStatus: latestRouteVersion?.flow_status ?? 'aktif',
+        invoices: [],
+      };
+    });
+
+    return {
+      data: rows,
+      count: count ?? rows.length,
+      limit: Math.max(1, Number(limit) || LIST_PAGE_SIZE),
+      offset: from,
+      hasMore: from + rows.length < (count ?? rows.length),
+    };
   },
 
   // Get customer by ID
@@ -265,13 +546,90 @@ export const customersApi = {
 
   // Create customer
   async create(customerData) {
+    const now = new Date().toISOString();
+    const ispIds = Array.isArray(customerData.ispIds)
+      ? customerData.ispIds.map((id) => Number(id)).filter(Number.isFinite)
+      : [];
+    const primaryIspId = ispIds[0] ?? null;
+
+    let ispName = customerData.ispName ?? customerData.isp_name ?? null;
+    if (!ispName && primaryIspId) {
+      const { data: ispData, error: ispError } = await supabase
+        .from('isps')
+        .select('name')
+        .eq('id', primaryIspId)
+        .single();
+
+      if (ispError) throw ispError;
+      ispName = ispData?.name ?? null;
+    }
+
+    const customerCode = customerData.customer_code ?? customerData.customerCode ?? getCustomerCode();
+    const customerPayload = {
+      customer_code: customerCode,
+      isp_name: ispName || 'Provider Mandiri',
+      name: customerData.name,
+      status: customerData.status || 'aktif',
+      activation_fee_amount: Number(customerData.activationFeeAmount ?? customerData.activation_fee_amount ?? 0),
+      contract_start_date: customerData.contractStartDate ?? customerData.contract_start_date ?? customerData.contractPeriodStart ?? null,
+      updated_at: now,
+    };
+
     const { data, error } = await supabase
       .from('customers')
-      .insert(customerData)
+      .insert(customerPayload)
       .select()
       .single();
 
     if (error) throw error;
+
+    try {
+      if (ispIds.length > 0) {
+        const membershipPayload = ispIds.map((ispId) => ({
+          customer_id: data.id,
+          isp_id: ispId,
+          updated_at: now,
+        }));
+        const { error: membershipError } = await supabase
+          .from('customer_isp_memberships')
+          .insert(membershipPayload);
+
+        if (membershipError) throw membershipError;
+      }
+
+      if (customerData.contractPeriodStart && customerData.contractPeriodEnd) {
+        const isCore = customerData.paket === 'core';
+        const billingSchedule = normalizeBillingSchedule(
+          customerData.billingPeriodMode,
+          customerData.billingCustomEvery,
+          customerData.billingCustomUnit,
+        );
+        const contractNumber = customerData.contractNumber
+          ?? customerData.contract_number
+          ?? `NO-BAK-${customerCode}-${String(customerData.contractPeriodStart).replaceAll('-', '')}`;
+
+        const { error: contractError } = await supabase
+          .from('contracts')
+          .insert({
+            customer_id: data.id,
+            contract_number: contractNumber,
+            start_date: customerData.contractPeriodStart,
+            end_date: customerData.contractPeriodEnd,
+            core_type: isCore ? 'core' : 'sharing_core',
+            core_total: isCore ? Math.max(0, Number(customerData.jumlah || 0)) : 0,
+            sharing_ratio: isCore ? null : customerData.contractSharingRatio ?? null,
+            status: 'aktif',
+            ...billingSchedule,
+            updated_at: now,
+          });
+
+        if (contractError) throw contractError;
+      }
+    } catch (relatedError) {
+      await supabase.from('customers').delete().eq('id', data.id);
+      throw relatedError;
+    }
+
     return data;
   },
 
@@ -279,7 +637,11 @@ export const customersApi = {
   async update(id, customerData) {
     const { data, error } = await supabase
       .from('customers')
-      .update(customerData)
+      .update({
+        name: customerData.name,
+        status: customerData.status,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id)
       .select()
       .single();
@@ -311,7 +673,7 @@ const mapIspRenewalFollowUp = (followUp) => ({
   renewalFileName: followUp.renewalFileName ?? followUp.renewal_file_name ?? null,
   responseFileUrl: followUp.responseFileUrl ?? followUp.response_file_url ?? null,
   responseFileName: followUp.responseFileName ?? followUp.response_file_name ?? null,
-  responseStatus: followUp.responseStatus ?? followUp.response_status ?? null,
+  responseStatus: followUp.responseStatus ?? followUp.response_decision ?? null,
 });
 
 const mapIspContractRow = (row) => ({
@@ -326,7 +688,6 @@ const mapIspContractRow = (row) => ({
   bakFileName: row.bakFileName ?? row.bak_file_name ?? null,
   responseFileUrl: row.responseFileUrl ?? row.response_file_url ?? null,
   responseFileName: row.responseFileName ?? row.response_file_name ?? null,
-  responseStatus: row.responseStatus ?? row.response_status ?? null,
   renewalStatus: row.renewalStatus ?? row.renewal_status ?? null,
   renewalFollowUps: Array.isArray(row.renewalFollowUps)
     ? row.renewalFollowUps.map(mapIspRenewalFollowUp)
@@ -340,12 +701,28 @@ const mapIspPayload = (ispData = {}) => {
   if (Object.prototype.hasOwnProperty.call(ispData, 'status')) payload.status = ispData.status;
   if (Object.prototype.hasOwnProperty.call(ispData, 'logoUrl')) payload.logo_url = ispData.logoUrl;
   if (Object.prototype.hasOwnProperty.call(ispData, 'logo_url')) payload.logo_url = ispData.logo_url;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contractReference')) payload.contract_reference = ispData.contractReference || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contract_reference')) payload.contract_reference = ispData.contract_reference || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contractStartDate')) payload.contract_start_date = ispData.contractStartDate || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contract_start_date')) payload.contract_start_date = ispData.contract_start_date || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contractPeriodStart')) payload.contract_period_start = ispData.contractPeriodStart || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contract_period_start')) payload.contract_period_start = ispData.contract_period_start || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contractPeriodEnd')) payload.contract_period_end = ispData.contractPeriodEnd || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contract_period_end')) payload.contract_period_end = ispData.contract_period_end || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contractFileDataUrl')) payload.contract_file_url = ispData.contractFileDataUrl || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contract_file_url')) payload.contract_file_url = ispData.contract_file_url || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contractFileName')) payload.contract_file_name = ispData.contractFileName || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contract_file_name')) payload.contract_file_name = ispData.contract_file_name || null;
   if (Object.prototype.hasOwnProperty.call(ispData, 'packageName')) {
     payload.paket = String(ispData.packageName).toLowerCase() === 'core' ? 'core' : 'shared';
   }
   if (Object.prototype.hasOwnProperty.call(ispData, 'paket')) payload.paket = ispData.paket;
   if (Object.prototype.hasOwnProperty.call(ispData, 'packageQuantity')) payload.jumlah = Number(ispData.packageQuantity || 0);
   if (Object.prototype.hasOwnProperty.call(ispData, 'jumlah')) payload.jumlah = ispData.jumlah;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'billingPeriodMode')) payload.billing_period_mode = ispData.billingPeriodMode || 'monthly';
+  if (Object.prototype.hasOwnProperty.call(ispData, 'billing_period_mode')) payload.billing_period_mode = ispData.billing_period_mode || 'monthly';
+  if (Object.prototype.hasOwnProperty.call(ispData, 'activationFeeAmount')) payload.activation_fee_amount = Number(ispData.activationFeeAmount || 0);
+  if (Object.prototype.hasOwnProperty.call(ispData, 'activation_fee_amount')) payload.activation_fee_amount = Number(ispData.activation_fee_amount || 0);
 
   return payload;
 };
@@ -361,7 +738,7 @@ export const ispsApi = {
   async getAll() {
     const { data, error } = await supabase
       .from('isps')
-      .select('*')
+      .select('id,name,status,logo_url,contract_reference,contract_start_date,contract_period_start,contract_period_end,paket,jumlah,billing_period_mode,activation_fee_amount,created_at,updated_at')
       .order('name', { ascending: true });
 
     if (error) throw error;
@@ -405,9 +782,15 @@ export const ispsApi = {
 
   // Create ISP
   async create(ispData) {
+    const payload = {
+      billing_period_mode: 'monthly',
+      activation_fee_amount: 0,
+      ...mapIspPayload(ispData),
+      updated_at: new Date().toISOString(),
+    };
     const { data, error } = await supabase
       .from('isps')
-      .insert(mapIspPayload(ispData))
+      .insert(payload)
       .select()
       .single();
 
@@ -419,7 +802,10 @@ export const ispsApi = {
   async update(id, ispData) {
     const { data, error } = await supabase
       .from('isps')
-      .update(mapIspPayload(ispData))
+      .update({
+        ...mapIspPayload(ispData),
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id)
       .select()
       .single();
@@ -446,8 +832,7 @@ export const ispsApi = {
 export const monitoringApi = {
   // Get billing monitoring data
   async getBilling({ year, isp, status }) {
-    // Get all active customers with their contracts and invoices
-    let query = supabase
+    const { data: customers, error } = await supabase
       .from('customers')
       .select(`
         id,
@@ -460,51 +845,105 @@ export const monitoringApi = {
         contract_start_date,
         notes,
         ispMemberships:customer_isp_memberships(
-          isp:isps(*)
-        ),
-        contracts(
-          id,
-          contract_number,
-          start_date,
-          end_date,
-          core_type,
-          core_total,
-          sharing_ratio,
-          status,
-          versions:contract_versions(
+          isp:isps(id,name,status,logo_url)
+        )
+      `)
+      .eq('status', 'aktif');
+
+    if (error) throw error;
+    if (!Array.isArray(customers) || customers.length === 0) {
+      return {
+        year,
+        appliedFilters: {
+          isp: isp || null,
+          status: status || null,
+        },
+        summary: {
+          lunas: 0,
+          belum_bayar: 0,
+          terlambat: 0,
+          belum_ditagih: 0,
+        },
+        rows: [],
+      };
+    }
+
+    const customerIds = customers.map((customer) => customer.id).filter(Boolean);
+
+    const [contracts, invoices, routeVersions] = await Promise.all([
+      fetchInChunks(customerIds, async (ids) => {
+        const { data, error: contractsError } = await supabase
+          .from('contracts')
+          .select(`
             id,
-            version_number,
+            customer_id,
+            contract_number,
             start_date,
             end_date,
             core_type,
             core_total,
-            shared_core_ratio,
-            monthly_amount,
-            yearly_amount,
-            remarks
-          )
-        ),
-        invoices!inner(
-          id,
-          invoice_number,
-          contract_id,
-          period_year,
-          period_month,
-          amount,
-          status,
-          schedule_status
-        ),
-        routeVersions:customer_route_versions(
-          flow_status
-        )
-      `)
-      .eq('status', 'aktif')
-      .eq('invoices.period_year', year)
-      .eq('invoices.schedule_status', 'active');
+            sharing_ratio,
+            status,
+            versions:contract_versions(
+              id,
+              version_number,
+              start_date,
+              end_date,
+              core_type,
+              core_total,
+              shared_core_ratio,
+              monthly_amount,
+              yearly_amount,
+              remarks
+            )
+          `)
+          .in('customer_id', ids);
 
-    const { data: customers, error } = await query;
+        if (contractsError) throw contractsError;
+        return data || [];
+      }),
+      fetchInChunks(customerIds, async (ids) => {
+        const { data, error: invoicesError } = await supabase
+          .from('invoices')
+          .select('id, customer_id, invoice_number, contract_id, period_year, period_month, amount, status, schedule_status')
+          .eq('period_year', year)
+          .eq('schedule_status', 'active')
+          .in('customer_id', ids);
 
-    if (error) throw error;
+        if (invoicesError) throw invoicesError;
+        return data || [];
+      }),
+      fetchInChunks(customerIds, async (ids) => {
+        const { data, error: routesError } = await supabase
+          .from('customer_route_versions')
+          .select('id, customer_id, version_number, flow_status, created_at')
+          .in('customer_id', ids);
+
+        if (routesError) throw routesError;
+        return data || [];
+      }),
+    ]);
+
+    const contractsByCustomerId = new Map();
+    contracts.forEach((contract) => {
+      const list = contractsByCustomerId.get(contract.customer_id) || [];
+      list.push(contract);
+      contractsByCustomerId.set(contract.customer_id, list);
+    });
+
+    const invoicesByCustomerId = new Map();
+    invoices.forEach((invoice) => {
+      const list = invoicesByCustomerId.get(invoice.customer_id) || [];
+      list.push(invoice);
+      invoicesByCustomerId.set(invoice.customer_id, list);
+    });
+
+    const routeVersionsByCustomerId = new Map();
+    routeVersions.forEach((routeVersion) => {
+      const list = routeVersionsByCustomerId.get(routeVersion.customer_id) || [];
+      list.push(routeVersion);
+      routeVersionsByCustomerId.set(routeVersion.customer_id, list);
+    });
 
     const today = new Date().toISOString().slice(0, 10);
     const currentMonth = new Date().getUTCMonth() + 1;
@@ -547,13 +986,24 @@ export const monitoringApi = {
       return monthEnd >= contract.start_date && monthStart <= contract.end_date;
     };
 
+    const getLatestRouteVersion = (customerRouteVersions = []) => (
+      [...customerRouteVersions].sort((left, right) => {
+        const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+        if (versionDiff !== 0) return versionDiff;
+        return getDateValue(right.created_at) - getDateValue(left.created_at);
+      })[0] ?? null
+    );
+
     // Transform data to match backend format
     const rows = customers.map(customer => {
       const customerIsps = customer.ispMemberships?.map(m => m.isp).filter(Boolean) || [];
       const ispNames = customerIsps.map(isp => isp.name).filter(Boolean);
-      const currentContract = getCurrentContract(customer.contracts || []);
+      const customerContracts = contractsByCustomerId.get(customer.id) || [];
+      const customerInvoices = invoicesByCustomerId.get(customer.id) || [];
+      const latestRouteVersion = getLatestRouteVersion(routeVersionsByCustomerId.get(customer.id) || []);
+      const currentContract = getCurrentContract(customerContracts);
       const latestVersion = getLatestVersion(currentContract);
-      const currentMonthInvoice = customer.invoices?.find(
+      const currentMonthInvoice = customerInvoices.find(
         inv => inv.period_year === selectedYear
           && inv.period_month === currentMonth
           && inv.schedule_status === 'active'
@@ -566,7 +1016,7 @@ export const monitoringApi = {
         if (currentContract && !isMonthInsideContract(currentContract, month)) {
           return 'di_luar_periode';
         }
-        const invoice = customer.invoices?.find(
+        const invoice = customerInvoices.find(
           inv => inv.period_year === selectedYear
             && inv.period_month === month
             && inv.schedule_status === 'active'
@@ -585,7 +1035,7 @@ export const monitoringApi = {
         customerStatus: customer.status,
         contractNumber: currentContract?.contract_number?.startsWith('NO-BAK-') ? '-' : currentContract?.contract_number || null,
         currentInvoiceNumber: currentMonthInvoice?.invoice_number || null,
-        routeStatus: customer.routeVersions?.[0]?.flow_status || null,
+        routeStatus: latestRouteVersion?.flow_status || null,
         activationFeeAmount: Number(customer.activation_fee_amount || 0),
         activationFeePaidAt: customer.activation_fee_paid_at,
         contractStart: latestVersion?.start_date || currentContract?.start_date || null,
@@ -1177,7 +1627,7 @@ export const documentsApi = {
   async create(documentData) {
     const { data, error } = await supabase
       .from('documents')
-      .insert(documentData)
+      .insert(mapDocumentPayload(documentData))
       .select()
       .single();
 
@@ -1218,7 +1668,7 @@ export const invoicesApi = {
   async create(invoiceData) {
     const { data, error } = await supabase
       .from('invoices')
-      .insert(invoiceData)
+      .insert(withUpdatedAt(mapInvoicePayload(invoiceData)))
       .select()
       .single();
 
@@ -1230,7 +1680,7 @@ export const invoicesApi = {
   async update(id, invoiceData) {
     const { data, error } = await supabase
       .from('invoices')
-      .update(invoiceData)
+      .update(withUpdatedAt(mapInvoicePayload(invoiceData)))
       .eq('id', id)
       .select()
       .single();
@@ -1274,7 +1724,7 @@ export const contractsApi = {
   async create(contractData) {
     const { data, error } = await supabase
       .from('contracts')
-      .insert(contractData)
+      .insert(withUpdatedAt(mapContractPayload(contractData)))
       .select()
       .single();
 
@@ -1286,7 +1736,7 @@ export const contractsApi = {
   async update(id, contractData) {
     const { data, error } = await supabase
       .from('contracts')
-      .update(contractData)
+      .update(withUpdatedAt(mapContractPayload(contractData)))
       .eq('id', id)
       .select()
       .single();
@@ -1325,9 +1775,46 @@ export const contractVersionsApi = {
 
   // Create contract version
   async create(versionData) {
+    const contractId = versionData.contract_id ?? versionData.contractId;
+    let payload = mapContractVersionPayload(versionData);
+
+    if (contractId && (!payload.customer_id || !payload.version_number || !payload.core_type)) {
+      const [{ data: contract, error: contractError }, { data: latestVersions, error: versionError }] = await Promise.all([
+        supabase
+          .from('contracts')
+          .select('customer_id, core_type, core_total, sharing_ratio')
+          .eq('id', contractId)
+          .single(),
+        supabase
+          .from('contract_versions')
+          .select('version_number')
+          .eq('contract_id', contractId)
+          .order('version_number', { ascending: false })
+          .limit(1),
+      ]);
+
+      if (contractError) throw contractError;
+      if (versionError) throw versionError;
+
+      const nextVersionNumber = Number(latestVersions?.[0]?.version_number ?? 0) + 1;
+      const coreType = payload.core_type
+        ?? (payload.shared_core_ratio ? 'sharing_core' : contract?.core_type)
+        ?? 'core';
+
+      payload = {
+        ...payload,
+        customer_id: payload.customer_id ?? contract?.customer_id,
+        version_number: payload.version_number ?? nextVersionNumber,
+        core_type: coreType,
+        core_total: payload.core_total ?? (coreType === 'core' ? Number(contract?.core_total ?? 0) : 0),
+        monthly_amount: payload.monthly_amount ?? 0,
+        yearly_amount: payload.yearly_amount ?? 0,
+      };
+    }
+
     const { data, error } = await supabase
       .from('contract_versions')
-      .insert(versionData)
+      .insert(withUpdatedAt(payload))
       .select()
       .single();
 
@@ -1339,7 +1826,7 @@ export const contractVersionsApi = {
   async update(id, versionData) {
     const { data, error } = await supabase
       .from('contract_versions')
-      .update(versionData)
+      .update(withUpdatedAt(mapContractVersionPayload(versionData)))
       .eq('id', id)
       .select()
       .single();
@@ -1365,12 +1852,24 @@ export const contractVersionsApi = {
 
 export const customerRoutesApi = {
   async replace(customerId, { flowStatus = 'aktif', changeNote = null, points = [] } = {}) {
+    const now = new Date().toISOString();
+    const { data: latestVersions, error: latestVersionError } = await supabase
+      .from('customer_route_versions')
+      .select('version_number')
+      .eq('customer_id', customerId)
+      .order('version_number', { ascending: false })
+      .limit(1);
+
+    if (latestVersionError) throw latestVersionError;
+
     const { data: version, error: versionError } = await supabase
       .from('customer_route_versions')
       .insert({
         customer_id: customerId,
+        version_number: Number(latestVersions?.[0]?.version_number ?? 0) + 1,
         flow_status: flowStatus,
         change_note: changeNote,
+        updated_at: now,
       })
       .select()
       .single();
@@ -1386,6 +1885,7 @@ export const customerRoutesApi = {
           point_type: point.pointType ?? point.point_type ?? null,
           note: point.note ?? null,
           order_number: point.orderNumber ?? point.order_number ?? index + 1,
+          updated_at: now,
         })));
 
       if (pointsError) throw pointsError;
@@ -1397,14 +1897,7 @@ export const customerRoutesApi = {
   async addHistory(customerId, historyData) {
     const { data, error } = await supabase
       .from('customer_route_history')
-      .insert({
-        customer_id: customerId,
-        title: historyData.title ?? null,
-        description: historyData.description ?? null,
-        date: historyData.date ?? null,
-        actor: historyData.actor ?? null,
-        metadata: historyData.metadata ?? null,
-      })
+      .insert(mapRouteHistoryPayload(customerId, historyData))
       .select()
       .single();
 
@@ -1443,7 +1936,7 @@ export const ispContractRowsApi = {
   async update(id, rowData) {
     const { data, error } = await supabase
       .from('isp_contract_rows')
-      .update(rowData)
+      .update(withUpdatedAt(mapIspContractRowPayload(rowData)))
       .eq('id', id)
       .select()
       .single();
@@ -1461,7 +1954,7 @@ export const invoiceFollowUpsApi = {
   async update(id, followUpData) {
     const { data, error } = await supabase
       .from('invoice_follow_ups')
-      .update(followUpData)
+      .update(withUpdatedAt(mapInvoiceFollowUpPayload(followUpData)))
       .eq('id', id)
       .select()
       .single();
@@ -1490,7 +1983,7 @@ export const contractVersionRenewalFollowUpsApi = {
   async update(id, followUpData) {
     const { data, error } = await supabase
       .from('contract_version_renewal_follow_ups')
-      .update(followUpData)
+      .update(withUpdatedAt(mapRenewalFollowUpPayload(followUpData)))
       .eq('id', id)
       .select()
       .single();
@@ -1519,7 +2012,7 @@ export const ispRenewalFollowUpsApi = {
   async update(id, followUpData) {
     const { data, error } = await supabase
       .from('isp_renewal_follow_ups')
-      .update(followUpData)
+      .update(withUpdatedAt(mapRenewalFollowUpPayload(followUpData)))
       .eq('id', id)
       .select()
       .single();

@@ -1,8 +1,8 @@
 # Product Requirements Document
 # Sistem FO KIMA — Document Archiving & Tenant Monitoring System
 
-**Versi:** 1.2  
-**Tanggal:** 2026-05-13  
+**Versi:** 1.3  
+**Tanggal:** 2026-05-18  
 **Status:** Active Development
 
 ---
@@ -30,11 +30,11 @@ Operasional sebelumnya tersebar di dokumen, spreadsheet, dan pencatatan manual. 
 
 | Peran | Deskripsi | Kapabilitas Utama |
 | --- | --- | --- |
-| **Admin** | Pengelola penuh sistem | CRUD ISP, CRUD pelanggan, kelola kontrak, dokumen, invoice, route, monitoring, tempat sampah |
+| **Admin** | Pengelola penuh sistem | CRUD ISP, CRUD pelanggan, kelola kontrak, dokumen, invoice, route, monitoring, dan akses rancangan tempat sampah |
 | **Teknisi** | Staf operasional/lapangan | Melihat data pelanggan, route planner FO, monitoring operasional |
 | **ISP** | Mitra ISP | Melihat data terkait ISP dan pelanggan yang relevan secara read-only |
 
-Autentikasi menggunakan Supabase Auth dan akses dibatasi berdasarkan role di frontend serta Supabase Row Level Security.
+Autentikasi menggunakan Supabase Auth. Akses aplikasi dibatasi berdasarkan role di frontend dan Supabase Row Level Security. RLS production saat ini berbasis role sederhana; pembatasan data ISP berdasarkan kepemilikan relasi masih menjadi peningkatan lanjutan.
 
 ---
 
@@ -194,8 +194,9 @@ Detail pelanggan terdiri dari tab:
 
 ### 5.6 Tempat Sampah
 
-- Pelanggan dan ISP yang dihapus masuk ke soft delete.
-- Admin dapat memulihkan atau menghapus permanen jika diperlukan.
+- Modul Tempat Sampah saat ini masih berupa tampilan placeholder/mock untuk rancangan UX.
+- Operasi production saat ini belum memakai soft delete menyeluruh untuk semua entitas.
+- Implementasi final perlu menambahkan kolom/status arsip, restore flow, dan hard-delete policy yang eksplisit sebelum fitur ini dipakai sebagai sumber data operasional.
 
 ---
 
@@ -348,10 +349,12 @@ Bagian ini mendokumentasikan aturan database production yang harus diikuti oleh 
 
 #### Follow-up dan Route
 
-- `invoice_follow_ups` menyimpan follow-up penagihan invoice, termasuk metadata split invoice, file invoice, bukti bayar, dan tanggal bayar bila tersedia.
-- `contract_version_renewal_follow_ups` menyimpan follow-up renewal pada level versi kontrak pelanggan.
-- `isp_contract_rows` dan `isp_renewal_follow_ups` menyimpan data kontrak/renewal di level ISP jika tersedia.
+- `invoice_follow_ups` menyimpan follow-up penagihan invoice, metadata split, nomor invoice, dan file invoice. Bukti bayar dan tanggal bayar disimpan pada `invoices`.
+- `contract_version_renewal_follow_ups` menyimpan follow-up renewal pada level versi kontrak pelanggan. Keputusan/tanggapan disimpan pada kolom `response_decision`, bukan `response_status`.
+- `isp_contract_rows` menyimpan data kontrak/periode ISP dan file BAK/kontrak pada level baris kontrak ISP.
+- `isp_renewal_follow_ups` menyimpan split follow-up renewal ISP. Keputusan/tanggapan juga memakai `response_decision`.
 - `customer_route_versions`, `customer_route_points`, dan `customer_route_history` menyimpan versi jalur, titik jalur, status flow, dan riwayat perubahan route FO.
+- `customer_route_history` production memakai kolom `operation`, `note`, `snapshot_before`, dan `snapshot_after`.
 
 ### 6.2 Aturan Script Production
 
@@ -389,10 +392,24 @@ Komponen pendukung:
 - **Auth**: Supabase Auth.
 - **Storage/File URL**: Supabase Storage atau URL file eksternal sesuai data.
 - **Route planner**: Valhalla untuk kebutuhan peta/jalur FO.
+- **API access layer**: `frontend/src/lib/api.js`, berfungsi sebagai mapper antara payload UI camelCase dan kolom Supabase snake_case.
 
 Tidak ada service NestJS yang menjadi alur utama aplikasi saat ini.
 
-### 7.2 Struktur Project
+### 7.2 Pola Akses Data Frontend
+
+- Frontend tidak boleh mengirim payload form mentah langsung ke Supabase.
+- Semua create/update harus melewati mapper di `frontend/src/lib/api.js` agar field UI seperti `contractNumber`, `billingEvery`, `responseStatus`, atau `activationFeeAmount` dikonversi ke kolom database yang benar.
+- Field `updated_at` wajib dikirim pada tabel yang memiliki constraint `NOT NULL` dan tidak memiliki default database.
+- List pelanggan memakai pagination server-side bertahap:
+  - batch awal default 500 pelanggan;
+  - batch berikutnya dimuat lewat tombol **Muat Lagi**;
+  - pencarian/filter workspace berlaku pada data yang sudah dimuat.
+- Query list awal pelanggan tidak mengambil invoice penuh. Data customer, kontrak, versi kontrak, dan status route diambil dengan query terpisah berbasis chunk untuk mengurangi payload nested besar.
+- Monitoring billing mengambil customer aktif, kontrak, invoice tahun terkait, dan route status melalui batch query terpisah, bukan satu nested select besar.
+- Detail pelanggan/ISP tetap boleh mengambil relasi lebih lengkap karena dibuka on-demand untuk satu entitas.
+
+### 7.3 Struktur Project
 
 ```text
 sistem-fo-kima/
@@ -403,7 +420,7 @@ sistem-fo-kima/
 └── infra/                 # Konfigurasi infrastruktur pendukung seperti Valhalla
 ```
 
-### 7.3 Struktur Frontend
+### 7.4 Struktur Frontend
 
 ```text
 frontend/src/
@@ -424,7 +441,7 @@ frontend/src/
 | Keamanan | Login wajib, role-based access, Supabase RLS |
 | Integritas Data | Relasi kontrak, dokumen, invoice, dan customer harus konsisten |
 | Keterlacakan | Dokumen dan timeline menyimpan histori aktivitas penting |
-| Performa | Monitoring tahunan harus tetap responsif untuk data operasional aktif |
+| Performa | List dan monitoring harus memakai index, batching, dan pagination agar tidak menarik payload besar sekaligus |
 | Operasional | Script production dijalankan manual dan hati-hati melalui Supabase SQL Editor |
 
 ---
@@ -437,6 +454,8 @@ frontend/src/
 - Tidak semua ISP harus memiliki data kontrak detail jika data belum tersedia.
 - Perubahan data production harus melalui script/audit yang jelas.
 - Valhalla hanya diperlukan untuk fitur route planner.
+- Search/filter workspace saat ini bekerja pada data pelanggan yang sudah dimuat di browser. Search global lintas seluruh database membutuhkan endpoint/query server-side khusus.
+- Index database mempercepat query, tetapi rate limit akibat terlalu banyak request tetap harus ditangani dengan batching, pagination, debounce, dan lazy loading detail.
 
 ---
 
@@ -460,6 +479,7 @@ http://localhost:5173
 - Frontend dapat dideploy ke Netlify atau hosting static lain.
 - Backend/data menggunakan Supabase.
 - Script SQL production dijalankan manual melalui Supabase SQL Editor setelah direview.
+- Index performa production tersedia di `scripts/maintenance/add-performance-indexes.sql` dan perlu dijalankan setelah review bila database mulai besar atau query monitoring terasa lambat.
 
 ### 10.3 Verifikasi Umum
 
@@ -478,7 +498,7 @@ npm --prefix frontend run build
 - [x] CRUD pelanggan dan ISP.
 - [x] Arsip dokumen pelanggan.
 - [x] Monitoring billing.
-- [x] Soft delete/tempat sampah.
+- [ ] Soft delete/tempat sampah production.
 
 ### Fase 2 — Kontrak, Invoice, dan Route
 
@@ -489,9 +509,13 @@ npm --prefix frontend run build
 
 ### Fase 3 — Penyempurnaan Operasional
 
+- [x] Index query untuk list, monitoring, kontrak, invoice, route, dan follow-up.
+- [x] Batching query dan pagination server-side bertahap pada list pelanggan.
 - [ ] Alert dashboard yang lebih lengkap.
 - [ ] Timeline aktivitas yang lebih detail.
 - [ ] Laporan/analitik dokumen dan billing.
+- [ ] Search/filter server-side global untuk workspace pelanggan saat jumlah data melampaui batch awal.
+- [ ] Soft delete production dan restore flow untuk Tempat Sampah.
 - [ ] Notifikasi terjadwal bila dibutuhkan.
 
 ---
@@ -517,6 +541,6 @@ npm --prefix frontend run build
 
 ---
 
-**Dokumen ini terakhir diperbarui:** 2026-05-15  
-**Versi:** 1.2  
+**Dokumen ini terakhir diperbarui:** 2026-05-18  
+**Versi:** 1.3  
 **Status:** Active Development

@@ -26,6 +26,8 @@ import { APP_ROLES, canAccessRoute, getRoleConfig } from "./roles";
 import { getStoredRole, persistRole } from "./app/session/role-session";
 import "./App.css";
 
+const CUSTOMER_PAGE_SIZE = 500;
+
 function App() {
     const [currentRole, setCurrentRole] = useState(() => getStoredRole());
     const appPaths = useMemo(() => getAppPaths(currentRole), [currentRole]);
@@ -38,6 +40,12 @@ function App() {
         search: typeof window !== "undefined" ? window.location.search : "",
     }));
     const [customers, setCustomers] = useState([]);
+    const [customersPageInfo, setCustomersPageInfo] = useState({
+        count: 0,
+        hasMore: false,
+        limit: CUSTOMER_PAGE_SIZE,
+        offset: 0,
+    });
     const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
     const [customersError, setCustomersError] = useState("");
     const [isps, setIsps] = useState([]);
@@ -54,17 +62,37 @@ function App() {
         [currentRole, route],
     );
 
-    const loadCustomers = useCallback(async () => {
+    const loadCustomers = useCallback(async ({ append = false, offset = 0 } = {}) => {
         setIsLoadingCustomers(true);
         setCustomersError("");
 
         try {
-            const result = await api.customers.getAll();
-            const mappedCustomers = Array.isArray(result)
-                ? result.map((customer, index) => mapCustomerToRow(customer, index))
+            const result = await api.customers.getAll({
+                limit: CUSTOMER_PAGE_SIZE,
+                offset,
+            });
+            const rows = Array.isArray(result)
+                ? result
+                : Array.isArray(result?.data)
+                    ? result.data
+                    : [];
+            const mappedCustomers = rows.length > 0
+                ? rows.map((customer, index) => mapCustomerToRow(customer, offset + index))
                 : [];
 
-            setCustomers(mappedCustomers);
+            setCustomers((previousCustomers) => {
+                if (!append) return mappedCustomers;
+
+                const existingIds = new Set(previousCustomers.map((customer) => Number(customer.id)));
+                const nextCustomers = mappedCustomers.filter((customer) => !existingIds.has(Number(customer.id)));
+                return [...previousCustomers, ...nextCustomers];
+            });
+            setCustomersPageInfo({
+                count: Number(result?.count ?? mappedCustomers.length),
+                hasMore: Boolean(result?.hasMore),
+                limit: Number(result?.limit ?? CUSTOMER_PAGE_SIZE),
+                offset: Number(result?.offset ?? offset),
+            });
 
             return mappedCustomers;
         } catch (error) {
@@ -80,12 +108,21 @@ function App() {
         }
     }, []);
 
+    const loadMoreCustomers = useCallback(async () => {
+        if (isLoadingCustomers || !customersPageInfo.hasMore) return [];
+
+        return loadCustomers({
+            append: true,
+            offset: customers.length,
+        });
+    }, [customers.length, customersPageInfo.hasMore, isLoadingCustomers, loadCustomers]);
+
     // Only load data when user is authenticated (not on login page)
     useEffect(() => {
-        if (route.type !== "login") {
+        if (route.type !== "login" && customers.length === 0 && !isLoadingCustomers && !customersError) {
             void loadCustomers();
         }
-    }, [loadCustomers, route.type]);
+    }, [customers.length, customersError, isLoadingCustomers, loadCustomers, route.type]);
 
     const loadIsps = useCallback(async () => {
         setIsLoadingIsps(true);
@@ -109,10 +146,10 @@ function App() {
 
     // Only load ISPs when user is authenticated (not on login page)
     useEffect(() => {
-        if (route.type !== "login") {
+        if (route.type !== "login" && isps.length === 0 && !isLoadingIsps && !ispsError) {
             void loadIsps();
         }
-    }, [loadIsps, route.type]);
+    }, [isLoadingIsps, isps.length, ispsError, loadIsps, route.type]);
 
     const navigateTo = useCallback((targetPath, { replace = false } = {}) => {
         if (typeof window === "undefined") {
@@ -856,6 +893,7 @@ function App() {
             <CustomerWorkspacePage
                 activeSection={activeSection}
                 customers={customers}
+                customersPageInfo={customersPageInfo}
                 isps={isps}
                 error={customersError}
                 secondaryError={ispsError}
@@ -870,6 +908,7 @@ function App() {
                 onRefresh={async () => {
                     await Promise.all([loadCustomers(), loadIsps()]);
                 }}
+                onLoadMoreCustomers={loadMoreCustomers}
                 canCreateIsp={roleCapabilities.canCreateIsp}
                 canCreateTenant={roleCapabilities.canCreateTenant}
             />
