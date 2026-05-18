@@ -1,15 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AppShell from "../../components/layout/AppShell";
 import { formatDate } from "../../app/utils";
-
-const MOCK_TRASH_ITEMS = [
-    { id: 1, name: "PT Telekomunikasi Indonesia", type: "ISP", origin: "Direktori / Mitran ISP", deletedAt: "2026-05-08T10:30:00Z" },
-    { id: 2, name: "Jalur FO - Segmen A1", type: "Jalur", origin: "Telkom / Makassar / Jalur", deletedAt: "2026-05-08T09:15:00Z" },
-    { id: 3, name: "Gudang Logistik Utama", type: "Lokasi", origin: "Telkom / Makassar / Ringkasan", deletedAt: "2026-05-07T14:20:00Z" },
-    { id: 4, name: "KTR-2026-001-KIMA", type: "Kontrak", origin: "Icon+ / Jakarta / Kontrak", deletedAt: "2026-05-07T11:45:00Z" },
-    { id: 5, name: "INV/2026/04/0023", type: "Invoice", origin: "Indosat / Surabaya / Billing", deletedAt: "2026-05-06T16:10:00Z" },
-    { id: 6, name: "BAK-Instalasi-01.pdf", type: "Dokumen", origin: "Telkom / Makassar / Dokumen", deletedAt: "2026-05-06T08:55:00Z" },
-];
+import api from "../../lib/api";
 
 const TYPE_CONFIG = {
     ISP: { icon: "corporate_fare", color: "text-blue-400", bg: "bg-blue-400/10" },
@@ -20,25 +12,100 @@ const TYPE_CONFIG = {
     Dokumen: { icon: "description", color: "text-slate-400", bg: "bg-slate-400/10" },
 };
 
-const INITIAL_DELETION_STATS = {
-    lastClearedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    totalItems: 145,
-    breakdown: {
-        ISP: 5,
-        Jalur: 12,
-        Lokasi: 3,
-        Kontrak: 45,
-        Invoice: 60,
-        Dokumen: 20
-    }
+const TABLE_MAP = {
+    ISP: 'isps',
+    Lokasi: 'customers',
+    Kontrak: 'contracts',
+    Invoice: 'invoices',
+    Dokumen: 'documents',
+    Jalur: 'customer_route_versions',
 };
 
-export default function TrashPage({ activeSection, onNavigate, currentRole = "admin" }) {
+export default function TrashPage({ activeSection, onNavigate, onLogout: _onLogout, currentRole = "admin" }) {
     const isTeknisi = currentRole === "teknisi";
     const [searchQuery, setSearchQuery] = useState("");
-    const [trashItems, setTrashItems] = useState(MOCK_TRASH_ITEMS);
-    const [deletionStats, setDeletionStats] = useState(INITIAL_DELETION_STATS);
-    const [sortOrder, setSortOrder] = useState("newest"); // "newest" or "oldest"
+    const [trashItems, setTrashItems] = useState([]);
+    const [deletionStats, setDeletionStats] = useState({
+        lastClearedAt: new Date().toISOString(),
+        totalItems: 0,
+        breakdown: { ISP: 0, Jalur: 0, Lokasi: 0, Kontrak: 0, Invoice: 0, Dokumen: 0 }
+    });
+    const [sortOrder, setSortOrder] = useState("newest");
+    const [isLoading, setIsLoading] = useState(false);
+
+    const loadTrashData = async () => {
+        setIsLoading(true);
+        try {
+            const [data, stats] = await Promise.all([
+                api.trash.list(),
+                api.trash.getStats()
+            ]);
+
+            // Transform data to UI format
+            const items = [
+                ...data.isps.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    type: 'ISP',
+                    origin: `Direktori / Mitra ISP`,
+                    deletedAt: item.deleted_at,
+                    table: 'isps'
+                })),
+                ...data.customers.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    type: 'Lokasi',
+                    origin: `${item.isp_name || 'N/A'} / ${item.customer_code || 'N/A'}`,
+                    deletedAt: item.deleted_at,
+                    table: 'customers'
+                })),
+                ...data.contracts.map(item => ({
+                    id: item.id,
+                    name: item.contract_number || 'Kontrak',
+                    type: 'Kontrak',
+                    origin: `${item.customers?.name || 'N/A'} / Kontrak`,
+                    deletedAt: item.deleted_at,
+                    table: 'contracts'
+                })),
+                ...data.invoices.map(item => ({
+                    id: item.id,
+                    name: item.invoice_number || 'Invoice',
+                    type: 'Invoice',
+                    origin: `${item.customers?.name || 'N/A'} / Invoice`,
+                    deletedAt: item.deleted_at,
+                    table: 'invoices'
+                })),
+                ...data.documents.map(item => ({
+                    id: item.id,
+                    name: item.nomor_dokumen || item.jenis_dokumen || 'Dokumen',
+                    type: 'Dokumen',
+                    origin: `${item.customers?.name || 'N/A'} / Dokumen`,
+                    deletedAt: item.deleted_at,
+                    table: 'documents'
+                })),
+                ...data.routes.map(item => ({
+                    id: item.id,
+                    name: item.version_name || 'Jalur FO',
+                    type: 'Jalur',
+                    origin: `${item.customers?.name || 'N/A'} / Jalur`,
+                    deletedAt: item.deleted_at,
+                    table: 'customer_route_versions'
+                })),
+            ];
+
+            setTrashItems(items);
+            setDeletionStats(stats);
+        } catch (error) {
+            console.error('Failed to load trash:', error);
+            alert('Gagal memuat data tempat sampah');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadTrashData();
+    }, []);
 
     const filteredItems = trashItems
         .filter(item => {
@@ -55,29 +122,47 @@ export default function TrashPage({ activeSection, onNavigate, currentRole = "ad
             return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
         });
 
-    const handleRestore = (id) => {
-        setTrashItems(prev => prev.filter(item => item.id !== id));
+    const handleRestore = async (item) => {
+        if (!window.confirm(`Pulihkan "${item.name}"?`)) return;
+        
+        try {
+            await api.trash.restore(item.table, item.id);
+            alert('Data berhasil dipulihkan');
+            loadTrashData();
+        } catch (error) {
+            console.error(error);
+            alert('Gagal memulihkan data');
+        }
     };
 
-    const handleDeletePermanently = (id) => {
-        const itemToDelete = trashItems.find(item => item.id === id);
-        if (!itemToDelete) return;
+    const handleDeletePermanently = async (item) => {
+        if (!window.confirm(`Hapus "${item.name}" secara permanen? Tindakan ini tidak dapat dibatalkan!`)) return;
 
-        if (confirm("Hapus data ini secara permanen?")) {
-            setTrashItems(prev => prev.filter(item => item.id !== id));
-            setDeletionStats(prev => ({
-                lastClearedAt: new Date().toISOString(),
-                totalItems: prev.totalItems + 1,
-                breakdown: {
-                    ...prev.breakdown,
-                    [itemToDelete.type]: (prev.breakdown[itemToDelete.type] || 0) + 1
-                }
-            }));
+        try {
+            await api.trash.deletePermanently(item.table, item.id);
+            alert('Data berhasil dihapus permanen');
+            loadTrashData();
+        } catch (error) {
+            console.error(error);
+            alert('Gagal menghapus data');
+        }
+    };
+
+    const handleEmptyTrash = async () => {
+        if (!window.confirm('Hapus SEMUA sampah secara permanen? Tindakan ini tidak dapat dibatalkan!')) return;
+
+        try {
+            await api.trash.emptyTrash();
+            alert('Tempat sampah berhasil dikosongkan');
+            loadTrashData();
+        } catch (error) {
+            console.error(error);
+            alert('Gagal mengosongkan tempat sampah');
         }
     };
 
     return (
-        <AppShell activeSection={activeSection} onNavigate={onNavigate} currentRole={currentRole}>
+        <AppShell activeSection={activeSection} onNavigate={onNavigate} onLogout={_onLogout} currentRole={currentRole}>
             <div className="space-y-6 pb-20 pt-2 md:pt-4">
                 {/* Premium Header Section */}
                 <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
@@ -125,8 +210,9 @@ export default function TrashPage({ activeSection, onNavigate, currentRole = "ad
                         <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
                             {!isTeknisi && (
                                 <button
-                                    className="inline-flex h-12 items-center gap-3 rounded-xl bg-[#ff2400]/10 border border-[#ff2400]/20 px-8 text-[#ff2400] transition-all hover:bg-[#ff2400] hover:text-white active:scale-95 group shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                    onClick={() => { if (confirm("Hapus semua sampah secara permanen?")) setTrashItems([]); }}
+                                    className="inline-flex h-12 items-center gap-3 rounded-xl bg-[#ff2400]/10 border border-[#ff2400]/20 px-8 text-[#ff2400] transition-all hover:bg-[#ff2400] hover:text-white active:scale-95 group shadow-sm text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={handleEmptyTrash}
+                                    disabled={isLoading || trashItems.length === 0}
                                 >
                                     <span className="material-symbols-outlined text-lg">delete_sweep</span>
                                     Hapus Permanen
@@ -134,16 +220,12 @@ export default function TrashPage({ activeSection, onNavigate, currentRole = "ad
                             )}
 
                             <button
-                                className="h-12 w-12 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-white transition-all active:scale-95 group"
-                                onClick={() => {
-                                    // Mock refresh
-                                    const btn = document.activeElement;
-                                    btn?.querySelector('.material-symbols-outlined')?.classList.add('animate-spin');
-                                    setTimeout(() => btn?.querySelector('.material-symbols-outlined')?.classList.remove('animate-spin'), 1000);
-                                }}
+                                className="h-12 w-12 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-white transition-all active:scale-95 group disabled:opacity-50"
+                                onClick={loadTrashData}
+                                disabled={isLoading}
                                 title="Refresh Data"
                             >
-                                <span className="material-symbols-outlined text-lg group-hover:rotate-180 transition-transform duration-500">sync</span>
+                                <span className={`material-symbols-outlined text-lg group-hover:rotate-180 transition-transform duration-500 ${isLoading ? 'animate-spin' : ''}`}>sync</span>
                             </button>
                         </div>
                     </div>
@@ -205,7 +287,12 @@ export default function TrashPage({ activeSection, onNavigate, currentRole = "ad
                     </div>
 
                     <div className="space-y-4">
-                        {filteredItems.length > 0 ? (
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-20">
+                                <div className="h-16 w-16 border-4 border-gold-accent border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="text-sm font-bold text-white/40 uppercase tracking-widest">Memuat data...</p>
+                            </div>
+                        ) : filteredItems.length > 0 ? (
                             <div className="grid grid-cols-1 gap-4">
                                 {filteredItems.map((item) => {
                                     const config = TYPE_CONFIG[item.type] || { icon: "article", color: "text-white/30", bg: "bg-white/5" };
@@ -260,16 +347,18 @@ export default function TrashPage({ activeSection, onNavigate, currentRole = "ad
 
                                             <div className="flex items-center gap-3 self-end lg:self-center">
                                                 <button
-                                                    onClick={() => handleRestore(item.id)}
+                                                    onClick={() => handleRestore(item)}
                                                     className="flex h-11 items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-5 text-[10px] font-black uppercase tracking-widest text-emerald-400 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95"
+                                                    disabled={isLoading}
                                                 >
                                                     <span className="material-symbols-outlined text-lg">restore_from_trash</span>
                                                     Pulihkan
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeletePermanently(item.id)}
+                                                    onClick={() => handleDeletePermanently(item)}
                                                     className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ff2400]/10 border border-[#ff2400]/20 text-[#ff2400] transition-all hover:bg-[#ff2400] hover:text-white hover:scale-[1.02] active:scale-95"
                                                     title="Hapus Permanen"
+                                                    disabled={isLoading}
                                                 >
                                                     <span className="material-symbols-outlined text-lg">delete_forever</span>
                                                 </button>

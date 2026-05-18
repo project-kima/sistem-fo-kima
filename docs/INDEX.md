@@ -59,6 +59,7 @@ Script operasional tersedia di folder `scripts/` dan diindeks di [scripts/README
 | --- | --- |
 | [scripts/dev/dev-frontend.sh](../scripts/dev/dev-frontend.sh) | Menjalankan frontend development. |
 | [scripts/auth/create-supabase-auth-users.sql](../scripts/auth/create-supabase-auth-users.sql) | Membuat user Supabase Auth. |
+| [scripts/auth/create-isp-auth-accounts-from-isps.sql](../scripts/auth/create-isp-auth-accounts-from-isps.sql) | Membuat/memperbarui akun Auth ISP dari credential di data ISP. |
 | [scripts/auth/insert-admin-user-production.sql](../scripts/auth/insert-admin-user-production.sql) | Insert user admin legacy/operasional. |
 | [scripts/rls/setup-supabase-rls-policies.sql](../scripts/rls/setup-supabase-rls-policies.sql) | Setup Row Level Security policies. |
 | [scripts/seed/seed-cendikia-supabase-full.sql](../scripts/seed/seed-cendikia-supabase-full.sql) | Seed data Cendikia/customer demo production. |

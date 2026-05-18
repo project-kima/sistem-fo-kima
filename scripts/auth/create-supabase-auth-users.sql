@@ -4,6 +4,8 @@
 -- Note: Supabase Auth users are created in auth.users table
 -- Password will be hashed automatically by Supabase
 -- User metadata stores the role information
+-- Untuk role ISP, jalankan scripts/auth/map-isp-users.sql agar akun ISP terhubung
+-- ke tepat satu ISP di public.isp_user_accounts.
 
 -- 1. Admin User
 -- Email: admin@kima.local
@@ -27,7 +29,7 @@ INSERT INTO auth.users (
   email_change_token_new,
   email_change
 )
-VALUES (
+SELECT
   '00000000-0000-0000-0000-000000000000',
   gen_random_uuid(),
   'authenticated',
@@ -43,6 +45,10 @@ VALUES (
   '',
   '',
   ''
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM auth.users
+  WHERE email = 'admin@kima.local'
 );
 
 -- 2. Teknisi User
@@ -67,7 +73,7 @@ INSERT INTO auth.users (
   email_change_token_new,
   email_change
 )
-VALUES (
+SELECT
   '00000000-0000-0000-0000-000000000000',
   gen_random_uuid(),
   'authenticated',
@@ -83,6 +89,10 @@ VALUES (
   '',
   '',
   ''
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM auth.users
+  WHERE email = 'teknisi@kima.local'
 );
 
 -- 3. ISP User
@@ -107,7 +117,7 @@ INSERT INTO auth.users (
   email_change_token_new,
   email_change
 )
-VALUES (
+SELECT
   '00000000-0000-0000-0000-000000000000',
   gen_random_uuid(),
   'authenticated',
@@ -123,6 +133,10 @@ VALUES (
   '',
   '',
   ''
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM auth.users
+  WHERE email = 'isp@kima.local'
 );
 
 -- Verify users created

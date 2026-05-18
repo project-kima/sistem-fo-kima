@@ -31,6 +31,602 @@ const fetchInChunks = async (items, fetchChunk, size = QUERY_CHUNK_SIZE) => {
   return results;
 };
 
+const getErrorText = (error) => [
+  error?.message,
+  error?.details,
+  error?.hint,
+  error?.code,
+  error?.status,
+].filter(Boolean).join(' ').toLowerCase();
+
+const getApiErrorFields = (text) => {
+  const fields = new Set();
+
+  if (text.includes('email') || text.includes('user already registered') || text.includes('already been registered')) {
+    fields.add('userEmail');
+  }
+  if (text.includes('name') || text.includes('nama')) {
+    fields.add('name');
+  }
+  if (text.includes('customer_code') || text.includes('customer code')) {
+    fields.add('customerCode');
+  }
+  if (text.includes('contract_number') || text.includes('contract number')) {
+    fields.add('contractNumber');
+  }
+  if (text.includes('invoice_number') || text.includes('invoice number')) {
+    fields.add('invoiceNumber');
+  }
+  if (text.includes('nomor_dokumen') || text.includes('document number') || text.includes('dokumen')) {
+    fields.add('documentNumber');
+  }
+  if (text.includes('contract_period_start') || text.includes('period_start') || text.includes('start_date')) {
+    fields.add('contractPeriodStart');
+  }
+  if (text.includes('contract_period_end') || text.includes('period_end') || text.includes('end_date')) {
+    fields.add('contractPeriodEnd');
+  }
+  if (text.includes('isp_id') || text.includes('isp') || text.includes('foreign key')) {
+    fields.add('selectedIspId');
+  }
+
+  return Array.from(fields);
+};
+
+export const getApiErrorDetails = (error, fallbackMessage = 'Terjadi kesalahan. Silakan coba lagi.') => {
+  const text = getErrorText(error);
+  const status = Number(error?.status ?? 0);
+  const code = String(error?.code ?? '');
+  const fields = getApiErrorFields(text);
+
+  if (text.includes('user already registered') || text.includes('already been registered') || text.includes('email address already')) {
+    return {
+      message: 'Email akun sudah terdaftar. Gunakan email lain atau hubungkan data ke akun yang sudah ada.',
+      fields: fields.includes('userEmail') ? fields : ['userEmail'],
+    };
+  }
+
+  if (code === '23505' || status === 409 || text.includes('duplicate key value') || text.includes('already exists')) {
+    if (text.includes('isps') || text.includes('isp')) {
+      return {
+        message: 'Nama atau email ISP sudah terdaftar. Periksa kembali field yang ditandai.',
+        fields: fields.length > 0 ? fields : ['name', 'userEmail'],
+      };
+    }
+    if (text.includes('customers') || text.includes('customer') || text.includes('pelanggan')) {
+      return {
+        message: 'Data pelanggan/lokasi sudah terdaftar. Periksa kembali field yang ditandai.',
+        fields: fields.length > 0 ? fields : ['name'],
+      };
+    }
+    if (text.includes('invoice')) {
+      return {
+        message: 'Data invoice sudah terdaftar. Periksa kembali nomor atau periode invoice.',
+        fields: fields.length > 0 ? fields : ['invoiceNumber'],
+      };
+    }
+    if (text.includes('contract')) {
+      return {
+        message: 'Data kontrak sudah terdaftar. Periksa kembali nomor atau periode kontrak.',
+        fields: fields.length > 0 ? fields : ['contractNumber'],
+      };
+    }
+    if (text.includes('document') || text.includes('dokumen')) {
+      return {
+        message: 'Data dokumen sudah terdaftar. Periksa kembali nomor dokumen yang digunakan.',
+        fields: fields.length > 0 ? fields : ['documentNumber'],
+      };
+    }
+    return {
+      message: 'Data sudah terdaftar. Periksa kembali field yang ditandai.',
+      fields,
+    };
+  }
+
+  if (code === '23503' || text.includes('foreign key')) {
+    return {
+      message: 'Data referensi tidak valid. Pastikan data terkait masih tersedia sebelum menyimpan.',
+      fields: fields.length > 0 ? fields : ['selectedIspId'],
+    };
+  }
+
+  if (code === '23502' || text.includes('not-null') || text.includes('null value')) {
+    return {
+      message: 'Ada data wajib yang belum diisi. Periksa kembali field yang ditandai.',
+      fields,
+    };
+  }
+
+  if (code === '42501' || text.includes('permission denied') || text.includes('row-level security')) {
+    return {
+      message: 'Anda tidak memiliki izin untuk melakukan aksi ini.',
+      fields: [],
+    };
+  }
+
+  if (code === '23514' || text.includes('invalid input') || text.includes('violates check constraint')) {
+    return {
+      message: 'Format data tidak valid. Periksa kembali field yang ditandai.',
+      fields,
+    };
+  }
+
+  return {
+    message: error instanceof Error && error.message ? error.message : fallbackMessage,
+    fields,
+  };
+};
+
+export const formatApiError = (error, fallbackMessage = 'Terjadi kesalahan. Silakan coba lagi.') => getApiErrorDetails(error, fallbackMessage).message;
+
+const getCurrentActor = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return {
+    user,
+    actor: {
+      actor_user_id: user?.id ?? null,
+      actor_email: user?.email ?? null,
+      actor_role: user?.user_metadata?.role ?? 'guest',
+    },
+  };
+};
+
+const getBrowserContext = () => {
+  if (typeof window === 'undefined') return {};
+  return {
+    user_agent: window.navigator?.userAgent ?? null,
+  };
+};
+
+const createActivityLog = async ({ metadata = {}, ...payload }) => {
+  try {
+    const { actor } = await getCurrentActor();
+    if (!actor.actor_user_id) return null;
+
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .insert({
+        ...actor,
+        ...getBrowserContext(),
+        ...payload,
+        entity_id: payload.entity_id !== undefined && payload.entity_id !== null ? String(payload.entity_id) : null,
+        metadata,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Failed to write activity log:', error);
+    return null;
+  }
+};
+
+const pickChangedFields = (before = {}, after = {}, fields = []) => {
+  const changedFields = [];
+  const beforeValues = {};
+  const afterValues = {};
+
+  fields.forEach((field) => {
+    const beforeValue = before?.[field] ?? null;
+    const afterValue = after?.[field] ?? null;
+    if (beforeValue !== afterValue) {
+      changedFields.push(field);
+      beforeValues[field] = beforeValue;
+      afterValues[field] = afterValue;
+    }
+  });
+
+  return {
+    changed_fields: changedFields,
+    before: beforeValues,
+    after: afterValues,
+  };
+};
+
+const ACTIVITY_ENTITY_CONFIG = {
+  isps: { entityType: 'isp', nameFields: ['name'] },
+  customers: { entityType: 'customer', nameFields: ['name'] },
+  contracts: { entityType: 'contract', nameFields: ['contract_number'] },
+  invoices: { entityType: 'invoice', nameFields: ['invoice_number'] },
+  documents: { entityType: 'document', nameFields: ['nomor_dokumen', 'jenis_dokumen'] },
+  customer_route_versions: { entityType: 'route', nameFields: ['version_name', 'status'] },
+};
+
+const getEntityDisplayName = (row, fallback = 'Data') => {
+  if (!row) return fallback;
+  return row.name
+    ?? row.contract_number
+    ?? row.invoice_number
+    ?? row.nomor_dokumen
+    ?? row.jenis_dokumen
+    ?? row.version_name
+    ?? fallback;
+};
+
+const getNotificationSeverityRank = (severity) => ({ critical: 0, warning: 1, info: 2 }[severity] ?? 3);
+
+const mapAlertToNotification = (alert, index) => {
+  const alertCode = alert.code || alert.type || 'notification';
+  const customerId = Number(alert.customerId);
+  const targetTab = alertCode.includes('invoice') || alertCode.includes('payment')
+    ? 'invoices'
+    : alertCode.includes('route')
+      ? 'jalur'
+      : 'overview';
+  const targetPath = Number.isFinite(customerId)
+    ? `/customers/${customerId}${targetTab !== 'overview' ? `?tab=${targetTab}` : ''}`
+    : null;
+
+  return {
+    id: `${alertCode}-${alert.customerId ?? 'general'}-${index}`,
+    source: 'monitoring',
+    type: alert.type || alertCode,
+    code: alertCode,
+    severity: alert.severity || 'warning',
+    title: alert.title || 'Notifikasi',
+    message: alert.message || alert.title || 'Ada data yang perlu ditindaklanjuti.',
+    customerId: Number.isFinite(customerId) ? customerId : null,
+    customerName: alert.customerName || null,
+    actionLabel: targetTab === 'invoices'
+      ? 'Buka Invoice'
+      : targetTab === 'jalur'
+        ? 'Buka Jalur'
+        : 'Buka Detail',
+    targetPath,
+    dueDate: alert.dueDate || null,
+    createdAt: alert.createdAt || new Date().toISOString(),
+    readAt: null,
+    resolvedAt: null,
+  };
+};
+
+const getNotificationTargetPath = (customerId, tab = 'overview') => (
+  customerId ? `/customers/${customerId}${tab !== 'overview' ? `?tab=${tab}` : ''}` : null
+);
+
+const addDaysToIsoDate = (dateValue, dayOffset) => {
+  if (!dateValue) return null;
+  const date = new Date(`${String(dateValue).slice(0, 10)}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + dayOffset);
+  return date.toISOString().slice(0, 10);
+};
+
+const createDerivedNotification = ({ code, type, severity = 'warning', title, message, customerId, customerName, actionLabel = 'Buka Detail', targetTab = 'overview', dueDate = null }) => ({
+  id: `${code}-${customerId ?? 'general'}${dueDate ? `-${dueDate}` : ''}`,
+  source: 'derived',
+  type,
+  code,
+  severity,
+  title,
+  message,
+  customerId: customerId ?? null,
+  customerName: customerName ?? null,
+  actionLabel,
+  targetPath: getNotificationTargetPath(customerId, targetTab),
+  dueDate,
+  createdAt: new Date().toISOString(),
+  readAt: null,
+  resolvedAt: null,
+});
+
+const createIspDerivedNotification = ({ code, type, severity = 'warning', title, message, ispId, ispName, actionLabel = 'Buka ISP' }) => ({
+  id: `${code}-${ispId ?? 'general'}`,
+  source: 'derived',
+  type,
+  code,
+  severity,
+  title,
+  message,
+  customerId: null,
+  ispId: ispId ?? null,
+  customerName: ispName ?? null,
+  actionLabel,
+  targetPath: ispId ? `/isps/${ispId}` : null,
+  dueDate: null,
+  createdAt: new Date().toISOString(),
+  readAt: null,
+  resolvedAt: null,
+});
+
+const getIspDerivedNotifications = async () => {
+  const { data: isps, error } = await supabase
+    .from('isps')
+    .select('id,name,status,contract_reference,contract_start_date,contract_period_start,contract_period_end,bak_file_url,contract_file_url')
+    .is('deleted_at', null);
+
+  if (error) throw error;
+
+  return (isps || []).flatMap((isp) => {
+    const ispId = isp.id;
+    const ispName = isp.name || `ISP #${ispId}`;
+    const ispStatus = String(isp.status || '').trim().toLowerCase();
+    if (['berhenti', 'nonaktif'].includes(ispStatus)) return [];
+
+    const notifications = [];
+    if (!String(isp.contract_reference || '').trim()) {
+      notifications.push(createIspDerivedNotification({
+        code: 'isp_contract_reference_missing',
+        type: 'isp_contract',
+        title: 'Nomor kontrak ISP belum diisi',
+        message: `${ispName} belum memiliki nomor kontrak/referensi kontrak.`,
+        ispId,
+        ispName,
+      }));
+    }
+    if (!isp.contract_start_date) {
+      notifications.push(createIspDerivedNotification({
+        code: 'isp_contract_start_missing',
+        type: 'isp_contract',
+        title: 'Awal kontrak ISP belum diisi',
+        message: `${ispName} belum memiliki tanggal awal kontrak.`,
+        ispId,
+        ispName,
+      }));
+    }
+    if (!isp.contract_period_start || !isp.contract_period_end) {
+      notifications.push(createIspDerivedNotification({
+        code: 'isp_contract_period_missing',
+        type: 'isp_contract',
+        title: 'Periode berjalan ISP belum lengkap',
+        message: `${ispName} belum memiliki periode berjalan awal dan akhir yang lengkap.`,
+        ispId,
+        ispName,
+      }));
+    }
+    if (!String(isp.bak_file_url || '').trim()) {
+      notifications.push(createIspDerivedNotification({
+        code: 'isp_bak_missing',
+        type: 'isp_document',
+        title: 'BAK ISP belum diupload',
+        message: `${ispName} belum memiliki file BAK.`,
+        ispId,
+        ispName,
+        actionLabel: 'Buka Dokumen',
+      }));
+    }
+    if (!String(isp.contract_file_url || '').trim()) {
+      notifications.push(createIspDerivedNotification({
+        code: 'isp_contract_file_missing',
+        type: 'isp_document',
+        title: 'File kontrak ISP belum diupload',
+        message: `${ispName} belum memiliki file kontrak.`,
+        ispId,
+        ispName,
+        actionLabel: 'Buka Dokumen',
+      }));
+    }
+
+    return notifications;
+  });
+};
+
+const getDerivedNotifications = async () => {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const { data: customers, error } = await supabase
+    .from('customers')
+    .select(`
+      id,
+      name,
+      status,
+      activation_fee_amount,
+      activation_fee_paid_at,
+      contracts(id, contract_number, status),
+      invoices(id, invoice_number, amount, due_date, period_end_date, status, payment_proof_file_url, invoice_file_url, schedule_status),
+      routeVersions:customer_route_versions(version_number, flow_status, created_at)
+    `)
+    .is('deleted_at', null);
+
+  if (error) throw error;
+
+  return (customers || []).flatMap((customer) => {
+    const customerId = customer.id;
+    const customerName = customer.name || `Pelanggan #${customerId}`;
+    const customerStatus = String(customer.status || '').trim().toLowerCase();
+    const notifications = [];
+
+    if (customerStatus === 'aktif' && Number(customer.activation_fee_amount || 0) > 0 && !customer.activation_fee_paid_at) {
+      notifications.push(createDerivedNotification({
+        code: 'activation_fee_unpaid',
+        type: 'activation_fee',
+        severity: 'warning',
+        title: 'Biaya aktivasi belum dibayar',
+        message: `${customerName} masih memiliki biaya aktivasi outstanding.`,
+        customerId,
+        customerName,
+        actionLabel: 'Buka Detail',
+      }));
+    }
+
+    const contracts = Array.isArray(customer.contracts) ? customer.contracts : [];
+    const activeContract = contracts.find((contract) => String(contract.status || '').toLowerCase() === 'aktif') ?? contracts[0];
+    const contractNumber = String(activeContract?.contract_number || '').trim();
+    if (customerStatus === 'aktif' && activeContract && (!contractNumber || contractNumber.startsWith('NO-BAK-'))) {
+      notifications.push(createDerivedNotification({
+        code: 'contract_number_missing',
+        type: 'contract_admin',
+        severity: 'warning',
+        title: 'Nomor kontrak belum diisi',
+        message: `${customerName} belum memiliki nomor kontrak final.`,
+        customerId,
+        customerName,
+        actionLabel: 'Buka Kontrak',
+        targetTab: 'contracts',
+      }));
+    }
+
+    const latestRoute = Array.isArray(customer.routeVersions)
+      ? [...customer.routeVersions].sort((left, right) => {
+        const versionDiff = Number(right.version_number ?? 0) - Number(left.version_number ?? 0);
+        if (versionDiff !== 0) return versionDiff;
+        return new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
+      })[0]
+      : null;
+    if (customerStatus === 'aktif' && !latestRoute?.flow_status) {
+      notifications.push(createDerivedNotification({
+        code: 'missing_route',
+        type: 'route_setup',
+        severity: 'warning',
+        title: 'Data jalur belum lengkap',
+        message: `${customerName} belum memiliki data jalur aktif.`,
+        customerId,
+        customerName,
+        actionLabel: 'Buka Jalur',
+        targetTab: 'jalur',
+      }));
+    }
+
+    const invoices = Array.isArray(customer.invoices) ? customer.invoices : [];
+    invoices
+      .filter((invoice) => invoice.schedule_status !== 'inactive' && ['belum_bayar', 'terlambat', 'belum_ditagih'].includes(String(invoice.status || '').toLowerCase()))
+      .forEach((invoice) => {
+        const dueDate = invoice.due_date || invoice.period_end_date || null;
+        const amount = Number(invoice.amount || 0);
+        const hasInvoiceFile = Boolean(String(invoice.invoice_file_url || '').trim());
+        const hasPaymentProof = Boolean(String(invoice.payment_proof_file_url || '').trim());
+
+        if (!dueDate || amount <= 0) {
+          notifications.push(createDerivedNotification({
+            code: 'invoice_setup_incomplete',
+            type: 'invoice_setup',
+            severity: 'warning',
+            title: 'Lengkapi set date dan jumlah dibayar',
+            message: `${customerName} memiliki invoice yang belum lengkap tanggal jatuh tempo atau nominalnya.`,
+            customerId,
+            customerName,
+            actionLabel: 'Buka Invoice',
+            targetTab: 'invoices',
+          }));
+        }
+
+        const reminderDate = addDaysToIsoDate(dueDate, -7);
+        if (dueDate && reminderDate && reminderDate <= todayIso && !hasInvoiceFile && !hasPaymentProof) {
+          notifications.push(createDerivedNotification({
+            code: 'invoice_h_minus_7',
+            type: 'invoice_reminder',
+            severity: 'warning',
+            title: 'Peringatan H-7 pembayaran',
+            message: `${customerName} mendekati jatuh tempo. Upload invoice pembayaran diperlukan.`,
+            customerId,
+            customerName,
+            actionLabel: 'Buka Invoice',
+            targetTab: 'invoices',
+            dueDate,
+          }));
+        }
+      });
+
+    return notifications;
+  });
+};
+
+const upsertNotificationState = async (notificationKey, values) => {
+  const { user } = await getCurrentActor();
+  if (!user?.id || !notificationKey) return null;
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('notification_states')
+    .upsert({
+      notification_key: notificationKey,
+      actor_user_id: user.id,
+      ...values,
+      updated_at: now,
+    }, { onConflict: 'notification_key,actor_user_id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+const notificationsApi = {
+  async list({ year = new Date().getUTCFullYear(), limit = 30, includeResolved = false } = {}) {
+    const { user } = await getCurrentActor();
+    const [result, customerDerivedNotifications, ispDerivedNotifications] = await Promise.all([
+      monitoringApi.getAlerts({ year }),
+      getDerivedNotifications(),
+      getIspDerivedNotifications(),
+    ]);
+    const alerts = Array.isArray(result) ? result : (result?.alerts ?? []);
+    const notifications = [
+      ...alerts.map(mapAlertToNotification),
+      ...customerDerivedNotifications,
+      ...ispDerivedNotifications,
+    ];
+    const notificationKeys = notifications.map((item) => item.id);
+    let stateByKey = new Map();
+
+    if (user?.id && notificationKeys.length > 0) {
+      const { data: states, error: statesError } = await supabase
+        .from('notification_states')
+        .select('notification_key,read_at,resolved_at')
+        .eq('actor_user_id', user.id)
+        .in('notification_key', notificationKeys);
+
+      if (statesError) throw statesError;
+      stateByKey = new Map((states || []).map((state) => [state.notification_key, state]));
+    }
+
+    return notifications
+      .map((notification) => {
+        const state = stateByKey.get(notification.id);
+        return {
+          ...notification,
+          readAt: state?.read_at ?? null,
+          resolvedAt: state?.resolved_at ?? null,
+        };
+      })
+      .filter((notification) => includeResolved || !notification.resolvedAt)
+      .sort((left, right) => {
+        const unreadDiff = Number(Boolean(left.readAt)) - Number(Boolean(right.readAt));
+        if (unreadDiff !== 0) return unreadDiff;
+        const severityDiff = getNotificationSeverityRank(left.severity) - getNotificationSeverityRank(right.severity);
+        if (severityDiff !== 0) return severityDiff;
+        return String(left.customerName || '').localeCompare(String(right.customerName || ''));
+      })
+      .slice(0, limit);
+  },
+
+  async markRead(notificationKey) {
+    return upsertNotificationState(notificationKey, { read_at: new Date().toISOString() });
+  },
+
+  async markResolved(notificationKey) {
+    const now = new Date().toISOString();
+    return upsertNotificationState(notificationKey, { read_at: now, resolved_at: now });
+  },
+};
+
+const activityLogsApi = {
+  async list({ search = '', entityType = '', action = '', dateFrom = '', dateTo = '', limit = 100 } = {}) {
+    let query = supabase
+      .from('activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (entityType) query = query.eq('entity_type', entityType);
+    if (action) query = query.eq('action', action);
+    if (dateFrom) query = query.gte('created_at', `${dateFrom}T00:00:00.000Z`);
+    if (dateTo) query = query.lte('created_at', `${dateTo}T23:59:59.999Z`);
+    if (search.trim()) {
+      const term = `%${search.trim()}%`;
+      query = query.or(`actor_email.ilike.${term},action.ilike.${term},entity_name.ilike.${term},description.ilike.${term}`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async create(payload) {
+    return createActivityLog(payload);
+  },
+};
+
 // ============================================================================
 // CUSTOMERS API
 // ============================================================================
@@ -406,6 +1002,7 @@ export const customersApi = {
           isp:isps(id,name,status,logo_url)
         )
       `, { count: 'exact' })
+      .is('deleted_at', null)
       .order('name', { ascending: true })
       .range(from, to);
 
@@ -630,11 +1227,32 @@ export const customersApi = {
       throw relatedError;
     }
 
+    await createActivityLog({
+      action: 'customer.created',
+      entity_type: 'customer',
+      entity_id: data.id,
+      entity_name: data.name,
+      description: `Menambahkan pelanggan baru ${data.name}`,
+      metadata: {
+        customer_code: data.customer_code,
+        isp_name: data.isp_name,
+        status: data.status,
+      },
+    });
+
     return data;
   },
 
   // Update customer
   async update(id, customerData) {
+    const { data: previousCustomer, error: previousError } = await supabase
+      .from('customers')
+      .select('id,name,status,isp_name,customer_code')
+      .eq('id', id)
+      .single();
+
+    if (previousError) throw previousError;
+
     const { data, error } = await supabase
       .from('customers')
       .update({
@@ -647,17 +1265,56 @@ export const customersApi = {
       .single();
 
     if (error) throw error;
+
+    const statusChanged = previousCustomer?.status !== data?.status;
+    await createActivityLog({
+      action: statusChanged ? 'customer.status_changed' : 'customer.updated',
+      entity_type: 'customer',
+      entity_id: data.id,
+      entity_name: data.name,
+      description: statusChanged
+        ? `Mengubah status pelanggan ${data.name}`
+        : `Mengubah data pelanggan ${data.name}`,
+      metadata: pickChangedFields(previousCustomer, data, ['name', 'status', 'isp_name', 'customer_code']),
+    });
+
     return data;
   },
 
-  // Delete customer
+  // Delete customer (soft delete)
   async delete(id) {
+    const { user } = await getCurrentActor();
+    const deletedAt = new Date().toISOString();
+    const { data: previousCustomer, error: previousError } = await supabase
+      .from('customers')
+      .select('id,name,status,isp_name,customer_code')
+      .eq('id', id)
+      .single();
+
+    if (previousError) throw previousError;
+
     const { error } = await supabase
       .from('customers')
-      .delete()
+      .update({
+        deleted_at: deletedAt,
+        deleted_by: user?.id
+      })
       .eq('id', id);
 
     if (error) throw error;
+
+    await createActivityLog({
+      action: 'customer.deleted',
+      entity_type: 'customer',
+      entity_id: id,
+      entity_name: previousCustomer?.name,
+      description: `Menghapus pelanggan ${previousCustomer?.name || id}`,
+      metadata: {
+        before: previousCustomer,
+        deleted_at: deletedAt,
+        deleted_by: user?.id ?? null,
+      },
+    });
   },
 };
 
@@ -709,7 +1366,13 @@ const mapIspPayload = (ispData = {}) => {
   if (Object.prototype.hasOwnProperty.call(ispData, 'contract_period_start')) payload.contract_period_start = ispData.contract_period_start || null;
   if (Object.prototype.hasOwnProperty.call(ispData, 'contractPeriodEnd')) payload.contract_period_end = ispData.contractPeriodEnd || null;
   if (Object.prototype.hasOwnProperty.call(ispData, 'contract_period_end')) payload.contract_period_end = ispData.contract_period_end || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'bakFileDataUrl')) payload.bak_file_url = ispData.bakFileDataUrl || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'bakFileUrl')) payload.bak_file_url = ispData.bakFileUrl || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'bak_file_url')) payload.bak_file_url = ispData.bak_file_url || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'bakFileName')) payload.bak_file_name = ispData.bakFileName || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'bak_file_name')) payload.bak_file_name = ispData.bak_file_name || null;
   if (Object.prototype.hasOwnProperty.call(ispData, 'contractFileDataUrl')) payload.contract_file_url = ispData.contractFileDataUrl || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'contractFileUrl')) payload.contract_file_url = ispData.contractFileUrl || null;
   if (Object.prototype.hasOwnProperty.call(ispData, 'contract_file_url')) payload.contract_file_url = ispData.contract_file_url || null;
   if (Object.prototype.hasOwnProperty.call(ispData, 'contractFileName')) payload.contract_file_name = ispData.contractFileName || null;
   if (Object.prototype.hasOwnProperty.call(ispData, 'contract_file_name')) payload.contract_file_name = ispData.contract_file_name || null;
@@ -723,6 +1386,11 @@ const mapIspPayload = (ispData = {}) => {
   if (Object.prototype.hasOwnProperty.call(ispData, 'billing_period_mode')) payload.billing_period_mode = ispData.billing_period_mode || 'monthly';
   if (Object.prototype.hasOwnProperty.call(ispData, 'activationFeeAmount')) payload.activation_fee_amount = Number(ispData.activationFeeAmount || 0);
   if (Object.prototype.hasOwnProperty.call(ispData, 'activation_fee_amount')) payload.activation_fee_amount = Number(ispData.activation_fee_amount || 0);
+  if (Object.prototype.hasOwnProperty.call(ispData, 'userEmail')) payload.user_id = ispData.userEmail || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'user_id')) payload.user_id = ispData.user_id || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'passwordPlain')) payload.password_plain = ispData.passwordPlain || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'userPassword')) payload.password_plain = ispData.userPassword || null;
+  if (Object.prototype.hasOwnProperty.call(ispData, 'password_plain')) payload.password_plain = ispData.password_plain || null;
 
   return payload;
 };
@@ -731,6 +1399,21 @@ const mapIsp = (isp) => isp ? ({
   ...isp,
   logoUrl: isp.logoUrl ?? isp.logo_url ?? null,
   contractReference: isp.contractReference ?? isp.contract_reference ?? null,
+  contractStartDate: isp.contractStartDate ?? isp.contract_start_date ?? null,
+  contractPeriodStart: isp.contractPeriodStart ?? isp.contract_period_start ?? null,
+  contractPeriodEnd: isp.contractPeriodEnd ?? isp.contract_period_end ?? null,
+  bakFileUrl: isp.bakFileUrl ?? isp.bak_file_url ?? null,
+  bakFileName: isp.bakFileName ?? isp.bak_file_name ?? null,
+  contractFileUrl: isp.contractFileUrl ?? isp.contract_file_url ?? null,
+  contractFileName: isp.contractFileName ?? isp.contract_file_name ?? null,
+  userId: isp.userId ?? isp.user_id ?? null,
+  userEmail: isp.userEmail ?? isp.user_id ?? null,
+  passwordPlain: isp.passwordPlain ?? isp.password_plain ?? null,
+  accountMappings: Array.isArray(isp.accountMappings)
+    ? isp.accountMappings
+    : Array.isArray(isp.isp_user_accounts)
+      ? isp.isp_user_accounts
+      : [],
 }) : isp;
 
 export const ispsApi = {
@@ -738,7 +1421,8 @@ export const ispsApi = {
   async getAll() {
     const { data, error } = await supabase
       .from('isps')
-      .select('id,name,status,logo_url,contract_reference,contract_start_date,contract_period_start,contract_period_end,paket,jumlah,billing_period_mode,activation_fee_amount,created_at,updated_at')
+      .select('id,name,status,logo_url,contract_reference,contract_start_date,contract_period_start,contract_period_end,bak_file_url,bak_file_name,contract_file_url,contract_file_name,paket,jumlah,billing_period_mode,activation_fee_amount,created_at,updated_at,user_id,password_plain')
+      .is('deleted_at', null)
       .order('name', { ascending: true });
 
     if (error) throw error;
@@ -755,6 +1439,7 @@ export const ispsApi = {
           *,
           renewalFollowUps:isp_renewal_follow_ups(*)
         ),
+        accountMappings:isp_user_accounts(*),
         customerMemberships:customer_isp_memberships(
           customer:customers(
             *,
@@ -795,11 +1480,51 @@ export const ispsApi = {
       .single();
 
     if (error) throw error;
+
+    let authAccountRequested = false;
+    if (ispData.userEmail && ispData.userPassword) {
+      authAccountRequested = true;
+      try {
+        const { error: rpcError } = await supabase.rpc('upsert_isp_account', {
+          p_isp_id: data.id,
+          p_email: ispData.userEmail.trim().toLowerCase(),
+          p_password: ispData.userPassword,
+          p_name: ispData.name
+        });
+        if (rpcError) {
+          console.error('Failed to create ISP account via RPC:', rpcError);
+        }
+      } catch (err) {
+        console.error('Failed to create ISP account via RPC (exception):', err);
+      }
+    }
+
+    await createActivityLog({
+      action: 'isp.created',
+      entity_type: 'isp',
+      entity_id: data.id,
+      entity_name: data.name,
+      description: `Menambahkan ISP ${data.name}`,
+      metadata: {
+        status: data.status,
+        auth_account_requested: authAccountRequested,
+        auth_account_email: ispData.userEmail ? ispData.userEmail.trim().toLowerCase() : null,
+      },
+    });
+
     return data;
   },
 
   // Update ISP
   async update(id, ispData) {
+    const { data: previousIsp, error: previousError } = await supabase
+      .from('isps')
+      .select('id,name,status,contract_reference,contract_start_date,contract_period_start,contract_period_end,paket,jumlah,billing_period_mode,activation_fee_amount,user_id')
+      .eq('id', id)
+      .single();
+
+    if (previousError) throw previousError;
+
     const { data, error } = await supabase
       .from('isps')
       .update({
@@ -811,17 +1536,105 @@ export const ispsApi = {
       .single();
 
     if (error) throw error;
+
+    let authAccountSynced = false;
+    if (ispData.userEmail) {
+      try {
+        const { error: rpcError } = await supabase.rpc('upsert_isp_account', {
+          p_isp_id: id,
+          p_email: ispData.userEmail.trim().toLowerCase(),
+          p_password: ispData.userPassword || null,
+          p_name: ispData.name || data.name
+        });
+        if (rpcError) {
+          console.error('Failed to upsert ISP account via RPC:', rpcError);
+          throw new Error('Gagal sinkronisasi akun login: ' + rpcError.message);
+        }
+        authAccountSynced = true;
+      } catch (err) {
+        console.error('Failed to upsert ISP account via RPC (exception):', err);
+        throw err instanceof Error ? err : new Error('Gagal sinkronisasi akun login.');
+      }
+    }
+
+    await createActivityLog({
+      action: 'isp.updated',
+      entity_type: 'isp',
+      entity_id: data.id,
+      entity_name: data.name,
+      description: `Mengubah data ISP ${data.name}`,
+      metadata: {
+        ...pickChangedFields(previousIsp, data, ['name', 'status', 'contract_reference', 'contract_start_date', 'contract_period_start', 'contract_period_end', 'paket', 'jumlah', 'billing_period_mode', 'activation_fee_amount', 'user_id']),
+        auth_account_synced: authAccountSynced,
+        auth_account_email: ispData.userEmail ? ispData.userEmail.trim().toLowerCase() : null,
+      },
+    });
+
     return data;
   },
 
-  // Delete ISP
+  // Delete ISP (soft delete with cascade to customers)
   async delete(id) {
+    const { user } = await getCurrentActor();
+    const now = new Date().toISOString();
+    const { data: previousIsp, error: previousError } = await supabase
+      .from('isps')
+      .select('id,name,status,user_id')
+      .eq('id', id)
+      .single();
+
+    if (previousError) throw previousError;
+
+    // Step 1: Get all customers related to this ISP via memberships
+    const { data: memberships, error: membershipError } = await supabase
+      .from('customer_isp_memberships')
+      .select('customer_id')
+      .eq('isp_id', id);
+
+    if (membershipError) throw membershipError;
+
+    const customerIds = memberships?.map(m => m.customer_id) || [];
+
+    // Step 2: Soft delete all related customers
+    if (customerIds.length > 0) {
+      const { error: customersError } = await supabase
+        .from('customers')
+        .update({ 
+          deleted_at: now,
+          deleted_by: user?.id 
+        })
+        .in('id', customerIds);
+
+      if (customersError) throw customersError;
+    }
+
+    // Step 3: Soft delete the ISP
     const { error } = await supabase
       .from('isps')
-      .delete()
+      .update({ 
+        deleted_at: now,
+        deleted_by: user?.id 
+      })
       .eq('id', id);
 
     if (error) throw error;
+
+    await createActivityLog({
+      action: 'isp.deleted',
+      entity_type: 'isp',
+      entity_id: id,
+      entity_name: previousIsp?.name,
+      description: `Menghapus ISP ${previousIsp?.name || id}`,
+      metadata: {
+        before: previousIsp,
+        deleted_at: now,
+        deleted_by: user?.id ?? null,
+        deleted_customers_count: customerIds.length,
+        deleted_customer_ids: customerIds,
+      },
+    });
+
+    return { deletedCustomersCount: customerIds.length };
   },
 };
 
@@ -2022,6 +2835,167 @@ export const ispRenewalFollowUpsApi = {
   },
 };
 
+// ============================================================================
+// TRASH API (Soft Delete Management)
+// ============================================================================
+
+export const trashApi = {
+  // Get all soft-deleted items
+  async list() {
+    const [isps, customers, contracts, invoices, documents, routes] = await Promise.all([
+      supabase
+        .from('isps')
+        .select('id, name, status, created_at, deleted_at, deleted_by')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false }),
+      
+      supabase
+        .from('customers')
+        .select('id, name, customer_code, isp_name, status, created_at, deleted_at, deleted_by')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false }),
+      
+      supabase
+        .from('contracts')
+        .select('id, contract_number, customer_id, start_date, end_date, created_at, deleted_at, deleted_by, customers(name)')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false }),
+      
+      supabase
+        .from('invoices')
+        .select('id, invoice_number, customer_id, period_year, period_month, amount, created_at, deleted_at, deleted_by, customers(name)')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false }),
+      
+      supabase
+        .from('documents')
+        .select('id, nomor_dokumen, jenis_dokumen, customer_id, file_url, created_at, deleted_at, deleted_by, customers(name)')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false }),
+      
+      supabase
+        .from('customer_route_versions')
+        .select('id, version_name, customer_id, status, created_at, deleted_at, deleted_by, customers(name)')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false }),
+    ]);
+
+    return {
+      isps: isps.data || [],
+      customers: customers.data || [],
+      contracts: contracts.data || [],
+      invoices: invoices.data || [],
+      documents: documents.data || [],
+      routes: routes.data || [],
+    };
+  },
+
+  // Restore item (set deleted_at to null)
+  async restore(table, id) {
+    const config = ACTIVITY_ENTITY_CONFIG[table];
+    let previousItem = null;
+
+    if (config) {
+      const { data, error: previousError } = await supabase
+        .from(table)
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (previousError) throw previousError;
+      previousItem = data;
+    }
+
+    const { error } = await supabase
+      .from(table)
+      .update({ deleted_at: null, deleted_by: null })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    if (config) {
+      const entityName = getEntityDisplayName(previousItem, `${config.entityType} ${id}`);
+      await createActivityLog({
+        action: `${config.entityType}.restored`,
+        entity_type: config.entityType,
+        entity_id: id,
+        entity_name: entityName,
+        description: `Memulihkan ${entityName} dari Trash`,
+        metadata: {
+          table,
+          before: previousItem,
+        },
+      });
+    }
+  },
+
+  // Permanent delete (hard delete from database)
+  async deletePermanently(table, id) {
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+
+  // Empty trash (delete all soft-deleted items permanently)
+  async emptyTrash() {
+    const tables = ['isps', 'customers', 'contracts', 'invoices', 'documents', 'customer_route_versions'];
+    
+    const results = await Promise.allSettled(
+      tables.map(table =>
+        supabase
+          .from(table)
+          .delete()
+          .not('deleted_at', 'is', null)
+      )
+    );
+
+    const errors = results.filter(r => r.status === 'rejected');
+    if (errors.length > 0) {
+      throw new Error(`Failed to empty trash: ${errors.map(e => e.reason).join(', ')}`);
+    }
+
+    return { success: true };
+  },
+
+  // Get trash statistics
+  async getStats() {
+    const [isps, customers, contracts, invoices, documents, routes] = await Promise.all([
+      supabase.from('isps').select('id', { count: 'exact', head: true }).not('deleted_at', 'is', null),
+      supabase.from('customers').select('id', { count: 'exact', head: true }).not('deleted_at', 'is', null),
+      supabase.from('contracts').select('id', { count: 'exact', head: true }).not('deleted_at', 'is', null),
+      supabase.from('invoices').select('id', { count: 'exact', head: true }).not('deleted_at', 'is', null),
+      supabase.from('documents').select('id', { count: 'exact', head: true }).not('deleted_at', 'is', null),
+      supabase.from('customer_route_versions').select('id', { count: 'exact', head: true }).not('deleted_at', 'is', null),
+    ]);
+
+    // Get last cleared timestamp (oldest deleted_at)
+    const { data: lastCleared } = await supabase
+      .from('isps')
+      .select('deleted_at')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: true })
+      .limit(1)
+      .single();
+
+    return {
+      lastClearedAt: lastCleared?.deleted_at || new Date().toISOString(),
+      totalItems: (isps.count || 0) + (customers.count || 0) + (contracts.count || 0) + 
+                  (invoices.count || 0) + (documents.count || 0) + (routes.count || 0),
+      breakdown: {
+        ISP: isps.count || 0,
+        Lokasi: customers.count || 0,
+        Kontrak: contracts.count || 0,
+        Invoice: invoices.count || 0,
+        Dokumen: documents.count || 0,
+        Jalur: routes.count || 0,
+      }
+    };
+  },
+};
+
 // Export all APIs
 export default {
   customers: customersApi,
@@ -2035,6 +3009,9 @@ export default {
   customerIspMemberships: customerIspMembershipsApi,
   invoiceFollowUps: invoiceFollowUpsApi,
   contractVersionRenewalFollowUps: contractVersionRenewalFollowUpsApi,
+  trash: trashApi,
+  notifications: notificationsApi,
+  activityLogs: activityLogsApi,
   ispContractRows: ispContractRowsApi,
   ispRenewalFollowUps: ispRenewalFollowUpsApi,
 };

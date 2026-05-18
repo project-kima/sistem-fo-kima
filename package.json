@@ -1,0 +1,27 @@
+{
+  "name": "sistem-fo-kima",
+  "version": "1.0.0",
+  "description": "Sistem arsip dokumen dan monitoring tenant berbasis web untuk pengelolaan ISP, pelanggan, kontrak, invoice, dan jalur fiber optik KIMA.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/project-kima/sistem-fo-kima.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/project-kima/sistem-fo-kima/issues"
+  },
+  "homepage": "https://github.com/project-kima/sistem-fo-kima#readme",
+  "dependencies": {
+    "pg": "^8.20.0"
+  }
+}

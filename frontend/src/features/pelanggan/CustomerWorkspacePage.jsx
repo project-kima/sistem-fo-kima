@@ -29,6 +29,41 @@ const isTenantActive = (tenant, todayIso) => getTenantOperationalStatus(tenant, 
 const resolveTenantRouteStatus = (tenant, todayIso) => getTenantOperationalStatus(tenant, todayIso) === "berhenti"
     ? "nonaktif"
     : String(tenant?.routeStatus || "aktif").trim().toLowerCase();
+const getIspActionCounts = (isp, notificationCountsByIspId = {}) => {
+    const ispId = Number(isp?.id);
+    const notificationCounts = Number.isFinite(ispId) ? notificationCountsByIspId[ispId] : null;
+    const activeNotificationCount = Number(notificationCounts?.active ?? 0);
+    const unreadNotificationCount = Number(notificationCounts?.unread ?? 0);
+
+    return {
+        priority: unreadNotificationCount,
+        needAction: Math.max(activeNotificationCount - unreadNotificationCount, 0),
+        total: activeNotificationCount,
+    };
+};
+
+const getTenantActionCounts = (tenant, notificationCountsByCustomerId = {}) => {
+    const customerId = Number(tenant?.id);
+    const notificationCounts = Number.isFinite(customerId) ? notificationCountsByCustomerId[customerId] : null;
+    const activeNotificationCount = Number(notificationCounts?.active ?? 0);
+    const unreadNotificationCount = Number(notificationCounts?.unread ?? 0);
+
+    if (activeNotificationCount > 0) {
+        return {
+            priority: unreadNotificationCount,
+            needAction: Math.max(activeNotificationCount - unreadNotificationCount, 0),
+            total: activeNotificationCount,
+        };
+    }
+
+    const priority = Number(tenant?.todoSummary?.counts?.priority ?? 0);
+    const needAction = Number(tenant?.todoSummary?.counts?.needAction ?? 0);
+    return {
+        priority,
+        needAction,
+        total: priority + needAction,
+    };
+};
 
 // --- Custom UI Components ---
 const CustomSelect = ({ value, onChange, options, icon, label }) => {
@@ -111,6 +146,8 @@ function CustomerWorkspacePage({
     activeSection,
     customers,
     customersPageInfo = null,
+    notificationCountsByCustomerId = {},
+    notificationCountsByIspId = {},
     isps,
     error,
     secondaryError,
@@ -177,9 +214,8 @@ function CustomerWorkspacePage({
 
             const contractStatusKey = getTenantOperationalStatus(tenant, todayIso);
             const tenantRouteStatus = resolveTenantRouteStatus(tenant, todayIso);
-            const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-            const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-            const todoStatusKey = priorityCount + needActionCount > 0 ? "perlu_tindakan" : "tidak_ada";
+            const actionCounts = getTenantActionCounts(tenant, notificationCountsByCustomerId);
+            const todoStatusKey = actionCounts.total > 0 ? "perlu_tindakan" : "tidak_ada";
 
             const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
             const matchesContractStatus = contractStatusFilter === "all" ? true : contractStatusKey === contractStatusFilter;
@@ -188,7 +224,7 @@ function CustomerWorkspacePage({
 
             return matchesSearch && matchesContractStatus && matchesRouteStatus && matchesTodo;
         });
-    }, [customers, listType, normalizedSearch, contractStatusFilter, routeStatusFilter, todoFilter, todayIso]);
+    }, [customers, listType, normalizedSearch, contractStatusFilter, routeStatusFilter, todoFilter, todayIso, notificationCountsByCustomerId]);
 
     // --- LOGIC: Groups & Tenants ---
     const allGroups = useMemo(() => {
@@ -198,29 +234,25 @@ function CustomerWorkspacePage({
             .map((isp) => {
                 const tenants = filteredTenants.filter(t => Array.isArray(t.ispList) && t.ispList.includes(isp.name));
 
-                const actionTenantCount = tenants.filter((tenant) => {
-                    const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                    const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                    return priorityCount + needActionCount > 0;
-                }).length;
-
-                const totalActionCount = tenants.reduce((total, tenant) => {
-                    const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                    const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                    return total + priorityCount + needActionCount;
-                }, 0);
+                const ispActionCounts = getIspActionCounts(isp, notificationCountsByIspId);
+                const actionTenantCount = tenants.filter((tenant) => getTenantActionCounts(tenant, notificationCountsByCustomerId).total > 0).length;
+                const tenantActionCount = tenants.reduce((total, tenant) => total + getTenantActionCounts(tenant, notificationCountsByCustomerId).total, 0);
+                const totalActionCount = tenantActionCount + ispActionCounts.total;
 
                 return {
                     ...isp,
                     tenants: tenants.sort((a, b) => a.name.localeCompare(b.name)),
                     activeTenantCount: tenants.filter((tenant) => isTenantActive(tenant, todayIso)).length,
-                    actionTenantCount,
+                    actionTenantCount: actionTenantCount + (ispActionCounts.total > 0 ? 1 : 0),
+                    ispActionCounts,
+                    tenantActionCount,
                     totalActionCount,
                 };
             })
             .filter((group) => {
                 // Keep group if it has matching tenants
                 if (group.tenants.length > 0) return true;
+                if (group.ispActionCounts?.total > 0 && todoFilter !== "tidak_ada") return true;
                 // Or if it matches the general "show empty" criteria
                 if (!shouldIncludeEmptyIspGroups) return false;
                 // If search is active, only show empty group if the ISP name itself matches the search
@@ -243,16 +275,8 @@ function CustomerWorkspacePage({
                 contractReference: "Kumpulan lokasi yang belum terhubung ke ISP master",
                 tenants: otherTenants.sort((a, b) => a.name.localeCompare(b.name)),
                 activeTenantCount: otherTenants.filter((tenant) => isTenantActive(tenant, todayIso)).length,
-                actionTenantCount: otherTenants.filter((tenant) => {
-                    const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                    const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                    return priorityCount + needActionCount > 0;
-                }).length,
-                totalActionCount: otherTenants.reduce((total, tenant) => {
-                    const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-                    const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-                    return total + priorityCount + needActionCount;
-                }, 0),
+                actionTenantCount: otherTenants.filter((tenant) => getTenantActionCounts(tenant, notificationCountsByCustomerId).total > 0).length,
+                totalActionCount: otherTenants.reduce((total, tenant) => total + getTenantActionCounts(tenant, notificationCountsByCustomerId).total, 0),
             });
         }
 
@@ -267,7 +291,7 @@ function CustomerWorkspacePage({
             // Default: newest first
             return b.id - a.id;
         });
-    }, [filteredIsps, filteredTenants, shouldIncludeEmptyIspGroups, normalizedSearch, ispSortMethod, todayIso]);
+    }, [filteredIsps, filteredTenants, shouldIncludeEmptyIspGroups, normalizedSearch, ispSortMethod, todayIso, notificationCountsByCustomerId, notificationCountsByIspId, todoFilter]);
 
     const totalPages = Math.ceil(allGroups.length / itemsPerPage);
     const paginatedGroups = useMemo(() => {
@@ -280,11 +304,8 @@ function CustomerWorkspacePage({
     const totalStoppedTenants = customers.filter((tenant) => getTenantOperationalStatus(tenant, todayIso) === "berhenti").length;
     const filteredTenantCount = allGroups.reduce((total, group) => total + group.tenants.length, 0);
     const totalFilteredActionCount = allGroups.reduce((total, group) => total + (group.totalActionCount || 0), 0);
-    const totalGlobalActionCount = customers.reduce((total, tenant) => {
-        const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-        const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-        return total + priorityCount + needActionCount;
-    }, 0);
+    const totalGlobalActionCount = customers.reduce((total, tenant) => total + getTenantActionCounts(tenant, notificationCountsByCustomerId).total, 0)
+        + isps.reduce((total, isp) => total + getIspActionCounts(isp, notificationCountsByIspId).total, 0);
     const isAnyFilterActive = Boolean(normalizedSearch)
         || contractStatusFilter !== "all"
         || routeStatusFilter !== "all"
@@ -331,14 +352,20 @@ function CustomerWorkspacePage({
 
     const handleDeleteIsp = async (group) => {
         const confirmDelete = window.confirm(
-            `Apakah Anda yakin ingin menghapus ISP"${group.name}"?`,
+            `PERINGATAN: Menghapus ISP "${group.name}" akan menghapus SEMUA pelanggan yang terkait!\n\nApakah Anda yakin ingin melanjutkan?`,
         );
         if (!confirmDelete) return;
 
         try {
-            await api.isps.delete(group.id);
-
-            alert("ISP berhasil dihapus.");
+            const result = await api.isps.delete(group.id);
+            const deletedCount = result?.deletedCustomersCount || 0;
+            
+            if (deletedCount > 0) {
+                alert(`ISP berhasil dihapus bersama ${deletedCount} pelanggan terkait.`);
+            } else {
+                alert("ISP berhasil dihapus.");
+            }
+            
             onRefresh?.();
         } catch (error) {
             console.error(error);
@@ -352,9 +379,7 @@ function CustomerWorkspacePage({
         }
 
         try {
-            // TODO: Implement archive API in Supabase
-            // For now, we can use delete or update status
-            await api.customers.update(tenant.id, { status: 'nonaktif' });
+            await api.customers.delete(tenant.id);
 
             alert("Lokasi berhasil dipindahkan ke sampah.");
             onRefresh?.();
@@ -702,8 +727,10 @@ function CustomerWorkspacePage({
                                                                     </td>
                                                                 </tr>
                                                             ) : (
-                                                                group.tenants.map((tenant) => (
-                                                                    <tr key={`${group.id}-${tenant.id}`} className="hover:bg-white/[0.04] transition-colors group/row">
+                                                                group.tenants.map((tenant) => {
+                                                                    const actionCounts = getTenantActionCounts(tenant, notificationCountsByCustomerId);
+                                                                    return (
+                                                                        <tr key={`${group.id}-${tenant.id}`} className="hover:bg-white/[0.04] transition-colors group/row">
                                                                         <td className="px-10 py-6">
                                                                             <p className="text-sm font-black text-white group-hover/row:text-gold-accent transition-colors">{tenant.name}</p>
                                                                             <p className="text-[10px] font-black text-white/30 tracking-[0.2em] uppercase">{tenant.customerId}</p>
@@ -763,12 +790,12 @@ function CustomerWorkspacePage({
                                                                             <td className="px-10 py-6">
                                                                                 <div className="flex items-center gap-6">
                                                                                     <div className="flex flex-col">
-                                                                                        <span className={`text-sm font-black ${tenant.todoSummary?.counts?.priority > 0 ? "text-red-600" : "text-white"}`}>{tenant.todoSummary?.counts?.priority ?? 0}</span>
+                                                                                        <span className={`text-sm font-black ${actionCounts.priority > 0 ? "text-red-600" : "text-white"}`}>{actionCounts.priority}</span>
                                                                                         <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Prioritas</span>
                                                                                     </div>
                                                                                     <div className="w-px h-8 bg-white/5" />
                                                                                     <div className="flex flex-col">
-                                                                                        <span className="text-sm font-black text-white">{tenant.todoSummary?.counts?.needAction ?? 0}</span>
+                                                                                        <span className="text-sm font-black text-white">{actionCounts.needAction}</span>
                                                                                         <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Tindakan</span>
                                                                                     </div>
                                                                                 </div>
@@ -806,8 +833,9 @@ function CustomerWorkspacePage({
                                                                                 )}
                                                                             </div>
                                                                         </td>
-                                                                    </tr>
-                                                                ))
+                                                                        </tr>
+                                                                    );
+                                                                })
                                                             )}
                                                         </tbody>
                                                     </table>

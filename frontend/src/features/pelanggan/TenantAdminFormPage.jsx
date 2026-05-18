@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import AppShell from "../../components/layout/AppShell";
-import api from "../../lib/api";
+import api, { getApiErrorDetails } from "../../lib/api";
 
-const GlassFieldInput = ({ label, type = "text", value, onChange, placeholder = "", icon }) => {
+const GlassFieldInput = ({ label, type = "text", value, onChange, placeholder = "", icon, min, onKeyDown, error = "" }) => {
     return (
         <div className="space-y-3">
             <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gold-accent/60 ml-1">
@@ -15,15 +15,20 @@ const GlassFieldInput = ({ label, type = "text", value, onChange, placeholder = 
                     </span>
                 )}
                 <input
-                    className={`w-full h-14 rounded-2xl bg-black/20 border border-white/10 ${icon ? "pl-14" : "px-6"} pr-6 text-sm font-bold placeholder:text-white/10 outline-none transition-all focus:bg-black/40 focus:border-gold-accent/40 focus:ring-4 focus:ring-gold-accent/5 shadow-inner-glass ${type === "date" ? "text-white/40 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" : "text-white"} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                    className={`w-full h-14 rounded-2xl bg-black/20 border ${error ? "border-rose-500/70 ring-4 ring-rose-500/10" : "border-white/10 focus:border-gold-accent/40 focus:ring-4 focus:ring-gold-accent/5"} ${icon ? "pl-14" : "px-6"} pr-6 text-sm font-bold placeholder:text-white/10 outline-none transition-all focus:bg-black/40 shadow-inner-glass ${type === "date" ? "text-white/40 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" : "text-white"} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     onChange={(event) => onChange(event.target.value)}
-                    onKeyDown={(e) => type === "date" && e.preventDefault()}
+                    onKeyDown={(e) => {
+                        if (type === "date") e.preventDefault();
+                        if (onKeyDown) onKeyDown(e);
+                    }}
                     onClick={(e) => type === "date" && e.target.showPicker && e.target.showPicker()}
                     placeholder={placeholder}
                     type={type}
                     value={value}
+                    min={min}
                 />
             </div>
+            {error && <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">{error}</p>}
         </div>
     );
 };
@@ -105,6 +110,7 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
     });
     const [selectedIspId, setSelectedIspId] = useState(null);
     const [submitError, setSubmitError] = useState("");
+    const [fieldErrors, setFieldErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // State for Search, Sort and Pagination
@@ -130,7 +136,10 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
         setSelectedIspId(Number(lockedIsp.id));
     }, [isLockedToIsp, lockedIsp]);
 
-    const selectIsp = (ispId) => setSelectedIspId(ispId);
+    const selectIsp = (ispId) => {
+        setSelectedIspId(ispId);
+        setFieldErrors((errors) => ({ ...errors, selectedIspId: "" }));
+    };
 
     const filteredIsps = isps.filter(isp => 
         isp.name.toLowerCase().includes(ispSearchTerm.toLowerCase()) ||
@@ -151,21 +160,26 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
 
     const handleSubmit = async (event) => {
         event.preventDefault();
+        setFieldErrors({});
         if (!form.name.trim()) {
             setSubmitError("Nama lokasi wajib diisi.");
+            setFieldErrors({ name: "Field ini wajib diisi." });
             return;
         }
         if (!isEditMode) {
             if (!selectedIspId) {
                 setSubmitError("Lokasi harus terhubung ke satu ISP.");
+                setFieldErrors({ selectedIspId: "Pilih salah satu ISP." });
                 return;
             }
             if (form.paket === "shared" && (!form.ratioLeft || !form.ratioRight || Number(form.ratioLeft) < 1 || Number(form.ratioRight) < 1)) {
                 setSubmitError("Shared Core ratio tidak valid. Masukkan angka >= 1 di kedua kolom.");
+                setFieldErrors({ ratioLeft: "Minimal 1.", ratioRight: "Minimal 1." });
                 return;
             }
             if (!form.contractPeriodStart || !form.contractPeriodEnd || form.contractPeriodStart > form.contractPeriodEnd) {
                 setSubmitError("Periode kontrak tidak valid.");
+                setFieldErrors({ contractPeriodStart: "Periksa tanggal mulai.", contractPeriodEnd: "Periksa tanggal akhir." });
                 return;
             }
         }
@@ -198,7 +212,10 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
 
             if (onSaved) await onSaved(result);
         } catch (requestError) {
-            setSubmitError(requestError instanceof Error ? requestError.message : `Terjadi kesalahan saat ${isEditMode ? "memperbarui" : "menyimpan"} lokasi.`);
+            console.error(requestError);
+            const errorDetails = getApiErrorDetails(requestError, `Gagal ${isEditMode ? "memperbarui" : "menyimpan"} data lokasi.`);
+            setSubmitError(errorDetails.message);
+            setFieldErrors(Object.fromEntries(errorDetails.fields.map((field) => [field, "Periksa field ini."])));
         } finally {
             setIsSubmitting(false);
         }
@@ -275,12 +292,16 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <GlassFieldInput 
-                                    label="Nama Lokasi" 
+                                <GlassFieldInput
+                                    label="Nama Lokasi"
                                     icon="location_on"
                                     placeholder="Contoh: Gedung A - Lantai 2"
-                                    value={form.name} 
-                                    onChange={(val) => setForm(p => ({ ...p, name: val }))} 
+                                    value={form.name}
+                                    error={fieldErrors.name}
+                                    onChange={(val) => {
+                                        setForm(p => ({ ...p, name: val }));
+                                        setFieldErrors((errors) => ({ ...errors, name: "" }));
+                                    }}
                                 />
                                 <GlassCustomSelect 
                                     label="Status Operasional" 
@@ -305,11 +326,11 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
 
                                 <div className="grid grid-cols-1 gap-8">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <GlassCustomSelect 
-                                            label="Jenis Paket" 
+                                        <GlassCustomSelect
+                                            label="Jenis Paket"
                                             icon="inventory_2"
-                                            value={form.paket} 
-                                            onChange={(val) => setForm(p => ({ ...p, paket: val }))} 
+                                            value={form.paket}
+                                            onChange={(val) => setForm(p => ({ ...p, paket: val }))}
                                             options={[
                                                 { value: "core", label: "CORE" },
                                                 { value: "shared", label: "SHARING CORE" }
@@ -320,20 +341,23 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                                                 label="Jumlah Core" 
                                                 icon="hub"
                                                 type="number"
+                                                min="0"
+                                                onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault(); }}
                                                 placeholder="0"
-                                                value={form.jumlah} 
-                                                onChange={(val) => setForm(p => ({ ...p, jumlah: val }))} 
+                                                value={form.jumlah}
+                                                error={fieldErrors.jumlah}
+                                                onChange={(val) => { if (val === '' || Number(val) >= 0) setForm(p => ({ ...p, jumlah: val })); }}
                                             />
                                         ) : (
                                             <div className="space-y-3">
                                                 <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gold-accent/60 ml-1">Ratio Shared</label>
                                                 <div className="flex items-center gap-4">
                                                     <div className="relative flex-1">
-                                                        <input className="w-full h-14 rounded-2xl bg-black/20 border border-white/10 px-6 text-sm font-bold text-white outline-none focus:border-gold-accent/40 shadow-inner-glass text-center" type="number" value={form.ratioLeft} onChange={(e) => setForm(p => ({ ...p, ratioLeft: e.target.value }))} />
+                                                        <input className="w-full h-14 rounded-2xl bg-black/20 border border-white/10 px-6 text-sm font-bold text-white outline-none focus:border-gold-accent/40 shadow-inner-glass text-center" type="number" min="1" onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault(); }} value={form.ratioLeft} onChange={(e) => { if (e.target.value === '' || Number(e.target.value) >= 1) setForm(p => ({ ...p, ratioLeft: e.target.value })); }} />
                                                     </div>
                                                     <span className="text-xl font-black text-white/20">:</span>
                                                     <div className="relative flex-1">
-                                                        <input className="w-full h-14 rounded-2xl bg-black/20 border border-white/10 px-6 text-sm font-bold text-white outline-none focus:border-gold-accent/40 shadow-inner-glass text-center" type="number" value={form.ratioRight} onChange={(e) => setForm(p => ({ ...p, ratioRight: e.target.value }))} />
+                                                        <input className="w-full h-14 rounded-2xl bg-black/20 border border-white/10 px-6 text-sm font-bold text-white outline-none focus:border-gold-accent/40 shadow-inner-glass text-center" type="number" min="1" onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault(); }} value={form.ratioRight} onChange={(e) => { if (e.target.value === '' || Number(e.target.value) >= 1) setForm(p => ({ ...p, ratioRight: e.target.value })); }} />
                                                     </div>
                                                 </div>
                                             </div>
@@ -342,8 +366,8 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
 
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                         <GlassFieldInput label="Awal Kontrak (Ops)" icon="calendar_today" type="date" value={form.contractStartDate} onChange={(val) => setForm(p => ({ ...p, contractStartDate: val }))} />
-                                        <GlassFieldInput label="Mulai Periode" icon="event_available" type="date" value={form.contractPeriodStart} onChange={(val) => setForm(p => ({ ...p, contractPeriodStart: val }))} />
-                                        <GlassFieldInput label="Akhir Periode" icon="event_busy" type="date" value={form.contractPeriodEnd} onChange={(val) => setForm(p => ({ ...p, contractPeriodEnd: val }))} />
+                                        <GlassFieldInput label="Mulai Periode" icon="event_available" type="date" value={form.contractPeriodStart} error={fieldErrors.contractPeriodStart} onChange={(val) => { setForm(p => ({ ...p, contractPeriodStart: val })); setFieldErrors((errors) => ({ ...errors, contractPeriodStart: "" })); }} />
+                                        <GlassFieldInput label="Akhir Periode" icon="event_busy" type="date" value={form.contractPeriodEnd} error={fieldErrors.contractPeriodEnd} onChange={(val) => { setForm(p => ({ ...p, contractPeriodEnd: val })); setFieldErrors((errors) => ({ ...errors, contractPeriodEnd: "" })); }} />
                                     </div>
                                 </div>
                             </div>
@@ -351,7 +375,7 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
 
                         {/* ISP Selection Section */}
                         {!isEditMode && (
-                            <div className="glass-card rounded-premium p-8 border-white/20 shadow-glass-depth relative z-20">
+                            <div className={`glass-card rounded-premium p-8 shadow-glass-depth relative z-20 ${fieldErrors.selectedIspId ? "border-rose-500/70 ring-4 ring-rose-500/10" : "border-white/20"}`}>
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                                     <div className="flex items-center gap-3">
                                         <span className="h-6 w-1.5 bg-gold-accent rounded-full shadow-gold-glow"></span>
@@ -385,6 +409,10 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                                         </div>
                                     </div>
                                 </div>
+
+                                {fieldErrors.selectedIspId && (
+                                    <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-rose-400">{fieldErrors.selectedIspId}</p>
+                                )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {displayedIsps.map((isp) => (
@@ -475,10 +503,11 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                                                         <input 
                                                             className="w-full h-12 pl-16 pr-4 rounded-xl bg-black/20 border border-white/10 text-xs font-bold text-white outline-none focus:border-gold-accent/40 focus:bg-black/40 transition-all shadow-inner-glass [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                                                             min="1" 
+                                                            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault(); }}
                                                             type="number" 
                                                             placeholder="0"
                                                             value={form.billingCustomEvery} 
-                                                            onChange={(e) => setForm(p => ({ ...p, billingCustomEvery: e.target.value }))} 
+                                                            onChange={(e) => { if (e.target.value === '' || Number(e.target.value) >= 1) setForm(p => ({ ...p, billingCustomEvery: e.target.value })); }} 
                                                         />
                                                     </div>
                                                     <div className="flex-[3]">
@@ -502,9 +531,11 @@ function TenantAdminFormPage({ initialData = null, isps = [], lockedIsp = null, 
                                         label="Biaya Aktivasi (IDR)" 
                                         icon="payments"
                                         type="number"
+                                        min="0"
+                                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault(); }}
                                         placeholder="0"
                                         value={form.activationFeeAmount} 
-                                        onChange={(val) => setForm(p => ({ ...p, activationFeeAmount: val }))} 
+                                        onChange={(val) => { if (val === '' || Number(val) >= 0) setForm(p => ({ ...p, activationFeeAmount: val })); }} 
                                     />
 
                                     <div className="p-6 rounded-2xl bg-gold-accent/5 border border-gold-accent/20">

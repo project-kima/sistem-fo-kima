@@ -6,6 +6,8 @@ export const ADMIN_PATHS = {
     monitoring: "/monitoring",
     monitoringFullscreen: "/monitoring/fullscreen",
     trash: "/trash",
+    activity: "/activity-log",
+    todos: "/todos",
     ispCreate: "/isps/new",
     customerDetail: (customerId, { tab = "overview", ispId = null } = {}) => {
         const searchParams = new URLSearchParams();
@@ -44,6 +46,8 @@ export function getAdminSectionPath(sectionKey) {
         customers: ADMIN_PATHS.customers,
         monitoring: ADMIN_PATHS.monitoring,
         trash: ADMIN_PATHS.trash,
+        activity: ADMIN_PATHS.activity,
+        todos: ADMIN_PATHS.todos,
     }[sectionKey] ?? ADMIN_PATHS.customers;
 }
 
@@ -82,6 +86,14 @@ export function parseAdminRoute(pathname, search) {
 
     if (normalizedPath === ADMIN_PATHS.trash) {
         return { type: "section", sectionKey: "trash" };
+    }
+
+    if (normalizedPath === ADMIN_PATHS.activity) {
+        return { type: "section", sectionKey: "activity" };
+    }
+
+    if (normalizedPath === ADMIN_PATHS.todos) {
+        return { type: "section", sectionKey: "todos" };
     }
 
     if (normalizedPath === ADMIN_PATHS.customerCreate) {

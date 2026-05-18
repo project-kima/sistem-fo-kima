@@ -19,7 +19,7 @@ Panduan langkah demi langkah untuk setup Supabase Auth dan Row Level Security (R
 
 ---
 
-## 🔐 Step 1: Create Auth Users
+## 🔐 Step 1: Create Auth Users dan Mapping ISP
 
 ### **1.1. Login ke Supabase Dashboard**
 1. Buka https://supabase.com/dashboard
@@ -44,7 +44,20 @@ isp@kima.local       | isp      | ISP User       | 2026-05-12 ...
 teknisi@kima.local   | teknisi  | Teknisi        | 2026-05-12 ...
 ```
 
-### **1.5. Test Login (Optional)**
+### **1.5. Map Akun ISP ke Entitas ISP (Wajib untuk role ISP)**
+1. Pastikan data ISP sudah ada di tabel `public.isps`
+2. Copy isi file `scripts/auth/map-isp-users.sql`
+3. Sesuaikan nilai email + nama ISP pada CTE `mapping_input`
+4. Jalankan query
+
+Contoh hasil verifikasi:
+```
+email           | isp_name
+----------------|------------------------------
+isp@kima.local  | PT Cendikia Global Solusi
+```
+
+### **1.6. Test Login (Optional)**
 Buka **Authentication** → **Users** di Supabase Dashboard untuk melihat users yang baru dibuat.
 
 ---
@@ -62,7 +75,8 @@ Buka **Authentication** → **Users** di Supabase Dashboard untuk melihat users 
 
 ⚠️ **Note:** Script ini akan:
 - Enable RLS pada semua tabel
-- Create helper function `auth.user_role()`
+- Create helper function `public.get_user_role()` dan `public.get_current_user_isp_id()`
+- Create table mapping `public.isp_user_accounts` untuk enforce `1 akun ISP = 1 ISP`
 - Create policies untuk admin, isp, dan teknisi roles
 
 ### **2.3. Verify Policies Created**
@@ -106,6 +120,7 @@ Buka **Database** → **Tables** → pilih table → tab **Policies** untuk meli
 - ✅ Bisa lihat customers yang terkait dengan ISP mereka
 - ❌ Tidak bisa lihat customers ISP lain
 - ❌ Tidak bisa create/update/delete
+- ❌ Tidak bisa akses data bila belum dimapping ke `public.isp_user_accounts`
 
 **Teknisi:**
 - ✅ Bisa lihat semua customers (read-only)
@@ -158,6 +173,21 @@ SET request.jwt.claims = '{"user_metadata":{"role":"isp"}}';
 SELECT * FROM customers;
 ```
 
+### **Problem: User ISP login tapi tidak melihat data**
+**Cause:** Akun ISP belum dimapping ke tabel `public.isp_user_accounts`.
+
+**Solution:**
+1. Check mapping yang sudah ada:
+```sql
+SELECT au.email, i.name AS isp_name
+FROM public.isp_user_accounts iua
+JOIN auth.users au ON au.id = iua.auth_user_id
+JOIN public.isps i ON i.id = iua.isp_id
+ORDER BY au.email;
+```
+2. Jalankan `scripts/auth/map-isp-users.sql`
+3. Pastikan email auth user dan nama ISP cocok
+
 ---
 
 ## 📊 Step 5: Monitoring
@@ -181,6 +211,7 @@ SELECT * FROM customers;
 Sebelum deploy ke production, pastikan:
 
 - [ ] Auth users sudah dibuat (admin, teknisi, isp)
+- [ ] Mapping akun ISP ke `public.isp_user_accounts` sudah dibuat
 - [ ] RLS policies sudah di-enable pada semua tabel
 - [ ] Test login untuk semua roles berhasil
 - [ ] Test CRUD operations sesuai role permissions
@@ -217,4 +248,4 @@ git push origin main
 
 ---
 
-**Last Updated:** 2026-05-12
+**Last Updated:** 2026-05-18

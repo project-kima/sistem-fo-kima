@@ -3,6 +3,8 @@ export const adminMenuItems = [
     { key: "customers", label: "Pelanggan", icon: "groups" },
     { key: "monitoring", label: "Monitoring", icon: "monitor_heart" },
     { key: "trash", label: "Tempat Sampah", icon: "delete", separated: true },
+    { key: "todos", label: "To Do List", icon: "task_alt" },
+    { key: "activity", label: "Activity Log", icon: "manage_history" },
 ];
 
 export const adminRoleConfig = {
@@ -20,7 +22,7 @@ export const adminRoleConfig = {
         canEditTenant: true,
         canDeleteTenant: true,
     },
-    allowedSections: ["dashboard", "customers", "monitoring", "trash"],
+    allowedSections: ["dashboard", "customers", "monitoring", "trash", "todos", "activity"],
     allowedRouteTypes: [
         "redirect",
         "login",

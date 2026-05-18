@@ -15,6 +15,8 @@ const TenantAdminFormPage = lazy(() => import("./features/pelanggan/TenantAdminF
 const IspAdminFormPage = lazy(() => import("./features/pelanggan/IspAdminFormPage"));
 const LoginPage = lazy(() => import("./features/login/LoginPage"));
 const TrashPage = lazy(() => import("./features/trash/TrashPage"));
+const ActivityLogPage = lazy(() => import("./features/activity/ActivityLogPage"));
+const TodoListPage = lazy(() => import("./features/todos/TodoListPage"));
 import {
     getAppPaths,
     normalizePathname,
@@ -51,6 +53,7 @@ function App() {
     const [isps, setIsps] = useState([]);
     const [isLoadingIsps, setIsLoadingIsps] = useState(false);
     const [ispsError, setIspsError] = useState("");
+    const [notifications, setNotifications] = useState([]);
     const route = useMemo(
         () => parseAppRoute(locationState.pathname, locationState.search, currentRole),
         [currentRole, locationState.pathname, locationState.search],
@@ -150,6 +153,66 @@ function App() {
             void loadIsps();
         }
     }, [isLoadingIsps, isps.length, ispsError, loadIsps, route.type]);
+
+    const loadNotifications = useCallback(async () => {
+        try {
+            const result = await api.notifications.list({ limit: 500 });
+            setNotifications(Array.isArray(result) ? result : []);
+        } catch (error) {
+            console.error("Failed to load customer workspace notifications:", error);
+            setNotifications([]);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (route.type !== "login") {
+            void loadNotifications();
+        }
+    }, [loadNotifications, route.type]);
+
+    const notificationCountsByCustomerId = useMemo(() => {
+        return notifications.reduce((counts, notification) => {
+            const customerId = Number(notification.customerId);
+            if (!Number.isFinite(customerId) || customerId <= 0 || notification.resolvedAt) {
+                return counts;
+            }
+
+            const existing = counts[customerId] ?? { active: 0, unread: 0 };
+            counts[customerId] = {
+                active: existing.active + 1,
+                unread: existing.unread + (notification.readAt ? 0 : 1),
+            };
+            return counts;
+        }, {});
+    }, [notifications]);
+
+    const notificationCountsByIspId = useMemo(() => {
+        return notifications.reduce((counts, notification) => {
+            const ispId = Number(notification.ispId);
+            if (!Number.isFinite(ispId) || ispId <= 0 || notification.resolvedAt) {
+                return counts;
+            }
+
+            const existing = counts[ispId] ?? { active: 0, unread: 0 };
+            counts[ispId] = {
+                active: existing.active + 1,
+                unread: existing.unread + (notification.readAt ? 0 : 1),
+            };
+            return counts;
+        }, {});
+    }, [notifications]);
+
+    const notificationsByIspId = useMemo(() => {
+        return notifications.reduce((itemsByIspId, notification) => {
+            const ispId = Number(notification.ispId);
+            if (!Number.isFinite(ispId) || ispId <= 0) {
+                return itemsByIspId;
+            }
+
+            itemsByIspId[ispId] = [...(itemsByIspId[ispId] ?? []), notification];
+            return itemsByIspId;
+        }, {});
+    }, [notifications]);
 
     const navigateTo = useCallback((targetPath, { replace = false } = {}) => {
         if (typeof window === "undefined") {
@@ -258,6 +321,8 @@ function App() {
             customers: appPaths.customers,
             monitoring: appPaths.monitoring,
             trash: appPaths.trash,
+            activity: appPaths.activity,
+            todos: appPaths.todos,
         }[sectionKey];
 
         if (targetPath) {
@@ -341,7 +406,7 @@ function App() {
     }, [appPaths, navigateTo]);
 
     const handleEntitySaved = useCallback(async (savedEntity, type) => {
-        await Promise.all([loadCustomers(), loadIsps()]);
+        await Promise.all([loadCustomers(), loadIsps(), loadNotifications()]);
 
         if (type === "isp") {
             const savedIspId = Number(savedEntity?.id);
@@ -358,7 +423,7 @@ function App() {
         }
 
         navigateTo(appPaths.customers, { replace: true });
-    }, [appPaths, loadCustomers, loadIsps, navigateTo]);
+    }, [appPaths, loadCustomers, loadIsps, loadNotifications, navigateTo]);
 
     const handleLogout = useCallback(async () => {
         try {
@@ -479,6 +544,32 @@ function App() {
         return (
             <Suspense fallback={<RouteLoadingPage activeSection={activeSection} currentRole={currentRole} onNavigate={handleNavigate} onLogout={handleLogout} message="Memuat trash..." />}>
                 <TrashPage
+                    activeSection={activeSection}
+                    currentRole={currentRole}
+                    onNavigate={handleNavigate}
+                    onLogout={handleLogout}
+                />
+            </Suspense>
+        );
+    }
+
+    if (route.type === "section" && route.sectionKey === "activity") {
+        return (
+            <Suspense fallback={<RouteLoadingPage activeSection={activeSection} currentRole={currentRole} onNavigate={handleNavigate} onLogout={handleLogout} message="Memuat activity log..." />}>
+                <ActivityLogPage
+                    activeSection={activeSection}
+                    currentRole={currentRole}
+                    onNavigate={handleNavigate}
+                    onLogout={handleLogout}
+                />
+            </Suspense>
+        );
+    }
+
+    if (route.type === "section" && route.sectionKey === "todos") {
+        return (
+            <Suspense fallback={<RouteLoadingPage activeSection={activeSection} currentRole={currentRole} onNavigate={handleNavigate} onLogout={handleLogout} message="Memuat to do list..." />}>
+                <TodoListPage
                     activeSection={activeSection}
                     currentRole={currentRole}
                     onNavigate={handleNavigate}
@@ -641,8 +732,9 @@ function App() {
                     onTabChange={(nextTab) => {
                         navigateTo(appPaths.ispDetail(selectedIsp.id, { tab: nextTab }), { replace: true });
                     }}
+                    notifications={notificationsByIspId[Number(selectedIsp.id)] ?? []}
                     onRefreshAll={async () => {
-                        await Promise.all([loadCustomers(), loadIsps()]);
+                        await Promise.all([loadCustomers(), loadIsps(), loadNotifications()]);
                     }}
                     canCreateTenant={roleCapabilities.canCreateTenant}
                     canDeleteIsp={roleCapabilities.canDeleteIsp}
@@ -693,7 +785,7 @@ function App() {
                     onNavigate={handleNavigate}
                     onLogout={handleLogout}
                     onRefreshAll={async () => {
-                        await Promise.all([loadCustomers(), loadIsps()]);
+                        await Promise.all([loadCustomers(), loadIsps(), loadNotifications()]);
                     }}
                     onTabChange={(nextTab) => {
                         if (nextTab === "jalur") {
@@ -760,7 +852,7 @@ function App() {
                     onNavigate={handleNavigate}
                     onLogout={handleLogout}
                     onRefreshAll={async () => {
-                        await Promise.all([loadCustomers(), loadIsps()]);
+                        await Promise.all([loadCustomers(), loadIsps(), loadNotifications()]);
                     }}
                     routeViewMode="standalone"
                     hideSidebar={true}
@@ -809,7 +901,7 @@ function App() {
                     onNavigate={handleNavigate}
                     onLogout={handleLogout}
                     onRefreshAll={async () => {
-                        await Promise.all([loadCustomers(), loadIsps()]);
+                        await Promise.all([loadCustomers(), loadIsps(), loadNotifications()]);
                     }}
                     onOpenRoutePlanner={(tenant) => {
                         const resolvedCustomerId = Number(tenant?.id ?? selectedCustomer.id);
@@ -866,7 +958,7 @@ function App() {
                     onNavigate={handleNavigate}
                     onLogout={handleLogout}
                     onRefreshAll={async () => {
-                        await Promise.all([loadCustomers(), loadIsps()]);
+                        await Promise.all([loadCustomers(), loadIsps(), loadNotifications()]);
                     }}
                     routeViewMode="planner"
                     canDeleteTenant={roleCapabilities.canDeleteTenant}
@@ -894,6 +986,8 @@ function App() {
                 activeSection={activeSection}
                 customers={customers}
                 customersPageInfo={customersPageInfo}
+                notificationCountsByCustomerId={notificationCountsByCustomerId}
+                notificationCountsByIspId={notificationCountsByIspId}
                 isps={isps}
                 error={customersError}
                 secondaryError={ispsError}
@@ -906,7 +1000,7 @@ function App() {
                 onOpenCreateTenant={handleOpenCreateTenant}
                 onOpenCreateIsp={handleOpenCreateIsp}
                 onRefresh={async () => {
-                    await Promise.all([loadCustomers(), loadIsps()]);
+                    await Promise.all([loadCustomers(), loadIsps(), loadNotifications()]);
                 }}
                 onLoadMoreCustomers={loadMoreCustomers}
                 canCreateIsp={roleCapabilities.canCreateIsp}

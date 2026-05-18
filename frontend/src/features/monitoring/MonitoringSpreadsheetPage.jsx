@@ -160,6 +160,9 @@ function MonitoringSpreadsheetPage({
         package: "all",
     }));
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(50);
+
     const [billingRows, setBillingRows] = useState([]);
     const [historyRows, setHistoryRows] = useState([]);
     const [alerts, setAlerts] = useState([]);
@@ -333,7 +336,7 @@ function MonitoringSpreadsheetPage({
                     year: appliedFilters.year,
                     isp: appliedFilters.isp || undefined,
                 }),
-                api.monitoring.getAlerts({ year: appliedFilters.year }),
+                api.notifications.list({ year: appliedFilters.year, limit: 200 }),
             ]);
 
             const nextBillingRows = Array.isArray(billingResult?.rows) ? billingResult.rows : [];
@@ -342,12 +345,7 @@ function MonitoringSpreadsheetPage({
             setBillingRows(nextBillingRows);
             setHistoryRows(nextHistoryRows);
 
-            let nextAlerts = [];
-            if (Array.isArray(alertsResult)) {
-                nextAlerts = alertsResult;
-            } else if (Array.isArray(alertsResult?.alerts)) {
-                nextAlerts = alertsResult.alerts;
-            }
+            const nextAlerts = Array.isArray(alertsResult) ? alertsResult : [];
 
             setAlerts(nextAlerts);
 
@@ -431,6 +429,11 @@ function MonitoringSpreadsheetPage({
         void loadMonitoring();
     }, [loadMonitoring]);
 
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filters.search, filters.contractStatus, filters.routeStatus, filters.todoStatus, filters.package]);
+
     const filteredRows = useMemo(() => {
         const loweredSearch = filters.search.trim().toLowerCase();
         const alertCustomerIds = new Set(alerts.map(a => a.customerId));
@@ -490,6 +493,28 @@ function MonitoringSpreadsheetPage({
         });
     }, [historyRows, filters.search, filters.package]);
 
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedRows = filteredRows.slice(startIndex, endIndex);
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+            // Scroll to table top
+            const tableEl = document.getElementById("monitoring-table");
+            if (tableEl) {
+                tableEl.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+    };
+
+    const handleItemsPerPageChange = (newItemsPerPage) => {
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1);
+    };
+
     const routeSummary = useMemo(() => {
         const summary = { aktif: 0, gangguan: 0, perbaikan: 0 };
         billingRows.forEach((row) => {
@@ -504,59 +529,6 @@ function MonitoringSpreadsheetPage({
         });
         return summary;
     }, [billingRows]);
-
-    const totalAlerts = alerts.length;
-    const hasIssues = totalAlerts > 0;
-    const issueCounts = {
-        missingContract: alerts.filter((alert) => alert.code === "missing_contract").length,
-        missingInvoice: alerts.filter((alert) => ["missing_invoice_current_month", "invoice_not_uploaded", "payment_overdue"].includes(alert.code)).length,
-        contractExpiring: alerts.filter((alert) => ["contract_expiring", "bak_missing"].includes(alert.code)).length,
-        activationFee: alerts.filter((alert) => alert.code === "activation_fee_unpaid").length,
-        terminationDoc: alerts.filter((alert) => ["has_termination_document", "missing_required_document"].includes(alert.code)).length,
-    };
-
-    const actionNeededToday = useMemo(() => {
-        const combined = [];
-
-        billingRows.forEach((row) => {
-            const routeStatus = resolveRouteStatus(row.customerStatus, row.routeStatus);
-            if (routeStatus === "gangguan") {
-                combined.push({
-                    customerId: row.customerId,
-                    customerName: row.customerName,
-                    code: "route_gangguan",
-                    message: "Jalur sedang gangguan, butuh penanganan segera.",
-                    actionLabel: "Buka & Perbaiki Jalur",
-                    targetTab: "jalur",
-                });
-            }
-
-            if (!row.routeStatus && row.customerStatus === "aktif") {
-                combined.push({
-                    customerId: row.customerId,
-                    customerName: row.customerName,
-                    code: "missing_jalur",
-                    message: "Data jalur belum lengkap, segera input jalur.",
-                    actionLabel: "Buka & Input Jalur",
-                    targetTab: "jalur",
-                });
-            }
-        });
-
-        alerts.forEach((alert) => {
-            const alertCode = alert.code || alert.type || "";
-            combined.push({
-                customerId: alert.customerId,
-                customerName: alert.customerName,
-                code: alertCode,
-                message: alert.message,
-                actionLabel: "Tindak Lanjuti",
-                targetTab: alertCode.includes("invoice") || alertCode.includes("payment") ? "invoices" : "overview",
-            });
-        });
-
-        return combined.slice(0, 15);
-    }, [billingRows, alerts]);
 
     const yearOptions = [
         String(Number(currentYear) - 1),
@@ -634,6 +606,20 @@ function MonitoringSpreadsheetPage({
             className={`glass-card rounded-premium border-white/40 overflow-hidden shadow-glass-depth max-w-full ${tableOnly ? "flex h-full flex-col" : ""}`}
             id="monitoring-table"
         >
+            {/* Pagination Top */}
+            {!tableOnly && filteredRows.length > 0 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    onItemsPerPageChange={handleItemsPerPageChange}
+                    totalItems={filteredRows.length}
+                    startIndex={startIndex}
+                    endIndex={endIndex}
+                />
+            )}
+
             <div className={`max-w-full overflow-auto custom-scrollbar ${tableOnly ? "flex-1 min-h-0" : ""}`}>
                 <table className="w-full min-w-[2400px] table-fixed border-separate border-spacing-0 text-[13px]">
                     <colgroup>
@@ -770,8 +756,8 @@ function MonitoringSpreadsheetPage({
                                             <button
                                                 className="inline-flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-8 py-3 text-[11px] font-black uppercase tracking-[0.2em] text-white transition-all hover:bg-white/10 hover:border-gold-accent/30 hover:text-gold-accent shadow-xl group"
                                                 onClick={() => {
-                                                    setFilters({ search: "", year: currentYear, isp: "", status: "" });
-                                                    setAppliedFilters({ year: currentYear, isp: "", status: "" });
+                                                    setFilters({ search: "", year: currentYear, contractStatus: "all", routeStatus: "all", todoStatus: "all", package: "all" });
+                                                    setAppliedFilters({ year: currentYear, contractStatus: "all", routeStatus: "all", todoStatus: "all", package: "all" });
                                                 }}
                                             >
                                                 <span className="material-symbols-outlined text-base group-hover:rotate-180 transition-transform duration-500">restart_alt</span>
@@ -783,10 +769,12 @@ function MonitoringSpreadsheetPage({
                             </tr>
                         )}
 
-                        {!isLoading && filteredRows.map((row, rowIndex) => (
+                        {!isLoading && paginatedRows.map((row, rowIndex) => {
+                            const actualRowNumber = startIndex + rowIndex + 1;
+                            return (
                             <tr key={`${row.customerId}-${rowIndex}`} className="bg-[#0f172a]/40 transition-all group hover:bg-[#1e293b]/60">
                                 <td className="relative sticky left-0 z-20 w-[64px] pl-2 pr-0 py-5 font-black text-white/30 text-center bg-[#0f172a]/65 backdrop-blur-sm group-hover:!bg-[#0f1117] group-hover:!backdrop-blur-none group-hover:text-gold-accent transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.3)] group-hover:border-l-4 group-hover:border-l-gold-accent">
-                                    {String(rowIndex + 1).padStart(2, "0")}
+                                    {String(actualRowNumber).padStart(2, "0")}
                                 </td>
                                 <td className="relative sticky left-[64px] z-20 -ml-px w-[160px] pl-0 pr-0 py-5 font-black text-white bg-[#0f172a]/65 backdrop-blur-sm group-hover:!bg-[#0f1117] group-hover:!backdrop-blur-none transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.3)]">
                                     {row.ispName}
@@ -947,10 +935,24 @@ function MonitoringSpreadsheetPage({
                                     </>
                                 )}
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination Bottom */}
+            {!tableOnly && filteredRows.length > 0 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    onItemsPerPageChange={handleItemsPerPageChange}
+                    totalItems={filteredRows.length}
+                    startIndex={startIndex}
+                    endIndex={endIndex}
+                />
+            )}
 
             {!tableOnly && (
                 <div className="flex flex-wrap items-center justify-between gap-6 border-t border-white/10 bg-[#0f141e]/50 px-10 py-6 backdrop-blur-md">
@@ -1438,12 +1440,6 @@ function MonitoringSpreadsheetPage({
                             <span className="material-symbols-outlined text-lg text-gold-accent">hub</span>
                             <span><span className="text-white font-black">{new Set(filteredRows.map(r => r.ispName)).size}</span> ISP Terkait</span>
                         </div>
-                        {!isTeknisi && (
-                            <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl border text-[10px] font-black uppercase tracking-widest shadow-sm transition-all duration-500 ${filteredRows.filter(r => new Set(alerts.map(a => a.customerId)).has(r.customerId)).length > 0 ? "bg-gold-accent/10 border-gold-accent/20 text-gold-accent shadow-gold-glow animate-pulse" : "bg-white/5 border-white/10 text-white/20"}`}>
-                                <span className="material-symbols-outlined text-lg">warning</span>
-                                <span>({filteredRows.filter(r => new Set(alerts.map(a => a.customerId)).has(r.customerId)).length}) Butuh Perhatian</span>
-                            </div>
-                        )}
                     </div>
                 </section>
 
@@ -1499,7 +1495,7 @@ function MonitoringSpreadsheetPage({
                             : uniqueAlertCustomers
                         }
                         icon="warning"
-                        accent={hasIssues ? "rose" : "gold"}
+                        accent={uniqueAlertCustomers > 0 ? "rose" : "gold"}
                         sub="Prioritas Penanganan"
                     />
                 </section>
@@ -1546,102 +1542,9 @@ function MonitoringSpreadsheetPage({
                                 </div>
                             </div>
 
-                            {/* Divider for Desktop */}
-                            <div className="hidden lg:block w-px bg-white/10 self-stretch"></div>
-
-                            {/* Right: Anomaly & Action Details */}
-                            <div className="flex-1">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-3">
-                                        <span className="h-6 w-1.5 bg-rose-500 rounded-full shadow-rose-glow"></span>
-                                        <h2 className="text-xl font-black text-on-surface tracking-tight uppercase tracking-widest">Ringkasan Tindak Lanjut</h2>
-                                    </div>
-                                    <div className="px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20">
-                                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{totalAlerts} ALERT AKTIF</span>
-                                    </div>
-                                </div>
-
-                                <div className="mb-8">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Kelengkapan Administrasi</span>
-                                        <span className="text-xs font-black text-rose-400">{Math.round(((billingRows.length - uniqueAlertCustomers) / (billingRows.length || 1)) * 100)}%</span>
-                                    </div>
-                                    <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/10 p-[1px]">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-full shadow-rose-glow transition-all duration-700"
-                                            style={{ width: `${((billingRows.length - uniqueAlertCustomers) / (billingRows.length || 1)) * 100}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
-                                    {[
-                                        { label: "Kontrak Belum Input", count: issueCounts.missingContract, icon: "description", color: "text-rose-400" },
-                                        { label: "Invoice Belum Upload", count: issueCounts.missingInvoice, icon: "receipt_long", color: "text-amber-400" },
-                                        { label: "Kontrak Segera Habis", count: issueCounts.contractExpiring, icon: "event_busy", color: "text-rose-400" },
-                                        { label: "Aktivasi Outstanding", count: issueCounts.activationFee, icon: "payments", color: "text-rose-400" },
-                                        { label: "Dokumen Blm Lengkap", count: issueCounts.terminationDoc, icon: "folder_off", color: "text-white/40" }
-                                    ].map((item, idx) => (
-                                        <div key={idx} className="flex items-center justify-between group/metric py-1 border-b border-white/5 last:border-0">
-                                            <div className="flex items-center gap-3">
-                                                <span className={`material-symbols-outlined text-lg ${item.count > 0 ? item.color : "text-white/10"}`}>{item.icon}</span>
-                                                <span className={`text-[10px] font-black uppercase tracking-widest ${item.count > 0 ? "text-on-surface" : "text-on-surface/30"}`}>{item.label}</span>
-                                            </div>
-                                            <span className={`text-sm font-black ${item.count > 0 ? item.color : "text-white/5"}`}>{item.count}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </section>
-
-                {/* Perlu Tindak Lanjut moved to bottom */}
-                {(isTeknisi || hasIssues) && (
-                    <section className="glass-card rounded-premium p-8 group border-white/40 shadow-glass-depth">
-                        <div className="mb-8 flex items-center justify-between shrink-0">
-                            <div className="flex items-center gap-3">
-                                <span className="h-6 w-1.5 bg-rose-500 rounded-full shadow-rose-glow"></span>
-                                <h2 className="text-xl font-black text-on-surface tracking-tight uppercase tracking-widest">Perlu Tindak Lanjut</h2>
-                            </div>
-                            <span className="px-4 py-1 rounded-full bg-rose-500/10 text-rose-600 text-[10px] font-black uppercase tracking-widest border border-rose-500/20 shadow-sm">
-                                {actionNeededToday.length} MASALAH AKTIF
-                            </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {actionNeededToday.length === 0 && (
-                                <p className="col-span-full py-10 text-center text-sm font-medium text-on-surface-variant italic opacity-50">
-                                    Tidak ada prioritas aksi untuk saat ini.
-                                </p>
-                            )}
-
-                            {actionNeededToday.map((item, index) => (
-                                <div
-                                    key={`${item.customerId}-${item.code}-${index}`}
-                                    className="flex flex-col justify-between p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/12 hover:border-white/20 transition-all hover:scale-[1.02] group/item"
-                                >
-                                    <div className="mb-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-[10px] font-black text-gold-accent uppercase tracking-widest">{item.code.replace(/_/g, ' ')}</p>
-                                            <span className="material-symbols-outlined text-rose-500 text-sm animate-pulse">emergency</span>
-                                        </div>
-                                        <h3 className="text-sm font-black text-on-surface leading-tight group-hover/item:text-gold-accent transition-colors truncate">{item.customerName ?? `Pelanggan #${item.customerId}`}</h3>
-                                        <p className="mt-2 text-xs font-medium text-on-surface-variant leading-relaxed line-clamp-2 opacity-80">{item.message}</p>
-                                    </div>
-
-                                    <button
-                                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-gold-accent hover:text-white border border-white/10 hover:border-gold-accent/50 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all"
-                                        onClick={() => onOpenCustomerById(item.customerId, item.targetTab)}
-                                    >
-                                        <span className="material-symbols-outlined text-base">bolt</span>
-                                        {item.actionLabel}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                )}
 
                 <section className="glass-card rounded-premium p-8 border-white/40">
                     <div className="mb-8 flex items-center justify-between shrink-0">
@@ -1696,6 +1599,105 @@ function MonitoringSpreadsheetPage({
         <AppShell activeSection={activeSection} onNavigate={onNavigate} onLogout={onLogout} currentRole={currentRole}>
             {content}
         </AppShell>
+    );
+}
+
+/** 
+ * Pagination Component
+ */
+function PaginationControls({ currentPage, totalPages, onPageChange, itemsPerPage, onItemsPerPageChange, totalItems, startIndex, endIndex }) {
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisible = 7;
+
+        if (totalPages <= maxVisible) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage <= 4) {
+                for (let i = 1; i <= 5; i++) pages.push(i);
+                pages.push('...');
+                pages.push(totalPages);
+            } else if (currentPage >= totalPages - 3) {
+                pages.push(1);
+                pages.push('...');
+                for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+            } else {
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+
+        return pages;
+    };
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-t border-white/10 bg-[#0f141e]/50 backdrop-blur-md">
+            {/* Left: Info */}
+            <div className="flex items-center gap-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                    Menampilkan <span className="text-gold-accent mx-1">{startIndex + 1}</span> - <span className="text-gold-accent mx-1">{Math.min(endIndex, totalItems)}</span> dari <span className="text-gold-accent mx-1">{totalItems}</span> lokasi
+                </p>
+                
+                {/* Items per page selector */}
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Per Halaman:</span>
+                    <select
+                        value={itemsPerPage}
+                        onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+                        className="rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 text-[11px] font-bold text-white outline-none transition-all hover:bg-white/10 focus:border-gold-accent/40 focus:ring-2 focus:ring-gold-accent/10"
+                    >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Right: Pagination buttons */}
+            {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => onPageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-9 w-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center transition-all hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+                    >
+                        <span className="material-symbols-outlined text-sm text-white">chevron_left</span>
+                    </button>
+
+                    {getPageNumbers().map((page, idx) => (
+                        page === '...' ? (
+                            <span key={`ellipsis-${idx}`} className="px-2 text-white/40 text-sm font-black">...</span>
+                        ) : (
+                            <button
+                                key={page}
+                                onClick={() => onPageChange(page)}
+                                className={`h-9 min-w-[36px] px-3 rounded-lg text-[11px] font-black transition-all ${
+                                    currentPage === page
+                                        ? 'bg-gold-accent text-black shadow-gold-glow'
+                                        : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        )
+                    ))}
+
+                    <button
+                        onClick={() => onPageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="h-9 w-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center transition-all hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+                    >
+                        <span className="material-symbols-outlined text-sm text-white">chevron_right</span>
+                    </button>
+                </div>
+            )}
+        </div>
     );
 }
 

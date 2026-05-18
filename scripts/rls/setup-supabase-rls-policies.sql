@@ -4,7 +4,6 @@
 -- ============================================================================
 -- HELPER FUNCTION: Get user role from JWT
 -- ============================================================================
--- Note: Create in public schema instead of auth schema to avoid permission issues
 
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS TEXT AS $$
@@ -15,295 +14,420 @@ RETURNS TEXT AS $$
 $$ LANGUAGE SQL STABLE SECURITY DEFINER;
 
 -- ============================================================================
--- SIMPLIFIED RLS APPROACH
+-- ISP ACCOUNT MAPPING (1 akun ISP = 1 entitas ISP)
 -- ============================================================================
--- Since we don't have direct mapping between auth.uid() (UUID) and users.id (INT),
--- we use role-based policies only:
--- - Admin: full access to everything
--- - Teknisi: read-only access to everything
--- - ISP: read-only access to everything (for now, until we implement proper ISP filtering)
+-- Mapping ini menghubungkan auth.users.id (UUID) ke public.isps.id (BIGINT)
+-- dengan constraint 1:1:
+-- - 1 auth user hanya boleh ke 1 ISP
+-- - 1 ISP hanya boleh punya 1 auth user
+
+CREATE TABLE IF NOT EXISTS public.isp_user_accounts (
+  id BIGSERIAL PRIMARY KEY,
+  auth_user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  isp_id BIGINT NOT NULL UNIQUE REFERENCES public.isps(id) ON DELETE CASCADE,
+  email TEXT,
+  display_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.isp_user_accounts
+  ADD COLUMN IF NOT EXISTS email TEXT;
+
+ALTER TABLE public.isp_user_accounts
+  ADD COLUMN IF NOT EXISTS display_name TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_isp_user_accounts_auth_user_id
+ON public.isp_user_accounts (auth_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_isp_user_accounts_isp_id
+ON public.isp_user_accounts (isp_id);
+
+CREATE OR REPLACE FUNCTION public.get_current_user_isp_id()
+RETURNS BIGINT AS $$
+  SELECT iua.isp_id
+  FROM public.isp_user_accounts iua
+  WHERE iua.auth_user_id = auth.uid()
+  LIMIT 1;
+$$ LANGUAGE SQL STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.can_current_isp_access_customer(target_customer_id BIGINT)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.customer_isp_memberships cim
+    WHERE cim.customer_id = target_customer_id
+      AND cim.isp_id = public.get_current_user_isp_id()
+  );
+$$ LANGUAGE SQL STABLE SECURITY DEFINER;
+
 -- ============================================================================
+-- ISP_USER_ACCOUNTS TABLE RLS
+-- ============================================================================
+
+ALTER TABLE public.isp_user_accounts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin full access on isp_user_accounts" ON public.isp_user_accounts;
+DROP POLICY IF EXISTS "ISP read own account mapping" ON public.isp_user_accounts;
+
+CREATE POLICY "Admin full access on isp_user_accounts"
+ON public.isp_user_accounts
+FOR ALL
+USING (public.get_user_role() = 'admin')
+WITH CHECK (public.get_user_role() = 'admin');
+
+CREATE POLICY "ISP read own account mapping"
+ON public.isp_user_accounts
+FOR SELECT
+USING (
+  public.get_user_role() = 'isp'
+  AND auth_user_id = auth.uid()
+);
 
 -- ============================================================================
 -- CUSTOMERS TABLE
 -- ============================================================================
 
-ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin can do everything
+DROP POLICY IF EXISTS "Admin full access on customers" ON public.customers;
+DROP POLICY IF EXISTS "Teknisi read all customers" ON public.customers;
+DROP POLICY IF EXISTS "ISP read all customers" ON public.customers;
+DROP POLICY IF EXISTS "ISP read own customers" ON public.customers;
+
 CREATE POLICY "Admin full access on customers"
-ON customers
+ON public.customers
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi can read all
 CREATE POLICY "Teknisi read all customers"
-ON customers
+ON public.customers
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP can read all (simplified - no filtering by ISP ownership yet)
-CREATE POLICY "ISP read all customers"
-ON customers
+CREATE POLICY "ISP read own customers"
+ON public.customers
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND public.can_current_isp_access_customer(id)
+);
 
 -- ============================================================================
--- ISPs TABLE
+-- ISPS TABLE
 -- ============================================================================
 
-ALTER TABLE isps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.isps ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on isps" ON public.isps;
+DROP POLICY IF EXISTS "Teknisi read all isps" ON public.isps;
+DROP POLICY IF EXISTS "ISP read all isps" ON public.isps;
+DROP POLICY IF EXISTS "ISP read own isps" ON public.isps;
+
 CREATE POLICY "Admin full access on isps"
-ON isps
+ON public.isps
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all isps"
-ON isps
+ON public.isps
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all isps"
-ON isps
+CREATE POLICY "ISP read own isps"
+ON public.isps
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND id = public.get_current_user_isp_id()
+);
 
 -- ============================================================================
 -- CUSTOMER_ISP_MEMBERSHIPS TABLE
 -- ============================================================================
 
-ALTER TABLE customer_isp_memberships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_isp_memberships ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on customer_isp_memberships" ON public.customer_isp_memberships;
+DROP POLICY IF EXISTS "Teknisi read all memberships" ON public.customer_isp_memberships;
+DROP POLICY IF EXISTS "ISP read all memberships" ON public.customer_isp_memberships;
+DROP POLICY IF EXISTS "ISP read own memberships" ON public.customer_isp_memberships;
+
 CREATE POLICY "Admin full access on customer_isp_memberships"
-ON customer_isp_memberships
+ON public.customer_isp_memberships
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all memberships"
-ON customer_isp_memberships
+ON public.customer_isp_memberships
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all memberships"
-ON customer_isp_memberships
+CREATE POLICY "ISP read own memberships"
+ON public.customer_isp_memberships
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND isp_id = public.get_current_user_isp_id()
+);
 
 -- ============================================================================
 -- CONTRACTS TABLE
 -- ============================================================================
 
-ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contracts ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on contracts" ON public.contracts;
+DROP POLICY IF EXISTS "Teknisi read all contracts" ON public.contracts;
+DROP POLICY IF EXISTS "ISP read all contracts" ON public.contracts;
+DROP POLICY IF EXISTS "ISP read own contracts" ON public.contracts;
+
 CREATE POLICY "Admin full access on contracts"
-ON contracts
+ON public.contracts
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all contracts"
-ON contracts
+ON public.contracts
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all contracts"
-ON contracts
+CREATE POLICY "ISP read own contracts"
+ON public.contracts
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND public.can_current_isp_access_customer(customer_id)
+);
 
 -- ============================================================================
 -- CONTRACT_VERSIONS TABLE
 -- ============================================================================
 
-ALTER TABLE contract_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contract_versions ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on contract_versions" ON public.contract_versions;
+DROP POLICY IF EXISTS "Teknisi read all contract_versions" ON public.contract_versions;
+DROP POLICY IF EXISTS "ISP read all contract_versions" ON public.contract_versions;
+DROP POLICY IF EXISTS "ISP read own contract_versions" ON public.contract_versions;
+
 CREATE POLICY "Admin full access on contract_versions"
-ON contract_versions
+ON public.contract_versions
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all contract_versions"
-ON contract_versions
+ON public.contract_versions
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all contract_versions"
-ON contract_versions
+CREATE POLICY "ISP read own contract_versions"
+ON public.contract_versions
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND public.can_current_isp_access_customer(customer_id)
+);
 
 -- ============================================================================
 -- INVOICES TABLE
 -- ============================================================================
 
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on invoices" ON public.invoices;
+DROP POLICY IF EXISTS "Teknisi read all invoices" ON public.invoices;
+DROP POLICY IF EXISTS "ISP read all invoices" ON public.invoices;
+DROP POLICY IF EXISTS "ISP read own invoices" ON public.invoices;
+
 CREATE POLICY "Admin full access on invoices"
-ON invoices
+ON public.invoices
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all invoices"
-ON invoices
+ON public.invoices
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all invoices"
-ON invoices
+CREATE POLICY "ISP read own invoices"
+ON public.invoices
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND public.can_current_isp_access_customer(customer_id)
+);
 
 -- ============================================================================
 -- DOCUMENTS TABLE
 -- ============================================================================
 
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on documents" ON public.documents;
+DROP POLICY IF EXISTS "Teknisi read all documents" ON public.documents;
+DROP POLICY IF EXISTS "ISP read all documents" ON public.documents;
+DROP POLICY IF EXISTS "ISP read own documents" ON public.documents;
+
 CREATE POLICY "Admin full access on documents"
-ON documents
+ON public.documents
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all documents"
-ON documents
+ON public.documents
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all documents"
-ON documents
+CREATE POLICY "ISP read own documents"
+ON public.documents
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND public.can_current_isp_access_customer(customer_id)
+);
 
 -- ============================================================================
 -- CUSTOMER_ROUTE_VERSIONS TABLE
 -- ============================================================================
 
-ALTER TABLE customer_route_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_route_versions ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on customer_route_versions" ON public.customer_route_versions;
+DROP POLICY IF EXISTS "Teknisi read all routes" ON public.customer_route_versions;
+DROP POLICY IF EXISTS "ISP read all routes" ON public.customer_route_versions;
+DROP POLICY IF EXISTS "ISP read own routes" ON public.customer_route_versions;
+
 CREATE POLICY "Admin full access on customer_route_versions"
-ON customer_route_versions
+ON public.customer_route_versions
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all routes"
-ON customer_route_versions
+ON public.customer_route_versions
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all routes"
-ON customer_route_versions
+CREATE POLICY "ISP read own routes"
+ON public.customer_route_versions
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND public.can_current_isp_access_customer(customer_id)
+);
 
 -- ============================================================================
 -- CUSTOMER_ROUTE_POINTS TABLE
 -- ============================================================================
 
-ALTER TABLE customer_route_points ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_route_points ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on customer_route_points" ON public.customer_route_points;
+DROP POLICY IF EXISTS "Teknisi read all route points" ON public.customer_route_points;
+DROP POLICY IF EXISTS "ISP read all route points" ON public.customer_route_points;
+DROP POLICY IF EXISTS "ISP read own route points" ON public.customer_route_points;
+
 CREATE POLICY "Admin full access on customer_route_points"
-ON customer_route_points
+ON public.customer_route_points
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all route points"
-ON customer_route_points
+ON public.customer_route_points
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all route points"
-ON customer_route_points
+CREATE POLICY "ISP read own route points"
+ON public.customer_route_points
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND EXISTS (
+    SELECT 1
+    FROM public.customer_route_versions crv
+    WHERE crv.id = customer_route_points.route_version_id
+      AND public.can_current_isp_access_customer(crv.customer_id)
+  )
+);
 
 -- ============================================================================
 -- ISP_CONTRACT_ROWS TABLE
 -- ============================================================================
 
-ALTER TABLE isp_contract_rows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.isp_contract_rows ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on isp_contract_rows" ON public.isp_contract_rows;
+DROP POLICY IF EXISTS "Teknisi read all isp contract rows" ON public.isp_contract_rows;
+DROP POLICY IF EXISTS "ISP read all isp contract rows" ON public.isp_contract_rows;
+DROP POLICY IF EXISTS "ISP read own isp contract rows" ON public.isp_contract_rows;
+
 CREATE POLICY "Admin full access on isp_contract_rows"
-ON isp_contract_rows
+ON public.isp_contract_rows
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all isp contract rows"
-ON isp_contract_rows
+ON public.isp_contract_rows
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all isp contract rows"
-ON isp_contract_rows
+CREATE POLICY "ISP read own isp contract rows"
+ON public.isp_contract_rows
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND isp_id = public.get_current_user_isp_id()
+);
 
 -- ============================================================================
 -- ISP_RENEWAL_FOLLOW_UPS TABLE
 -- ============================================================================
 
-ALTER TABLE isp_renewal_follow_ups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.isp_renewal_follow_ups ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin full access
+DROP POLICY IF EXISTS "Admin full access on isp_renewal_follow_ups" ON public.isp_renewal_follow_ups;
+DROP POLICY IF EXISTS "Teknisi read all renewal follow ups" ON public.isp_renewal_follow_ups;
+DROP POLICY IF EXISTS "ISP read all renewal follow ups" ON public.isp_renewal_follow_ups;
+DROP POLICY IF EXISTS "ISP read own renewal follow ups" ON public.isp_renewal_follow_ups;
+
 CREATE POLICY "Admin full access on isp_renewal_follow_ups"
-ON isp_renewal_follow_ups
+ON public.isp_renewal_follow_ups
 FOR ALL
 USING (public.get_user_role() = 'admin')
 WITH CHECK (public.get_user_role() = 'admin');
 
--- Policy: Teknisi read all
 CREATE POLICY "Teknisi read all renewal follow ups"
-ON isp_renewal_follow_ups
+ON public.isp_renewal_follow_ups
 FOR SELECT
 USING (public.get_user_role() = 'teknisi');
 
--- Policy: ISP read all
-CREATE POLICY "ISP read all renewal follow ups"
-ON isp_renewal_follow_ups
+CREATE POLICY "ISP read own renewal follow ups"
+ON public.isp_renewal_follow_ups
 FOR SELECT
-USING (public.get_user_role() = 'isp');
+USING (
+  public.get_user_role() = 'isp'
+  AND EXISTS (
+    SELECT 1
+    FROM public.isp_contract_rows icr
+    WHERE icr.id = isp_renewal_follow_ups.row_id
+      AND icr.isp_id = public.get_current_user_isp_id()
+  )
+);
 
 -- ============================================================================
 -- VERIFY POLICIES
 -- ============================================================================
 
--- List all RLS policies
 SELECT
   schemaname,
   tablename,

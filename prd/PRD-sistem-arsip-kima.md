@@ -34,7 +34,9 @@ Operasional sebelumnya tersebar di dokumen, spreadsheet, dan pencatatan manual. 
 | **Teknisi** | Staf operasional/lapangan | Melihat data pelanggan, route planner FO, monitoring operasional |
 | **ISP** | Mitra ISP | Melihat data terkait ISP dan pelanggan yang relevan secara read-only |
 
-Autentikasi menggunakan Supabase Auth. Akses aplikasi dibatasi berdasarkan role di frontend dan Supabase Row Level Security. RLS production saat ini berbasis role sederhana; pembatasan data ISP berdasarkan kepemilikan relasi masih menjadi peningkatan lanjutan.
+Autentikasi menggunakan Supabase Auth. Akses aplikasi dibatasi berdasarkan role di frontend dan Supabase Row Level Security. Untuk role ISP, akses data dibatasi berdasarkan mapping `1 akun ISP = 1 entitas ISP` melalui tabel `public.isp_user_accounts`.
+
+Credential awal akun ISP disimpan pada data ISP (`public.isps.user_id` sebagai email login dan `public.isps.password_plain` sebagai password operasional). Frontend hanya mengelola credential tersebut pada form/detail ISP. Pembuatan atau sinkronisasi akun Supabase Auth tetap dilakukan melalui script operasional `scripts/auth/create-isp-auth-accounts-from-isps.sql`, lalu mapping login ISP dibaca dari `public.isp_user_accounts`.
 
 ---
 
@@ -408,6 +410,7 @@ Tidak ada service NestJS yang menjadi alur utama aplikasi saat ini.
 - Query list awal pelanggan tidak mengambil invoice penuh. Data customer, kontrak, versi kontrak, dan status route diambil dengan query terpisah berbasis chunk untuk mengurangi payload nested besar.
 - Monitoring billing mengambil customer aktif, kontrak, invoice tahun terkait, dan route status melalui batch query terpisah, bukan satu nested select besar.
 - Detail pelanggan/ISP tetap boleh mengambil relasi lebih lengkap karena dibuka on-demand untuk satu entitas.
+- Akun ISP dikelola dua tahap: frontend menyimpan email/password pada data ISP, lalu admin menjalankan script provisioning Auth untuk membuat/update `auth.users` dan mapping `public.isp_user_accounts`.
 
 ### 7.3 Struktur Project
 

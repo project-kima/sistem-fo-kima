@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import AppShell from "../../components/layout/AppShell";
-import { monitoringMonths } from "../../app/constants";
-import { formatCurrency } from "../../app/utils";
 import api from "../../lib/api";
 import {
     ResponsiveContainer,
@@ -35,13 +33,6 @@ export default function DashboardPage({
         String(new Date().getUTCFullYear()),
         String(new Date().getUTCFullYear() + 1),
     ]);
-    const [financialFilter, setFinancialFilter] = useState({
-        mode: "range_years",
-        year: String(new Date().getUTCFullYear()),
-        range: "5",
-        start: String(new Date().getUTCFullYear() - 2),
-        end: String(new Date().getUTCFullYear())
-    });
     const [growthFilter, setGrowthFilter] = useState({
         mode: "range_years",
         year: String(new Date().getUTCFullYear()),
@@ -50,9 +41,7 @@ export default function DashboardPage({
         end: String(new Date().getUTCFullYear())
     });
 
-    const [billingSummary, setBillingSummary] = useState({ lunas: 0, belum_bayar: 0, terlambat: 0 });
     const [alerts, setAlerts] = useState([]);
-    const [insights, setInsights] = useState(null);
     const [dashboardMetrics, setDashboardMetrics] = useState(null);
     const [isLoadingOperational, setIsLoadingOperational] = useState(false);
     const [growthType, setGrowthType] = useState("tenant");
@@ -60,15 +49,11 @@ export default function DashboardPage({
     const loadOperationalData = useCallback(async (year) => {
         setIsLoadingOperational(true);
         try {
-            const [billingResult, alertsResult, insightsResult, metricsResult] = await Promise.all([
-                api.monitoring.getBilling({ year: Number(year) }),
-                api.monitoring.getAlerts({ year: Number(year) }),
-                api.monitoring.getInsights({ year: Number(year) }),
+            const [alertsResult, metricsResult] = await Promise.all([
+                api.notifications.list({ year: Number(year), limit: 20 }),
                 api.monitoring.getDashboardMetrics({ year: Number(year) }),
             ]);
-            setBillingSummary(billingResult?.summary ?? { lunas: 0, belum_bayar: 0, terlambat: 0 });
-            setAlerts(Array.isArray(alertsResult) ? alertsResult : (alertsResult?.alerts ?? []));
-            setInsights(insightsResult?.months && insightsResult?.totals ? insightsResult : null);
+            setAlerts(Array.isArray(alertsResult) ? alertsResult : []);
             setDashboardMetrics(metricsResult ?? null);
         } catch (error) {
             console.error("Dashboard load error:", error);
@@ -78,15 +63,6 @@ export default function DashboardPage({
     }, []);
 
     useEffect(() => { loadOperationalData(String(new Date().getUTCFullYear())); }, [loadOperationalData]);
-
-    const financialData = useMemo(() => {
-        if (!insights?.months) return [];
-        return insights.months.map(m => ({
-            name: monitoringMonths[m.month - 1].substring(0, 3).toUpperCase(),
-            realisasi: m.revenuePaid,
-            proyeksi: m.revenueProjected,
-        }));
-    }, [insights]);
 
     const stats = useMemo(() => {
         const isps = customers.filter(c => c.type === "ISP" || c.is_isp);
@@ -116,11 +92,6 @@ export default function DashboardPage({
             tenantCount: tenants.filter(t => Array.isArray(t.ispList) && t.ispList.includes(isp.name)).length
         })).sort((a, b) => b.tenantCount - a.tenantCount).slice(0, 5);
     }, [customers]);
-
-    const paymentRatio = useMemo(() => {
-        const total = Number(billingSummary.lunas) + Number(billingSummary.belum_bayar) + Number(billingSummary.terlambat);
-        return total === 0 ? 0 : Math.round((Number(billingSummary.lunas) / total) * 100);
-    }, [billingSummary]);
 
     const sharingRows = useMemo(() => ([
         { ratio: '1:2', count: dashboardMetrics?.sharingCounts?.['1/2'] ?? 0 },
@@ -158,7 +129,7 @@ export default function DashboardPage({
                         <div className="flex items-center gap-2 bg-white/10 p-2 rounded-2xl border border-white/15 backdrop-blur-md">
                             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest pl-2 pr-2">REFRESH</span>
                             <button 
-                                onClick={() => loadOperationalData(financialFilter.mode === 'specific_year' ? financialFilter.year : String(new Date().getUTCFullYear()))}
+                                onClick={() => loadOperationalData(String(new Date().getUTCFullYear()))}
                                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all ${isLoadingOperational ? "bg-white/10 text-gold-accent" : "btn-premium"}`}
                                 disabled={isLoadingOperational}
                             >
@@ -169,9 +140,7 @@ export default function DashboardPage({
                 </header>
 
                 {/* KPI Section */}
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard label="Pendapatan Terealisasi" value={formatCurrency(insights?.totals?.revenuePaid ?? 0)} icon="account_balance_wallet" accent="gold" sub="Lunas Terverifikasi" />
-                    <StatCard label="Proyeksi Tagihan" value={formatCurrency(insights?.totals?.revenueProjected ?? 0)} icon="analytics" accent="gold" sub="Total Tagihan Berjalan" />
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <StatCard label="Jaringan Mitra" value={stats.ispCount} icon="hub" accent="gold" sub="Mitra ISP Terintegrasi" />
                     <StatCard label="Total Lokasi Aktif" value={stats.activeTenantCount} icon="groups" accent="gold" sub="Lokasi Beroperasi" />
                 </section>
@@ -262,58 +231,6 @@ export default function DashboardPage({
                         </div>
                     </div>
                 </section>
-
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                    {/* Financial Chart */}
-                    <div className={`${glassCardClass} lg:col-span-2 xl:col-span-2 flex flex-col`}>
-                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-4">
-                            <h2 className="text-xl md:text-2xl font-black text-on-surface tracking-tight">Kinerja Keuangan</h2>
-                            <ChartFilterSelector filter={financialFilter} setFilter={setFinancialFilter} availableYears={availableYears} />
-                        </div>
-                        <div className="flex-1 h-[300px] md:h-[400px] w-full mt-4">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={financialData} margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
-                                    <CartesianGrid strokeDasharray="0" vertical={false} stroke="rgba(255,255,255,0.08)" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.6)', letterSpacing: 1 }} dy={20} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.6)' }} tickFormatter={(v) => `Rp${v / 1000000}M`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'rgba(15,20,30,0.88)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '16px', padding: '16px', backdropFilter: 'blur(20px)', color: '#fff', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }} />
-                                    <Bar dataKey="proyeksi" fill="rgba(212, 169, 55, 0.25)" radius={[10, 10, 0, 0]} barSize={32} />
-                                    <Line type="monotone" dataKey="realisasi" stroke="#fef08a" strokeWidth={5} dot={{ r: 6, fill: '#fff', stroke: '#fef08a', strokeWidth: 3 }} />
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-2 mt-4">
-                            <LegendItem dotColor="bg-yellow-200" label="Lunas" />
-                            <LegendItem dotColor="bg-gold-accent/40" label="Proyeksi" />
-                        </div>
-                    </div>
-
-                    {/* Circular Progress */}
-                    <div className={glassCardClass}>
-                        <h2 className="text-lg md:text-xl font-black text-on-surface tracking-tight uppercase tracking-widest">Status Likuiditas</h2>
-                        <div className="mt-8 flex flex-col items-center">
-                            <div className="relative flex h-48 w-48 xl:h-56 xl:w-56 items-center justify-center">
-                                <svg className="h-full w-full -rotate-90">
-                                    <circle cx="50%" cy="50%" r="80" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="16" />
-                                    <circle 
-                                        cx="50%" cy="50%" r="80" fill="none" stroke="#d4a937" strokeWidth="16" 
-                                        strokeDasharray="502" strokeDashoffset={502 - (502 * paymentRatio / 100)}
-                                        strokeLinecap="round" className="transition-all duration-1000 ease-out"
-                                    />
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-4xl xl:text-5xl font-black text-on-surface tracking-tighter">{paymentRatio}%</span>
-                                    <span className="text-[10px] font-black text-gold-accent uppercase tracking-[0.3em] mt-2">Koleksi</span>
-                                </div>
-                            </div>
-                            <div className="mt-10 w-full space-y-3">
-                                <StatusRow label="Unit Lunas" value={billingSummary.lunas} color="bg-gold-accent" />
-                                <StatusRow label="Unit Tertunda" value={billingSummary.belum_bayar} color="bg-black/10" />
-                                <StatusRow label="Peringatan Terlambat" value={billingSummary.terlambat} color="bg-rose-500" isAlert />
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
                     {/* Growth Chart */}
@@ -479,18 +396,6 @@ function LegendItem({ dotColor, label, small = false }) {
         <div className="flex items-center gap-1.5">
             <div className={`${small ? 'h-1.5 w-1.5' : 'h-2 w-2'} rounded-full ${dotColor}`}></div>
             <span className={`${small ? 'text-[8px]' : 'text-[10px]'} font-black uppercase text-on-surface-variant`}>{label}</span>
-        </div>
-    );
-}
-
-function StatusRow({ label, value, color, isAlert }) {
-    return (
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
-            <div className="flex items-center gap-4">
-                <div className={`w-2.5 h-2.5 rounded-full ${color} ${isAlert ? 'animate-pulse' : ''}`}></div>
-                <span className="text-[10px] font-black text-on-surface-variant uppercase">{label}</span>
-            </div>
-            <span className="text-sm font-black text-on-surface">{value}</span>
         </div>
     );
 }

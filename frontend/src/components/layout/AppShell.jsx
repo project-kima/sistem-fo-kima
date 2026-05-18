@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getSectionPath } from "../../app/routes";
 import { getRoleConfig } from "../../roles";
+import api from "../../lib/api";
 
 export default function AppShell({
     activeSection,
@@ -160,6 +161,63 @@ export default function AppShell({
 
 function TopNav({ isSidebarCollapsed, onToggleMenu, onLogout, roleConfig, onEditProfile }) {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+
+    const loadNotifications = async () => {
+        setIsLoadingNotifications(true);
+        try {
+            const data = await api.notifications.list({ limit: 20 });
+            setNotifications(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Failed to load notifications:", error);
+            setNotifications([]);
+        } finally {
+            setIsLoadingNotifications(false);
+        }
+    };
+
+    useEffect(() => {
+        loadNotifications();
+    }, []);
+
+    const handleOpenNotification = async (notification) => {
+        if (!notification.readAt) {
+            try {
+                await api.notifications.markRead(notification.id);
+            } catch (error) {
+                console.error("Failed to mark notification as read:", error);
+            }
+        }
+        setIsNotificationsOpen(false);
+        if (notification.targetPath) {
+            window.history.pushState({}, "", notification.targetPath);
+            window.dispatchEvent(new PopStateEvent("popstate"));
+        }
+    };
+
+    const handleMarkRead = async (event, notification) => {
+        event.stopPropagation();
+        try {
+            await api.notifications.markRead(notification.id);
+            await loadNotifications();
+        } catch (error) {
+            console.error("Failed to mark notification as read:", error);
+        }
+    };
+
+    const handleMarkResolved = async (event, notification) => {
+        event.stopPropagation();
+        try {
+            await api.notifications.markResolved(notification.id);
+            await loadNotifications();
+        } catch (error) {
+            console.error("Failed to resolve notification:", error);
+        }
+    };
+
+    const unreadCount = notifications.filter((notification) => !notification.readAt).length;
 
     return (
         <nav
@@ -179,11 +237,111 @@ function TopNav({ isSidebarCollapsed, onToggleMenu, onLogout, roleConfig, onEdit
             </div>
 
             <div className="flex items-center gap-3 md:gap-4 pointer-events-auto ml-auto">
-                <div className="hidden sm:block">
-                    <button className="relative group flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm transition-all hover:bg-white/20 hover:-translate-y-0.5">
+                <div className="relative hidden sm:block">
+                    <button
+                        className="relative group flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm transition-all hover:bg-white/20 hover:-translate-y-0.5"
+                        onClick={() => {
+                            setIsNotificationsOpen((previous) => !previous);
+                            if (!isNotificationsOpen) loadNotifications();
+                        }}
+                        type="button"
+                    >
                         <span className="material-symbols-outlined text-on-surface-variant group-hover:text-gold-accent transition-colors">notifications</span>
-                        <span className="absolute top-3 right-3 h-2 w-2 rounded-full bg-gold-accent shadow-gold-glow border border-white"></span>
+                        {unreadCount > 0 && (
+                            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-accent px-1.5 text-[9px] font-black text-black shadow-gold-glow border border-white">
+                                {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                        )}
                     </button>
+
+                    {isNotificationsOpen && (
+                        <>
+                            <div className="fixed inset-0 z-10" onClick={() => setIsNotificationsOpen(false)}></div>
+                            <div className="absolute right-0 top-full mt-4 z-20 w-[24rem] max-w-[calc(100vw-2rem)] origin-top-right rounded-3xl glass-premium p-3 shadow-glass-depth animate-in fade-in zoom-in duration-300">
+                                <div className="flex items-center justify-between border-b border-black/5 px-4 py-3">
+                                    <div>
+                                        <p className="text-sm font-black text-on-surface">Notifikasi</p>
+                                        <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                                            {unreadCount} belum dibaca • {notifications.length} aktif
+                                        </p>
+                                    </div>
+                                    <button
+                                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/5 text-on-surface-variant transition-all hover:bg-black/10"
+                                        onClick={loadNotifications}
+                                        disabled={isLoadingNotifications}
+                                        type="button"
+                                    >
+                                        <span className={`material-symbols-outlined text-lg ${isLoadingNotifications ? "animate-spin" : ""}`}>sync</span>
+                                    </button>
+                                </div>
+
+                                <div className="mt-2 max-h-[28rem] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+                                    {isLoadingNotifications && notifications.length === 0 ? (
+                                        <div className="px-4 py-8 text-center text-xs font-bold text-on-surface-variant">Memuat notifikasi...</div>
+                                    ) : notifications.length > 0 ? (
+                                        notifications.map((notification) => {
+                                            const severityClass = notification.severity === "critical"
+                                                ? "bg-rose-500/10 text-rose-600"
+                                                : "bg-amber-500/10 text-amber-700";
+                                            return (
+                                                <div
+                                                    key={notification.id}
+                                                    className={`rounded-2xl px-3 py-3 transition-all hover:bg-black/5 ${notification.readAt ? "opacity-70" : "bg-gold-accent/5"}`}
+                                                >
+                                                    <button
+                                                        className="flex w-full items-start gap-3 text-left"
+                                                        onClick={() => handleOpenNotification(notification)}
+                                                        type="button"
+                                                    >
+                                                        <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${severityClass}`}>
+                                                            <span className="material-symbols-outlined text-lg">priority_high</span>
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="mb-1 flex items-center gap-2">
+                                                                <p className="truncate text-xs font-black text-on-surface">{notification.title}</p>
+                                                                {!notification.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-gold-accent shadow-gold-glow"></span>}
+                                                                <span className={`rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${severityClass}`}>
+                                                                    {notification.severity}
+                                                                </span>
+                                                            </div>
+                                                            <p className="line-clamp-2 text-[11px] font-bold leading-relaxed text-on-surface-variant">{notification.message}</p>
+                                                            <p className="mt-2 text-[9px] font-black uppercase tracking-widest text-gold-accent">{notification.actionLabel}</p>
+                                                        </div>
+                                                    </button>
+                                                    <div className="mt-3 flex items-center justify-end gap-2 pl-12">
+                                                        {!notification.readAt && (
+                                                            <button
+                                                                className="rounded-lg bg-black/5 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-on-surface-variant transition-all hover:bg-black/10 hover:text-on-surface"
+                                                                onClick={(event) => handleMarkRead(event, notification)}
+                                                                type="button"
+                                                            >
+                                                                Dibaca
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            className="rounded-lg bg-emerald-500/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:bg-emerald-500 hover:text-white"
+                                                            onClick={(event) => handleMarkResolved(event, notification)}
+                                                            type="button"
+                                                        >
+                                                            Selesai
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="px-4 py-10 text-center">
+                                            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-black/5 text-on-surface-variant/50">
+                                                <span className="material-symbols-outlined text-3xl">notifications_off</span>
+                                            </div>
+                                            <p className="text-xs font-black uppercase tracking-widest text-on-surface">Tidak ada notifikasi</p>
+                                            <p className="mt-1 text-[10px] font-bold text-on-surface-variant">Semua data operasional aman.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="relative">
