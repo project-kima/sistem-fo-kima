@@ -31,9 +31,36 @@ const getOperationalLabel = (status) => {
     return "Beroperasi";
 };
 const isOperationallyActive = (status) => normalizeOperationalStatus(status) === "aktif";
+const getTenantActionCount = (tenant) => {
+    const priorityCount = Number(tenant?.todoSummary?.counts?.priority ?? 0);
+    const needActionCount = Number(tenant?.todoSummary?.counts?.needAction ?? 0);
+    const hasUnpaidActivationFee = normalizeOperationalStatus(tenant?.status) === "aktif"
+        && !(tenant?.activationFeePaidAt ?? tenant?.activation_fee_paid_at);
+
+    return priorityCount + needActionCount + (hasUnpaidActivationFee ? 1 : 0);
+};
 const resolveRouteStatus = (customerStatus, routeStatus) => isStoppedStatus(customerStatus)
     ? "nonaktif"
     : normalizeOperationalStatus(routeStatus || "aktif");
+
+const getIspAccountInfo = (source = {}) => {
+    const email = String(source?.userEmail ?? source?.user_id ?? "").trim();
+    const passwordPlain = source?.passwordPlain ?? source?.password_plain ?? null;
+    const mappings = Array.isArray(source?.accountMappings)
+        ? source.accountMappings
+        : Array.isArray(source?.isp_user_accounts)
+            ? source.isp_user_accounts
+            : [];
+
+    return {
+        email,
+        passwordPlain,
+        username: email.includes("@") ? email.split("@")[0] : email,
+        hasCredential: Boolean(email),
+        isMapped: mappings.length > 0,
+        mappingCount: mappings.length,
+    };
+};
 
 const GlassCustomSelect = ({ label, value, onChange, options, icon, heightClass = "h-12" }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -111,6 +138,7 @@ function IspDetailPage({
     canDeleteTenant = true,
     currentRole = "admin",
     initialTab = "overview",
+    notifications = [],
     onTabChange,
 }) {
     const isTeknisi = currentRole === "teknisi";
@@ -154,13 +182,17 @@ function IspDetailPage({
         setShowPassword(false);
         setUserPopupLoading(true);
         try {
+            const source = detail ?? isp;
+            const account = getIspAccountInfo(source);
             const result = {
-                hasUser: Boolean(detail?.userId || detail?.user_id),
+                hasUser: account.hasCredential,
                 user: {
-                    username: detail?.username ?? "",
-                    email: detail?.email ?? "",
-                    displayName: detail?.displayName ?? detail?.display_name ?? "",
-                    passwordPlain: null,
+                    username: account.username,
+                    email: account.email,
+                    displayName: source?.name ?? "",
+                    passwordPlain: account.passwordPlain,
+                    isMapped: account.isMapped,
+                    mappingCount: account.mappingCount,
                 },
             };
             setUserPopupData(result);
@@ -182,7 +214,47 @@ function IspDetailPage({
         setUserPopupError("");
         setUserPopupFeedback("");
         try {
-            setUserPopupError("Pengelolaan akun ISP sekarang dilakukan melalui Supabase Auth Dashboard.");
+            const email = String(userForm.email ?? "").trim().toLowerCase();
+            const password = String(userForm.password ?? "");
+
+            if (!email) {
+                setUserPopupError("Email akun ISP wajib diisi.");
+                return;
+            }
+
+            if (!userPopupData?.user?.passwordPlain && !password) {
+                setUserPopupError("Password wajib diisi untuk akun ISP baru.");
+                return;
+            }
+
+            const savedIsp = await api.isps.update(isp.id, {
+                userEmail: email,
+                ...(password ? { userPassword: password } : {}),
+            });
+            const nextDetail = { ...(detail ?? isp), ...(savedIsp ?? {}) };
+            const account = getIspAccountInfo(nextDetail);
+
+            setDetail(nextDetail);
+            setUserPopupData({
+                hasUser: account.hasCredential,
+                user: {
+                    username: account.username,
+                    email: account.email,
+                    displayName: nextDetail?.name ?? "",
+                    passwordPlain: account.passwordPlain,
+                    isMapped: account.isMapped,
+                    mappingCount: account.mappingCount,
+                },
+            });
+            setUserForm({
+                username: account.username,
+                email: account.email,
+                password: "",
+                displayName: nextDetail?.name ?? "",
+            });
+            setUserPopupMode("view");
+            setShowPassword(false);
+            setUserPopupFeedback("Akun berhasil dibuat/diperbarui. Pengguna kini dapat menggunakan email dan password tersebut untuk masuk.");
         } catch (err) {
             setUserPopupError(err instanceof Error ? err.message : "Gagal menyimpan akun.");
         } finally {
@@ -317,24 +389,23 @@ function IspDetailPage({
     }, [risalahRows, docSearch, docSortMethod]);
 
     const summary = detail?.summary ?? {};
-    const ispActionItems = getIspContractActionItems(contractRows);
+    const centralizedIspActionItems = Array.isArray(notifications)
+        ? notifications.filter((notification) => !notification.resolvedAt)
+        : [];
+    const fallbackIspActionItems = getIspContractActionItems(contractRows);
+    const ispActionItems = centralizedIspActionItems.length > 0 ? centralizedIspActionItems : fallbackIspActionItems;
     const tenantActionRows = allTenants
         .filter((tenant) => tenant.status === "aktif")
-        .map((tenant) => {
-            const priorityCount = Number(tenant.todoSummary?.counts?.priority ?? 0);
-            const needActionCount = Number(tenant.todoSummary?.counts?.needAction ?? 0);
-            const total = priorityCount + needActionCount;
-
-            return {
-                ...tenant,
-                totalActions: total,
-            };
-        })
+        .map((tenant) => ({
+            ...tenant,
+            totalActions: getTenantActionCount(tenant),
+        }))
         .filter((tenant) => tenant.totalActions > 0);
     const totalTenantActionCount = tenantActionRows.reduce((sum, tenant) => sum + tenant.totalActions, 0);
 
     const ispName = detail?.name ?? isp.name;
     const contractRef = detail?.contractReference ?? isp.contractReference ?? "-";
+    const accountInfo = getIspAccountInfo(detail ?? isp);
 
     const handleFileUpload = async (rowId, type, file, followUpId = null) => {
         if (!file) return;
@@ -500,9 +571,18 @@ function IspDetailPage({
     const handleDeleteRisalah = (rowId) => { setRisalahRows((pr) => pr.filter((r) => r.id !== rowId)); };
 
     const handleDeleteIsp = async () => {
-        if (!window.confirm(`Apakah Anda yakin ingin menghapus ISP "${ispName}"?`)) return;
+        const confirmMessage = `PERINGATAN: Menghapus ISP "${ispName}" akan menghapus SEMUA pelanggan yang terkait dengan ISP ini!\n\nApakah Anda yakin ingin melanjutkan?`;
+        if (!window.confirm(confirmMessage)) return;
         setIsLoading(true);
-        try { await api.isps.delete(isp.id); onBack(); if (onRefreshAll) onRefreshAll(); }
+        try { 
+            const result = await api.isps.delete(isp.id);
+            const deletedCount = result?.deletedCustomersCount || 0;
+            if (deletedCount > 0) {
+                alert(`ISP berhasil dihapus bersama ${deletedCount} pelanggan terkait.`);
+            }
+            onBack(); 
+            if (onRefreshAll) onRefreshAll(); 
+        }
         catch (err) { setError(err instanceof Error ? err.message : "Gagal menghapus ISP."); setIsLoading(false); }
     };
 
@@ -578,9 +658,9 @@ function IspDetailPage({
                                         <>
                                             {/* Status */}
                                             <div className="flex items-center gap-2 mb-2">
-                                                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-400">
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                    Akun Aktif
+                                                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[8px] font-black uppercase tracking-widest ${userPopupData.user.isMapped ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-amber-500/20 bg-amber-500/10 text-amber-400"}`}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${userPopupData.user.isMapped ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
+                                                    {userPopupData.user.isMapped ? "Auth Terhubung" : "Credential Tersimpan"}
                                                 </span>
                                             </div>
 
@@ -629,7 +709,7 @@ function IspDetailPage({
                                                 <span className="material-symbols-outlined text-3xl text-white/20">no_accounts</span>
                                             </div>
                                             <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Belum ada akun terdaftar</p>
-                                            <p className="text-[9px] text-white/10">Akun dibuat otomatis saat ISP didaftarkan dengan email & password.</p>
+                                            <p className="text-[9px] text-white/10">Isi email dan password untuk menyiapkan credential ISP.</p>
                                         </div>
                                     )}
                                 </div>
@@ -698,16 +778,14 @@ function IspDetailPage({
                                             >
                                                 Tutup
                                             </button>
-                                            {userPopupData?.hasUser && (
-                                                <button
-                                                    className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-gold-accent/20 bg-gold-accent/10 text-[9px] font-black uppercase tracking-widest text-gold-accent hover:bg-gold-accent hover:text-[#0f141e] transition-all"
-                                                    onClick={() => { setUserPopupMode("edit"); setUserPopupFeedback(""); setUserPopupError(""); setShowPassword(false); }}
-                                                    type="button"
-                                                >
-                                                    <span className="material-symbols-outlined text-[13px]">edit_note</span>
-                                                    Edit Akun
-                                                </button>
-                                            )}
+                                            <button
+                                                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-gold-accent/20 bg-gold-accent/10 text-[9px] font-black uppercase tracking-widest text-gold-accent hover:bg-gold-accent hover:text-[#0f141e] transition-all"
+                                                onClick={() => { setUserPopupMode("edit"); setUserPopupFeedback(""); setUserPopupError(""); setShowPassword(false); }}
+                                                type="button"
+                                            >
+                                                <span className="material-symbols-outlined text-[13px]">edit_note</span>
+                                                {userPopupData?.hasUser ? "Edit Akun" : "Buat Akun"}
+                                            </button>
                                         </>
                                     ) : (
                                         <>
@@ -928,24 +1006,35 @@ function IspDetailPage({
                                                     <p className="text-xs font-bold text-white/20 italic p-8 text-center border border-dashed border-white/10 rounded-2xl">Tidak ada tindak lanjut administrasi ISP.</p>
                                                 ) : (
                                                     ispActionItems.map((item) => {
-                                                        const toneMap = {
+                                                        const severityToneMap = {
+                                                            critical: "bg-[#ff2400]/10 border-[#ff2400]/20 text-[#ff2400]",
+                                                            warning: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                                                            info: "bg-blue-500/10 border-blue-500/20 text-blue-400",
+                                                        };
+                                                        const fallbackToneMap = {
                                                             red: "bg-[#ff2400]/10 border-[#ff2400]/20 text-[#ff2400]",
                                                             blue: "bg-blue-500/10 border-blue-500/20 text-blue-400",
                                                             amber: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                                                            orange: "bg-orange-500/10 border-orange-500/20 text-orange-400"
+                                                            orange: "bg-orange-500/10 border-orange-500/20 text-orange-400",
                                                         };
-                                                        const toneStyle = toneMap[item.tone] || toneMap.orange;
+                                                        const toneStyle = severityToneMap[item.severity] || fallbackToneMap[item.tone] || fallbackToneMap.orange;
+                                                        const itemTitle = item.title || "Tindak lanjut ISP";
+                                                        const itemDescription = item.message || item.description || "Ada administrasi ISP yang perlu dilengkapi.";
+                                                        const itemKey = item.id || item.key || itemTitle;
+                                                        const actionLabel = item.actionLabel || "Tindakan Admin";
+                                                        const statusLabel = item.readAt ? "Dibaca" : "Belum Dibaca";
 
                                                         return (
-                                                            <div key={item.key} className={`flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl p-6 border transition-all hover:scale-[1.01] hover:shadow-2xl ${toneStyle}`}>
+                                                            <div key={itemKey} className={`flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl p-6 border transition-all hover:scale-[1.01] hover:shadow-2xl ${toneStyle}`}>
                                                                 <div className="space-y-1">
                                                                     <div className="flex items-center gap-3">
                                                                         <span className="material-symbols-outlined text-lg">contract_edit</span>
-                                                                        <h4 className="text-sm font-bold">{item.title}</h4>
+                                                                        <h4 className="text-sm font-bold">{itemTitle}</h4>
+                                                                        {item.id && <span className="h-2 w-2 rounded-full bg-current opacity-60" title={statusLabel} />}
                                                                     </div>
-                                                                    <p className="text-[11px] font-bold opacity-70 leading-relaxed max-w-xl">{item.description}</p>
+                                                                    <p className="text-[11px] font-bold opacity-70 leading-relaxed max-w-xl">{itemDescription}</p>
                                                                 </div>
-                                                                <span className="text-[9px] font-bold bg-white/10 px-4 py-1.5 rounded-full border border-white/10">Tindakan Admin</span>
+                                                                <span className="text-[9px] font-bold bg-white/10 px-4 py-1.5 rounded-full border border-white/10">{actionLabel}</span>
                                                             </div>
                                                         );
                                                     })
@@ -1001,6 +1090,52 @@ function IspDetailPage({
 
                                     {/* Sidebar Stats - Updated */}
                                     <div className="space-y-8">
+                                        {!isTeknisi && (
+                                            <div className="glass-card rounded-premium p-8 border-white/10 shadow-glass-depth bg-white/[0.02]">
+                                                <div className="flex items-start justify-between gap-4 mb-6">
+                                                    <div>
+                                                        <h3 className="text-lg font-bold text-white tracking-widest">Akun Akses ISP</h3>
+                                                        <p className="mt-2 text-[10px] font-bold text-white/25 uppercase tracking-widest">Credential login dan mapping Auth</p>
+                                                    </div>
+                                                    <span className={`material-symbols-outlined text-3xl ${accountInfo.isMapped ? "text-emerald-400/70" : accountInfo.hasCredential ? "text-amber-400/70" : "text-white/20"}`}>
+                                                        {accountInfo.isMapped ? "verified_user" : "manage_accounts"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
+                                                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 mb-2">Email Login</p>
+                                                        <p className="text-xs font-bold text-white truncate">{accountInfo.email || "Belum diisi"}</p>
+                                                    </div>
+
+                                                    <div className={`rounded-2xl border p-4 ${accountInfo.isMapped ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : accountInfo.hasCredential ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : "bg-white/5 border-white/10 text-white/30"}`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="material-symbols-outlined text-lg">
+                                                                {accountInfo.isMapped ? "link" : accountInfo.hasCredential ? "sync_problem" : "no_accounts"}
+                                                            </span>
+                                                            <p className="text-[10px] font-black uppercase tracking-widest">
+                                                                {accountInfo.isMapped ? "Auth Terhubung" : accountInfo.hasCredential ? "Credential Tersimpan" : "Belum Ada Credential"}
+                                                            </p>
+                                                        </div>
+                                                        {accountInfo.hasCredential && !accountInfo.isMapped && (
+                                                            <p className="mt-2 text-[9px] font-bold leading-relaxed opacity-70">
+                                                                Silakan edit akun dan simpan kembali untuk menyinkronkan login Supabase Auth.
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <button
+                                                        className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
+                                                        onClick={() => void openUserPopup()}
+                                                        type="button"
+                                                    >
+                                                        <span className="material-symbols-outlined text-base">manage_accounts</span>
+                                                        Kelola Akun
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="glass-card rounded-premium p-8 border-white/10 shadow-glass-depth bg-white/[0.02]">
                                             <h3 className="text-lg font-bold text-white tracking-widest mb-8">Ringkasan Tindak Lanjut</h3>
                                             <div className="space-y-6">
@@ -1222,7 +1357,7 @@ function IspDetailPage({
                                                         <td className="px-6 py-6 text-sm font-bold text-[#ff2400]">
                                                             {isTeknisi ? (
                                                                 (!tenant.route && tenant.status === "aktif") || (tenant.route?.activeFlowStatus ?? tenant.status_jalur) === "gangguan" ? "YA" : "-"
-                                                            ) : (tenant.todoSummary?.counts?.priority ?? 0)}
+                                                            ) : getTenantActionCount(tenant)}
                                                         </td>
                                                         <td className="px-6 py-6 text-right">
                                                             <div className="flex justify-end gap-2">

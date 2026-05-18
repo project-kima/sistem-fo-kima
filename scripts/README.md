@@ -9,6 +9,8 @@ Folder ini berisi script operasional untuk Supabase, seed data, maintenance data
 | Script | Fungsi |
 | --- | --- |
 | [auth/create-supabase-auth-users.sql](auth/create-supabase-auth-users.sql) | Membuat user Supabase Auth. |
+| [auth/create-isp-auth-accounts-from-isps.sql](auth/create-isp-auth-accounts-from-isps.sql) | Membuat/memperbarui akun Supabase Auth ISP dari credential di tabel `public.isps` dan mapping ke `public.isp_user_accounts`. |
+| [auth/map-isp-users.sql](auth/map-isp-users.sql) | Memetakan akun auth role ISP ke 1 entitas ISP (`1 user = 1 ISP`). |
 | [auth/insert-admin-user-production.sql](auth/insert-admin-user-production.sql) | Insert user admin untuk kebutuhan operasional/legacy. |
 
 ## Row Level Security
@@ -32,6 +34,7 @@ Folder ini berisi script operasional untuk Supabase, seed data, maintenance data
 | Script | Fungsi |
 | --- | --- |
 | [maintenance/add-performance-indexes.sql](maintenance/add-performance-indexes.sql) | Menambahkan index query Supabase/PostgREST untuk mempercepat load dashboard, pelanggan, ISP, invoice, kontrak, dokumen, route, dan follow-up. |
+| [maintenance/add-isp-document-columns.sql](maintenance/add-isp-document-columns.sql) | Menambahkan kolom dokumen BAK dan kontrak ISP yang digunakan frontend. |
 | [maintenance/fix-customer-contract-package-data.sql](maintenance/fix-customer-contract-package-data.sql) | Koreksi data paket kontrak customer BTN/Wastec/Charoen dan normalisasi sharing core. |
 | [maintenance/clarify-customer-contract-schema.sql](maintenance/clarify-customer-contract-schema.sql) | Menambahkan comment, constraint `NOT VALID`, dan audit query untuk schema kontrak customer. |
 
